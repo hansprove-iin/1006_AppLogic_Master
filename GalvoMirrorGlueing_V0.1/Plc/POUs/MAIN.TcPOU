@@ -1,0 +1,1347 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="MAIN" Id="{45c4786d-4d54-4bbe-9427-a04501eddae5}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+VAR RETAIN
+	rModuleOperaingSpeed		: REAL := 20;
+END_VAR
+VAR
+	start:FB_CycleStart();	
+
+	RelayOnTmr	: TOF;
+	bSetRelay : BOOL;
+
+	fbMeca500	: FB_MecaStateMachine;
+	stModuleHmi : ST_ModuleHmi;
+	stPlcCom	: ST_Module_PlcCom;
+	stStation	: ST_Stations;
+	fbLightTower : FB_ASMT60Functions;
+	fbEventLogger	:FB_EventLogger;
+	
+	stCouplerData : ST_CouplerImagingData;
+	stAssemblyData	: ST_Recipes;
+	fbDataExchange		: FB_RecipeDataExchange;
+	StAngleData : ST_AngleData; // RECEIVED ANGLE DATA FROM CPU 1
+	fbGlueState	: FB_GlueState;
+
+
+	fbDataExchangeRead	:FB_DataExchangeRead;
+	bGroupRunStop AT %Q* : BOOL := TRUE;
+	bSafetyError	 AT %I* : BOOL ;
+	bErrorAck	AT %Q* : BOOL;
+	SafetyAckOffTmr : TON;
+	ErrorAckOffTmr	: TON;
+	ResetButtonTmr1	: TON := (
+		PT := T#1S);
+	ResetButtonTmr2	: TON := (
+		PT := T#0.5S);
+	bSetOnce : BOOL := TRUE;
+	bRinglightsSet	: BOOL;
+	bAllowPowerOff	: BOOL;
+	bLocksEngaged : BOOL;
+	iProductionMainStep : INT;
+	bAllowStationPrductionStart1To5 : BOOL;
+	bAllowStationPrductionStart6To10 : BOOL;
+	bLockAll		: BOOL;
+	bUnlockGlueDoor : BOOL;
+	LockTmr			: TON;
+	sErrorText	: STRING;
+	iRobotError	: INT;
+	iCheckOperationality : INT;	
+	iCheckStep	: INT;	
+	bPlacingDone : BOOL;
+	bAssemblyDone : BOOL;
+	bCheckPassed : BOOL;
+	iStepPosSave	: INT;
+	bSet : BOOL;
+	bNeedleSucceeded : BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[start();
+
+fbMeca500(stModuleHmi := stModuleHmi, stStations := stStation, stPlcCom := stPlcCom, stAssemblyData := stAssemblyData, bLocksEngaged := bLocksEngaged, stCouplerData := stCouplerData, rOperatingSpeed := rModuleOperaingSpeed, bNeedleSucceeded := bNeedleSucceeded);
+fbDataExchange(sendRecipeData := stAssemblyData, stModuleHmi := stModuleHmi);
+fbDataExchangeRead(stModuleHmi := stModuleHmi, stLaserPositionData => StAngleData);
+ErrAck();
+ResetLight();
+HatchLight();
+HatchLocks();
+PowerBtn();
+fbLightTower();
+StartupTrig();
+LaserPointers();
+fbEventLogger(stModuleHmi:=stModuleHmi);
+fbGlueState(stModuleHmi := stModuleHmi, stPlcCom := stPlcCom, bDetectionSucceeded := bNeedleSucceeded);
+
+
+CASE iProductionMainStep OF
+	0: IF stModuleHmi.bStartDetection THEN // LISÄÄ ROBOTIN ANTURIN TESTI
+			fbMeca500.bExecuteNeedleTest := TRUE;
+			stModuleHmi.bStartDetection := FALSE;
+		END_IF
+		
+		IF stModuleHmi.bDispensingStageDone THEN
+			iProductionMainStep := 1;
+		ELSIF fbMeca500.bNeedleFailed THEN
+			fbEventLogger.sErrorCode:='211';
+			fbEventLogger.bRaiseAlarm[17]:= TRUE;
+			stModuleHmi.bModuleProductionStart := FALSE;
+			stModuleHmi.bProductionStart1To5 := FALSE;
+			stModuleHmi.bProductionStart6To10 := FALSE;
+			stModuleHmi.bProductionStageCompleted := FALSE;
+			stModuleHmi.bProductionStartFailure := TRUE;
+			iProductionMainStep := 0;
+		END_IF
+
+	1: IF stModuleHmi.bModuleProductionStart AND stPlcCom.stPlcComIn.bSafetyOk AND stPlcCom.stPlcComIn.bEstopOk AND stModuleHmi.bModuleStartupDone AND NOT stModuleHmi.bModuleFault THEN
+			bLockAll := TRUE;
+			stModuleHmi.bModulePlayPause := TRUE;
+			stModuleHmi.bProductionStartFailure := FALSE;
+			bUnlockGlueDoor := FALSE;
+			ForceHoldersRelease();
+			IF bLocksEngaged THEN
+				iProductionMainStep := 2;
+			ELSE
+				iProductionMainStep := 30;
+			END_IF
+		END_IF 
+	2: Trig.bOutfeedCam := TRUE;
+		OutfeedLight(IN := TRUE);
+		IF MAIN_VISION.fbOutfeedCam.bImagingDone THEN
+			iProductionMainStep := 3;
+			Trig.bOutfeedCam := FALSE;
+			OutfeedLight(IN := FALSE);
+		ELSIF MAIN_VISION.fbOutfeedCam.bError THEN
+			iProductionMainStep := 30;
+		END_IF
+	3: IF NOT MAIN_VISION.fbOutfeedCam.bPalletRow1NotClear AND NOT MAIN_VISION.fbOutfeedCam.bPalletRow1NotClear THEN
+			iProductionMainStep := 4;
+			 Trig.bRejectCam := TRUE;
+		ELSE
+			iProductionMainStep := 30;
+		END_IF
+	4:	Trig.bRejectCam := TRUE;
+		RejectLight(IN := TRUE);
+		IF MAIN_VISION.fbRejectCam.bImagingDone THEN
+			RejectLight(IN := FALSE);
+			iProductionMainStep := 5;
+			Trig.bRejectCam := FALSE;
+		ELSIF MAIN_VISION.fbRejectCam.bError THEN
+			iProductionMainStep := 30;
+		END_IF
+	5: IF NOT MAIN_VISION.fbRejectCam.bPalletRow1NotClear AND NOT MAIN_VISION.fbRejectCam.bPalletRow1NotClear THEN
+			iProductionMainStep := 6;
+		ELSE
+			iProductionMainStep := 30;
+		END_IF
+	6: fbMeca500.bExecuteNeedleReTest := TRUE;
+		iProductionMainStep := 7;
+	7: ResetStns(All := TRUE, Stns1To5 := FALSE, Stns6To10 := FALSE);
+		iProductionMainStep := 8;
+		
+	8: IF fbMeca500.bNeedleRecheckSucceeded (*AND MAIN_VISION.stPalletPosData.bMirrorPalletImagingSucceeded*)  THEN
+			fbMeca500.bAllowStart := TRUE;
+			IF stModuleHmi.bProductionStart1To5 AND stModuleHmi.bProductionStart6To10 THEN
+				bAllowStationPrductionStart1To5 := TRUE;
+				bAllowStationPrductionStart6To10 := TRUE;
+				fbMeca500.bNewPlacingActive := TRUE;
+				iProductionMainStep := 10;
+			ELSIF stModuleHmi.bProductionStart1To5 THEN
+				bAllowStationPrductionStart1To5 := TRUE;
+				bAllowStationPrductionStart6To10 := FALSE; 
+				fbMeca500.bNewPlacingActive := TRUE;
+				iProductionMainStep := 20;
+			END_IF
+		ELSIF fbMeca500.bNeedleFailed THEN
+			fbEventLogger.sErrorCode:='211';
+			fbEventLogger.bRaiseAlarm[17]:= TRUE;
+			stModuleHmi.bModuleProductionStart := FALSE;
+			fbMeca500.bExecuteNeedleReTest := FALSE;
+			stModuleHmi.bProductionStart1To5 := FALSE;
+			stModuleHmi.bProductionStart6To10 := FALSE;
+			stModuleHmi.bProductionStageCompleted := FALSE;
+			stModuleHmi.bProductionStartFailure := TRUE;
+			iProductionMainStep := 0;
+		END_IF
+		
+	10: CheckAllPlacingState();
+		IF bPlacingDone THEN
+			stModuleHmi.bProductionStageCompleted := TRUE; // ALLOWS PAUSE BUTTON PRESS TO OPEN GLUING DOOR
+			bPlacingDone := FALSE;
+			fbMeca500.bNewPlacingActive := FALSE;
+			iCheckStep := 0;
+			iProductionMainStep := 11;
+		END_IF
+		
+	11: IF fbMeca500.bDismountingActive THEN
+			stModuleHmi.bProductionStageCompleted := FALSE;
+		END_IF
+		CheckAllAssemblyState();
+		IF bAssemblyDone THEN
+			bAssemblyDone := FALSE;
+			stModuleHmi.bProductionStart1To5 := FALSE;
+			stModuleHmi.bProductionStart6To10 := FALSE;
+			bAllowStationPrductionStart1To5 := FALSE; 
+			bAllowStationPrductionStart6To10 := FALSE; 
+			stModuleHmi.bModuleProductionStart := FALSE;
+			stModuleHmi.bProductionStageCompleted := FALSE;
+			iProductionMainStep := 0;
+			iCheckStep := 0;
+		END_IF
+		
+	20: Check1To5PlacingState();
+		IF bPlacingDone THEN
+			stModuleHmi.bProductionStageCompleted := TRUE; // ALLOWS PAUSE BUTTON PRESS TO OPEN GLUING DOOR
+			bPlacingDone := FALSE;
+			iCheckStep := 0;
+			iProductionMainStep := 21;
+		END_IF
+		
+	21: IF fbMeca500.bDismountingActive THEN
+			stModuleHmi.bProductionStageCompleted := FALSE;
+		ELSIF stModuleHmi.bProductionStart6To10 THEN
+			iStepPosSave := 22;
+			iProductionMainStep := 60;
+		END_IF
+		Check1To5AssemblyState();
+		IF bAssemblyDone THEN
+			bAssemblyDone := FALSE;
+			stModuleHmi.bProductionStart1To5 := FALSE;
+			stModuleHmi.bProductionStart6To10 := FALSE;
+			bAllowStationPrductionStart1To5 := FALSE; 
+			bAllowStationPrductionStart6To10 := FALSE; 
+			stModuleHmi.bModuleProductionStart := FALSE;
+			stModuleHmi.bProductionStageCompleted := FALSE;
+			iProductionMainStep := 0;
+			iCheckStep := 0;
+		END_IF
+	22:	stModuleHmi.bProductionStageCompleted := FALSE;
+		bAllowStationPrductionStart6To10 := TRUE;
+		fbMeca500.bNewPlacingActive := TRUE;
+		iProductionMainStep := 23;
+		
+	23: Check6To10PlacingState();
+		IF bPlacingDone THEN
+			fbMeca500.bNewPlacingActive := FALSE;
+			stModuleHmi.bProductionStageCompleted := TRUE; // ALLOWS PAUSE BUTTON PRESS TO OPEN GLUING DOOR
+			bPlacingDone := FALSE;
+			iCheckStep := 0;
+			iProductionMainStep := 24;
+		END_IF
+		
+	24: Check1To5AssemblyState();
+		IF bAssemblyDone THEN
+			bAssemblyDone := FALSE;
+			iCheckStep := 0;
+			ResetStations();
+			bAllowStationPrductionStart1To5 := FALSE; 
+			stModuleHmi.bProductionStart1To5 := FALSE;
+			iProductionMainStep := 25;
+		END_IF
+		
+	25: IF fbMeca500.bDismountingActive THEN
+			stModuleHmi.bProductionStageCompleted := FALSE;
+		ELSIF stModuleHmi.bProductionStart1To5 THEN
+			iStepPosSave := 26;
+			iProductionMainStep := 50;
+		END_IF
+		Check6To10AssemblyState();
+		IF bAssemblyDone THEN
+			bAssemblyDone := FALSE;
+			stModuleHmi.bProductionStart1To5 := FALSE;
+			bAllowStationPrductionStart1To5 := FALSE; 
+			bAllowStationPrductionStart6To10 := FALSE; 
+			stModuleHmi.bModuleProductionStart := FALSE;
+			stModuleHmi.bProductionStart6To10 := FALSE;
+			ResetStations();
+			stModuleHmi.bProductionStageCompleted := FALSE;
+			iProductionMainStep := 0;
+			iCheckStep := 0;
+		END_IF
+	26: fbMeca500.bNewPlacingActive := TRUE;
+		bAllowStationPrductionStart1To5 := TRUE; 
+		stModuleHmi.bProductionStageCompleted := FALSE;
+		iProductionMainStep := 27;
+		
+	27: Check1To5PlacingState();
+		IF bPlacingDone THEN
+			fbMeca500.bNewPlacingActive := FALSE;
+			stModuleHmi.bProductionStageCompleted := TRUE; // ALLOWS PAUSE BUTTON PRESS TO OPEN GLUING DOOR
+			bPlacingDone := FALSE;
+			iCheckStep := 0;
+			iProductionMainStep := 28;
+		END_IF
+		
+	28: Check6To10AssemblyState();
+		IF bAssemblyDone THEN
+			bAssemblyDone := FALSE;
+			iCheckStep := 0;
+			ResetStations();
+			bAllowStationPrductionStart6To10 := FALSE; 
+			stModuleHmi.bProductionStart6To10 := FALSE;
+			iProductionMainStep := 21;
+		END_IF
+		
+	30: bAssemblyDone := FALSE;
+		OutfeedLight(IN := FALSE);
+		RejectLight(IN := FALSE); 
+		stModuleHmi.bProductionStartFailure := TRUE;
+		fbMeca500.bExecuteNeedleTest := FALSE;
+		stModuleHmi.bProductionStart1To5 := FALSE;
+		stModuleHmi.bProductionStart6To10 := FALSE;
+		bAllowStationPrductionStart1To5 := FALSE; 
+		bAllowStationPrductionStart6To10 := FALSE; 
+		stModuleHmi.bModuleProductionStart := FALSE;
+		stModuleHmi.bProductionStageCompleted := FALSE;
+		stModuleHmi.bModuleProductionStop := FALSE;
+		iProductionMainStep := 0;
+		iCheckStep := 0;
+		
+	50: Trig.bOutfeedCam := TRUE;				// Check for pallet positions 1 to 5
+		OutfeedLight(IN := TRUE);
+		ResetStns(All := FALSE, Stns1To5 := FALSE, Stns6To10 := TRUE);
+		IF MAIN_VISION.fbOutfeedCam.bImagingDone THEN
+			OutfeedLight(IN := FALSE);
+			iProductionMainStep := 51;
+			Trig.bOutfeedCam := FALSE;
+		ELSIF MAIN_VISION.fbOutfeedCam.bError THEN
+			iProductionMainStep := 58;
+		END_IF
+		
+	51: IF NOT MAIN_VISION.fbOutfeedCam.bPalletRow1NotClear THEN // LISÄÄ 		
+			Trig.bRejectCam := TRUE;	
+			RejectLight(IN := TRUE);
+			iProductionMainStep := 52;
+		ELSE
+			iProductionMainStep := 58;
+		END_IF
+	52:IF MAIN_VISION.fbRejectCam.bImagingDone THEN
+			iProductionMainStep := 53;
+			RejectLight(IN := FALSE);
+			Trig.bRejectCam := FALSE;
+		ELSIF MAIN_VISION.fbRejectCam.bError THEN
+			iProductionMainStep := 58;
+		END_IF
+	53: IF NOT MAIN_VISION.fbRejectCam.bPalletRow1NotClear THEN // LISÄÄ 		
+			fbMeca500.bExecuteNeedleTest := TRUE;	
+			iProductionMainStep := 54;
+		ELSE
+			iProductionMainStep := 58;
+		END_IF
+	
+	54: IF bNeedleSucceeded (*AND MAIN_VISION.stPalletPosData.bMirrorPalletImagingSucceeded *)THEN
+			iProductionMainStep := iStepPosSave;
+		ELSIF fbMeca500.bNeedleFailed THEN
+			iProductionMainStep := 58;
+		END_IF
+		
+	58: iProductionMainStep := iStepPosSave-1;
+		bAllowStationPrductionStart1To5 := FALSE; 
+		OutfeedLight(IN := FALSE);
+		RejectLight(IN := FALSE);
+		stModuleHmi.bProductionStart1To5 := FALSE;
+		Err.Err; //404
+		
+	60: Trig.bOutfeedCam := TRUE;				// Check for pallet positions 6 to 10
+		ResetStns(All := FALSE, Stns1To5 := FALSE, Stns6To10 := TRUE);
+		OutfeedLight(IN := TRUE);
+		IF MAIN_VISION.fbOutfeedCam.bImagingDone THEN
+			OutfeedLight(IN := FALSE);
+			iProductionMainStep := 61;
+			Trig.bOutfeedCam := FALSE;
+		ELSIF MAIN_VISION.fbOutfeedCam.bError THEN
+			iProductionMainStep := 68;
+		END_IF
+		
+	61: IF NOT MAIN_VISION.fbOutfeedCam.bPalletRow2NotClear THEN // LISÄÄ fbMeca500.bExecuteNeedleTest := TRUE;	
+			Trig.bRejectCam := TRUE;
+			RejectLight(IN := TRUE);
+			iProductionMainStep := 62;
+		ELSE
+			iProductionMainStep := 68;
+		END_IF
+	62: IF MAIN_VISION.fbRejectCam.bImagingDone THEN
+			iProductionMainStep := 63;
+			RejectLight(IN := FALSE);
+			Trig.bRejectCam := FALSE;
+		ELSIF MAIN_VISION.fbRejectCam.bError THEN
+			iProductionMainStep := 68;
+		END_IF
+	63: IF NOT MAIN_VISION.fbRejectCam.bPalletRow2NotClear THEN // LISÄÄ 		
+			fbMeca500.bExecuteNeedleTest := TRUE;	
+			iProductionMainStep := 64;
+		ELSE
+			iProductionMainStep := 68;
+		END_IF
+	64: IF bNeedleSucceeded (*AND MAIN_VISION.stPalletPosData.bMirrorPalletImagingSucceeded *)THEN
+			iProductionMainStep := iStepPosSave;
+		ELSIF fbMeca500.bNeedleFailed THEN
+			iProductionMainStep := 68;
+		END_IF
+		
+	68:	iProductionMainStep := iStepPosSave-1;
+		OutfeedLight(IN := FALSE);
+		RejectLight(IN := FALSE);
+		bAllowStationPrductionStart6To10 := FALSE; 
+		stModuleHmi.bProductionStart6To10 := FALSE;
+		Err.Err; // 404
+		
+END_CASE
+
+IF stModuleHmi.bModuleProductionStop THEN
+	iProductionMainStep := 30;
+END_IF
+
+
+
+
+////STATIONS
+stStation.fbSts1(iStationId := 1, 
+	stMirrorData := MAIN_VISION.stMirrorDataSts1, 
+	stLaserData := StAngleData.stLaserData1,
+	stModuleHmi := stModuleHmi, 
+	stModulePlcCom := stPlcCom,
+	bActivateStation := stModuleHmi.Stations.bActivateStation1,
+	bAllowStart := bAllowStationPrductionStart1To5,
+	bReleaseHolders := stModuleHmi.Stations.bReleaseHolders1,
+	sTimeLeft => stModuleHmi.Stations.tAssemmblyTime1,
+	bTrigAngCam => stAssemblyData.Station1To5.bTrigCam1);
+
+stStation.fbSts2(iStationId := 2, 
+	stMirrorData := MAIN_VISION.stMirrorDatasts2, 
+	stLaserData := StAngleData.stLaserData2,
+	stModuleHmi := stModuleHmi, 
+	stModulePlcCom := stPlcCom,
+	bAllowStart := bAllowStationPrductionStart1To5,
+	bActivateStation := stModuleHmi.Stations.bActivateStation2,
+	bReleaseHolders := stModuleHmi.Stations.bReleaseHolders2,
+	sTimeLeft => stModuleHmi.Stations.tAssemmblyTime2,
+	bTrigAngCam => stAssemblyData.Station1To5.bTrigCam2);
+	
+stStation.fbSts3(iStationId := 3, 
+	stMirrorData := MAIN_VISION.stMirrorDatasts3, 
+	stLaserData := StAngleData.stLaserData3,
+	stModuleHmi := stModuleHmi, 
+	stModulePlcCom := stPlcCom,
+	bAllowStart := bAllowStationPrductionStart1To5,
+	bActivateStation := stModuleHmi.Stations.bActivateStation3,
+	bReleaseHolders := stModuleHmi.Stations.bReleaseHolders3,
+	sTimeLeft => stModuleHmi.Stations.tAssemmblyTime3,
+	bTrigAngCam => stAssemblyData.Station1To5.bTrigCam3);
+
+stStation.fbSts4(iStationId := 4, 
+	stMirrorData := MAIN_VISION.stMirrorDatasts4, 
+	stLaserData := StAngleData.stLaserData4,
+	stModuleHmi := stModuleHmi, 
+	stModulePlcCom := stPlcCom,
+	bAllowStart := bAllowStationPrductionStart1To5,
+	bActivateStation := stModuleHmi.Stations.bActivateStation4,
+	bReleaseHolders := stModuleHmi.Stations.bReleaseHolders4,
+	sTimeLeft => stModuleHmi.Stations.tAssemmblyTime4,
+	bTrigAngCam => stAssemblyData.Station1To5.bTrigCam4);
+	
+stStation.fbSts5(iStationId := 5, 
+	stMirrorData := MAIN_VISION.stMirrorDatasts5, 
+	stLaserData := StAngleData.stLaserData5,
+	stModuleHmi := stModuleHmi, 
+	stModulePlcCom := stPlcCom,
+	bAllowStart := bAllowStationPrductionStart1To5,
+	bActivateStation := stModuleHmi.Stations.bActivateStation5,
+	bReleaseHolders := stModuleHmi.Stations.bReleaseHolders5,
+	sTimeLeft => stModuleHmi.Stations.tAssemmblyTime5,
+	bTrigAngCam => stAssemblyData.Station1To5.bTrigCam5);
+	
+stStation.fbSts6(iStationId := 6, 
+	stMirrorData := MAIN_VISION.stMirrorDatasts6, 
+	stLaserData := StAngleData.stLaserData6,
+	stModuleHmi := stModuleHmi, 
+	stModulePlcCom := stPlcCom,
+	bAllowStart := bAllowStationPrductionStart6To10,
+	bActivateStation := stModuleHmi.Stations.bActivateStation6,
+	bReleaseHolders := stModuleHmi.Stations.bReleaseHolders6,
+	sTimeLeft => stModuleHmi.Stations.tAssemmblyTime6,
+	bTrigAngCam => stAssemblyData.Station5To10.bTrigCam6);
+	
+stStation.fbSts7(iStationId := 7, 
+	stMirrorData := MAIN_VISION.stMirrorDatasts7, 
+	stLaserData := StAngleData.stLaserData7,
+	stModuleHmi := stModuleHmi, 
+	stModulePlcCom := stPlcCom,
+	bAllowStart := bAllowStationPrductionStart6To10,
+	bActivateStation := stModuleHmi.Stations.bActivateStation7,
+	bReleaseHolders := stModuleHmi.Stations.bReleaseHolders7,
+	sTimeLeft => stModuleHmi.Stations.tAssemmblyTime7,
+	bTrigAngCam => stAssemblyData.Station5To10.bTrigCam7);
+	
+stStation.fbSts8(iStationId := 8, 
+	stMirrorData := MAIN_VISION.stMirrorDatasts8, 
+	stLaserData := StAngleData.stLaserData8,
+	stModuleHmi := stModuleHmi, 
+	stModulePlcCom := stPlcCom,
+	bAllowStart := bAllowStationPrductionStart6To10,
+	bActivateStation := stModuleHmi.Stations.bActivateStation8,
+	bReleaseHolders := stModuleHmi.Stations.bReleaseHolders8,
+	sTimeLeft => stModuleHmi.Stations.tAssemmblyTime8,
+	bTrigAngCam => stAssemblyData.Station5To10.bTrigCam8);
+	
+stStation.fbSts9(iStationId := 9, 
+	stMirrorData := MAIN_VISION.stMirrorDatasts9, 
+	stLaserData := StAngleData.stLaserData9,
+	stModuleHmi := stModuleHmi, 
+	stModulePlcCom := stPlcCom,
+	bAllowStart := bAllowStationPrductionStart6To10,
+	bActivateStation := stModuleHmi.Stations.bActivateStation9,
+	bReleaseHolders := stModuleHmi.Stations.bReleaseHolders9,
+	sTimeLeft => stModuleHmi.Stations.tAssemmblyTime9,
+	bTrigAngCam => stAssemblyData.Station5To10.bTrigCam9);
+	
+stStation.fbSts10(iStationId := 10, 
+	stMirrorData := MAIN_VISION.stMirrorDatasts10, 
+	stLaserData := StAngleData.stLaserData10,
+	stModuleHmi := stModuleHmi, 
+	stModulePlcCom := stPlcCom,
+	bAllowStart := bAllowStationPrductionStart6To10,
+	bActivateStation := stModuleHmi.Stations.bActivateStation10,
+	bReleaseHolders := stModuleHmi.Stations.bReleaseHolders10,
+	sTimeLeft => stModuleHmi.Stations.tAssemmblyTime10,
+	bTrigAngCam => stAssemblyData.Station5To10.bTrigCam10);
+
+
+
+
+
+
+
+
+
+
+]]></ST>
+    </Implementation>
+    <Folder Name="Act" Id="{5bf345b5-e011-4f3f-8746-c0c67f374b28}" />
+    <Folder Name="Mthd" Id="{6aab6030-6c86-46e4-a903-25ca2039f43e}" />
+    <Action Name="Check1To5AssemblyState" Id="{aea63872-3d6f-4139-a869-987d312d3f5c}" FolderPath="Act\">
+      <Implementation>
+        <ST><![CDATA[
+	CASE iCheckStep OF
+		0: iCheckStep := 1;
+
+		1:	IF stModuleHmi.Stations.bActivateStation1 THEN
+					iCheckStep := 2;
+			END_IF
+		2:	IF stModuleHmi.Stations.bActivateStation2 THEN
+				iCheckStep := 3;
+			END_IF
+		3:	IF stModuleHmi.Stations.bActivateStation3 THEN
+					iCheckStep := 4;
+			END_IF
+		4:	IF stModuleHmi.Stations.bActivateStation4 THEN
+					iCheckStep := 5;
+			END_IF
+		5:	IF stModuleHmi.Stations.bActivateStation5 THEN
+					iCheckStep := 11;
+			END_IF
+			
+		6:	IF stModuleHmi.Stations.bActivateStation6 THEN
+					iCheckStep := 7;
+			END_IF
+		7:	IF stModuleHmi.Stations.bActivateStation7 THEN
+					iCheckStep := 8;
+			END_IF
+		8:	IF stModuleHmi.Stations.bActivateStation8 THEN
+					iCheckStep := 9;
+			END_IF
+		9:	IF stModuleHmi.Stations.bActivateStation9 THEN
+					iCheckStep := 10;
+			END_IF
+		10: IF stModuleHmi.Stations.bActivateStation10 THEN
+					iCheckStep := 11;
+			END_IF
+		11: bAssemblyDone := TRUE;
+			iCheckStep := 0;
+			
+	END_CASE
+]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="Check1To5PlacingState" Id="{cdb44b95-2bbf-491e-9a4f-a546f492e733}" FolderPath="Act\">
+      <Implementation>
+        <ST><![CDATA[
+
+	CASE iCheckStep OF
+		0:	iCheckStep := 1;
+		1:	IF stModuleHmi.Stations.bActivateStation1 THEN
+				IF stStation.fbSts1.bPlacingDone THEN
+					iCheckStep := 2;
+				END_IF
+			ELSE
+					iCheckStep := 2;
+			END_IF
+		2:	IF stModuleHmi.Stations.bActivateStation2 THEN
+				IF stStation.fbSts2.bPlacingDone THEN
+					iCheckStep := 3;
+				END_IF
+			ELSE
+					iCheckStep := 3;
+			END_IF
+		3:	IF stModuleHmi.Stations.bActivateStation3 THEN
+				IF stStation.fbSts3.bPlacingDone THEN
+					iCheckStep := 4;
+				END_IF
+			ELSE
+					iCheckStep := 4;
+			END_IF
+		4:	IF stModuleHmi.Stations.bActivateStation4 THEN
+				IF stStation.fbSts4.bPlacingDone THEN
+					iCheckStep := 5;
+				END_IF
+			ELSE
+					iCheckStep := 5;
+			END_IF
+			
+		5:	IF stModuleHmi.Stations.bActivateStation5 THEN
+				IF stStation.fbSts5.bPlacingDone THEN
+					iCheckStep := 11;
+				END_IF
+			ELSE
+					iCheckStep := 11;
+			END_IF
+			
+		6:	IF stModuleHmi.Stations.bActivateStation6 THEN
+				IF stStation.fbSts6.bPlacingDone THEN
+					iCheckStep := 7;
+				END_IF
+			ELSE
+					iCheckStep := 7;
+			END_IF
+		7:	IF stModuleHmi.Stations.bActivateStation7 THEN
+				IF stStation.fbSts7.bPlacingDone THEN
+					iCheckStep := 8;
+				END_IF
+			ELSE
+					iCheckStep := 8;
+			END_IF
+		8:	IF stModuleHmi.Stations.bActivateStation8 THEN
+				IF stStation.fbSts8.bPlacingDone THEN
+					iCheckStep := 9;
+				END_IF
+			ELSE
+					iCheckStep := 9;
+			END_IF
+		9:	IF stModuleHmi.Stations.bActivateStation9 THEN
+				IF stStation.fbSts9.bPlacingDone THEN
+					iCheckStep := 10;
+				END_IF
+			ELSE
+					iCheckStep := 10;
+			END_IF
+		10: IF stModuleHmi.Stations.bActivateStation10 THEN
+				IF stStation.fbSts10.bPlacingDone THEN
+					iCheckStep := 11;
+				END_IF
+			ELSE
+					iCheckStep := 11;
+			END_IF
+		11: bPlacingDone := TRUE;
+			iCheckStep := 0;
+			
+	END_CASE
+	]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="Check6To10AssemblyState" Id="{caef6524-bfc2-4862-9b6e-570801889d80}" FolderPath="Act\">
+      <Implementation>
+        <ST><![CDATA[
+	CASE iCheckStep OF
+		0: iCheckStep := 6;
+
+		1:	IF stModuleHmi.Stations.bActivateStation1 THEN
+					iCheckStep := 2;
+			END_IF
+		2:	IF stModuleHmi.Stations.bActivateStation2 THEN
+				iCheckStep := 3;
+			END_IF
+		3:	IF stModuleHmi.Stations.bActivateStation3 THEN
+					iCheckStep := 4;
+			END_IF
+		4:	IF stModuleHmi.Stations.bActivateStation4 THEN
+					iCheckStep := 5;
+			END_IF
+		5:	IF stModuleHmi.Stations.bActivateStation5 THEN
+					iCheckStep := 11;
+			END_IF
+			
+		6:	IF stModuleHmi.Stations.bActivateStation6 THEN
+					iCheckStep := 7;
+			END_IF
+		7:	IF stModuleHmi.Stations.bActivateStation7 THEN
+					iCheckStep := 8;
+			END_IF
+		8:	IF stModuleHmi.Stations.bActivateStation8 THEN
+					iCheckStep := 9;
+			END_IF
+		9:	IF stModuleHmi.Stations.bActivateStation9 THEN
+					iCheckStep := 10;
+			END_IF
+		10: IF stModuleHmi.Stations.bActivateStation10 THEN
+					iCheckStep := 11;
+			END_IF
+		11: bAssemblyDone := TRUE;
+			iCheckStep := 0;
+			
+	END_CASE
+]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="Check6To10PlacingState" Id="{6a370601-5915-4edd-b694-3a850299416d}" FolderPath="Act\">
+      <Implementation>
+        <ST><![CDATA[
+
+	CASE iCheckStep OF
+		0:	iCheckStep := 6;
+		1:	IF stModuleHmi.Stations.bActivateStation1 THEN
+				IF stStation.fbSts1.bPlacingDone THEN
+					iCheckStep := 2;
+				END_IF
+			ELSE
+					iCheckStep := 2;
+			END_IF
+		2:	IF stModuleHmi.Stations.bActivateStation2 THEN
+				IF stStation.fbSts2.bPlacingDone THEN
+					iCheckStep := 3;
+				END_IF
+			ELSE
+					iCheckStep := 3;
+			END_IF
+		3:	IF stModuleHmi.Stations.bActivateStation3 THEN
+				IF stStation.fbSts3.bPlacingDone THEN
+					iCheckStep := 4;
+				END_IF
+			ELSE
+					iCheckStep := 4;
+			END_IF
+		4:	IF stModuleHmi.Stations.bActivateStation4 THEN
+				IF stStation.fbSts4.bPlacingDone THEN
+					iCheckStep := 5;
+				END_IF
+			ELSE
+					iCheckStep := 5;
+			END_IF
+			
+		5:	IF stModuleHmi.Stations.bActivateStation5 THEN
+				IF stStation.fbSts5.bPlacingDone THEN
+					iCheckStep := 11;
+				END_IF
+			ELSE
+					iCheckStep := 11;
+			END_IF
+			
+		6:	IF stModuleHmi.Stations.bActivateStation6 THEN
+				IF stStation.fbSts6.bPlacingDone THEN
+					iCheckStep := 7;
+				END_IF
+			ELSE
+					iCheckStep := 7;
+			END_IF
+		7:	IF stModuleHmi.Stations.bActivateStation7 THEN
+				IF stStation.fbSts7.bPlacingDone THEN
+					iCheckStep := 8;
+				END_IF
+			ELSE
+					iCheckStep := 8;
+			END_IF
+		8:	IF stModuleHmi.Stations.bActivateStation8 THEN
+				IF stStation.fbSts8.bPlacingDone THEN
+					iCheckStep := 9;
+				END_IF
+			ELSE
+					iCheckStep := 9;
+			END_IF
+		9:	IF stModuleHmi.Stations.bActivateStation9 THEN
+				IF stStation.fbSts9.bPlacingDone THEN
+					iCheckStep := 10;
+				END_IF
+			ELSE
+					iCheckStep := 10;
+			END_IF
+		10: IF stModuleHmi.Stations.bActivateStation10 THEN
+				IF stStation.fbSts10.bPlacingDone THEN
+					iCheckStep := 11;
+				END_IF
+			ELSE
+					iCheckStep := 11;
+			END_IF
+		11: bPlacingDone := TRUE;
+			iCheckStep := 0;
+			
+	END_CASE
+	]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="CheckAllAssemblyState" Id="{59d752f4-3a23-4ea7-b12c-87e9761f805d}" FolderPath="Act\">
+      <Implementation>
+        <ST><![CDATA[
+	CASE iCheckStep OF
+		0: iCheckStep := 1;
+
+		1:	IF stModuleHmi.Stations.bActivateStation1 THEN
+					iCheckStep := 2;
+			END_IF
+		2:	IF stModuleHmi.Stations.bActivateStation2 THEN
+				iCheckStep := 3;
+			END_IF
+		3:	IF stModuleHmi.Stations.bActivateStation3 THEN
+					iCheckStep := 4;
+			END_IF
+		4:	IF stModuleHmi.Stations.bActivateStation4 THEN
+					iCheckStep := 5;
+			END_IF
+		5:	IF stModuleHmi.Stations.bActivateStation5 THEN
+					iCheckStep := 6;
+			END_IF
+			
+		6:	IF stModuleHmi.Stations.bActivateStation6 THEN
+					iCheckStep := 7;
+			END_IF
+		7:	IF stModuleHmi.Stations.bActivateStation7 THEN
+					iCheckStep := 8;
+			END_IF
+		8:	IF stModuleHmi.Stations.bActivateStation8 THEN
+					iCheckStep := 9;
+			END_IF
+		9:	IF stModuleHmi.Stations.bActivateStation9 THEN
+					iCheckStep := 10;
+			END_IF
+		10: IF stModuleHmi.Stations.bActivateStation10 THEN
+					iCheckStep := 11;
+			END_IF
+		11: bAssemblyDone := TRUE;
+			iCheckStep := 0;
+			
+	END_CASE
+]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="CheckAllPlacingState" Id="{71fd66f4-f795-41fc-be6b-e08329b9051d}" FolderPath="Act\">
+      <Implementation>
+        <ST><![CDATA[
+
+	CASE iCheckStep OF
+		0:	iCheckStep := 1;
+		1:	IF stModuleHmi.Stations.bActivateStation1 THEN
+				IF stStation.fbSts1.bPlacingDone THEN
+					iCheckStep := 2;
+				END_IF
+			ELSE
+					iCheckStep := 2;
+			END_IF
+		2:	IF stModuleHmi.Stations.bActivateStation2 THEN
+				IF stStation.fbSts2.bPlacingDone THEN
+					iCheckStep := 3;
+				END_IF
+			ELSE
+					iCheckStep := 3;
+			END_IF
+		3:	IF stModuleHmi.Stations.bActivateStation3 THEN
+				IF stStation.fbSts3.bPlacingDone THEN
+					iCheckStep := 4;
+				END_IF
+			ELSE
+					iCheckStep := 4;
+			END_IF
+		4:	IF stModuleHmi.Stations.bActivateStation4 THEN
+				IF stStation.fbSts4.bPlacingDone THEN
+					iCheckStep := 5;
+				END_IF
+			ELSE
+					iCheckStep := 5;
+			END_IF
+			
+		5:	IF stModuleHmi.Stations.bActivateStation5 THEN
+				IF stStation.fbSts5.bPlacingDone THEN
+					iCheckStep := 6;
+				END_IF
+			ELSE
+					iCheckStep := 6;
+			END_IF
+			
+		6:	IF stModuleHmi.Stations.bActivateStation6 THEN
+				IF stStation.fbSts6.bPlacingDone THEN
+					iCheckStep := 7;
+				END_IF
+			ELSE
+					iCheckStep := 7;
+			END_IF
+		7:	IF stModuleHmi.Stations.bActivateStation7 THEN
+				IF stStation.fbSts7.bPlacingDone THEN
+					iCheckStep := 8;
+				END_IF
+			ELSE
+					iCheckStep := 8;
+			END_IF
+		8:	IF stModuleHmi.Stations.bActivateStation8 THEN
+				IF stStation.fbSts8.bPlacingDone THEN
+					iCheckStep := 9;
+				END_IF
+			ELSE
+					iCheckStep := 9;
+			END_IF
+		9:	IF stModuleHmi.Stations.bActivateStation9 THEN
+				IF stStation.fbSts9.bPlacingDone THEN
+					iCheckStep := 10;
+				END_IF
+			ELSE
+					iCheckStep := 10;
+			END_IF
+		10: IF stModuleHmi.Stations.bActivateStation10 THEN
+				IF stStation.fbSts10.bPlacingDone THEN
+					iCheckStep := 11;
+				END_IF
+			ELSE
+					iCheckStep := 11;
+			END_IF
+		11: bPlacingDone := TRUE;
+			
+	END_CASE
+	]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="CheckCompatibility" Id="{7544605d-af71-4779-99e5-01b70dde7914}" FolderPath="Act\">
+      <Implementation>
+        <ST><![CDATA[
+IF stModuleHmi.bProductionStart1To5 AND stModuleHmi.bProductionStart6To10 THEN
+	IF stAssemblyData.Station1To5.rGalvoThickness = stAssemblyData.Station5To10.rGalvoThickness THEN
+		bCheckPassed := TRUE;
+	ELSE
+		bCheckPassed := FALSE;
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="ErrAck" Id="{1bc8e65e-28d7-4b7c-9dec-ee74371c16a9}" FolderPath="Mthd\">
+      <Declaration><![CDATA[METHOD ErrAck : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bSafetyError AND NOT bErrorAck OR SafetyAckOffTmr.Q THEN
+	SafetyAckOffTmr.IN := FALSE;
+	bErrorAck := TRUE;
+	ErrorAckOffTmr.IN := TRUE;
+ELSIF NOT bSafetyError THEN
+	SafetyAckOffTmr.IN := FALSE;
+END_IF
+
+IF bErrorAck AND ErrorAckOffTmr.Q THEN
+	ErrorAckOffTmr.IN := FALSE;
+	bErrorAck := FALSE;
+	SafetyAckOffTmr.IN := TRUE;
+END_IF
+SafetyAckOffTmr(PT := T#2S);
+ErrorAckOffTmr(PT := T#0.5S);]]></ST>
+      </Implementation>
+    </Method>
+    <Action Name="ErrorList" Id="{8b6958f7-868f-4196-a365-1b60771273a1}" FolderPath="Act\">
+      <Implementation>
+        <ST><![CDATA[CASE iRobotError OF
+0:	  sErrorText := 'NO_ERROR';
+1000: sErrorText := 'COMMAND_BUFFER_IS_FULL';
+1001: sErrorText := 'UNKNOWN_COMMAND';
+1002: sErrorText := 'SYNTAX_ERROR';
+1003: sErrorText := 'ARGUMENT_ERROR';
+1005: sErrorText := 'THE_ROBOT_IS_NOT_ACTIVATED';
+1006: sErrorText := 'THE_ROBOT_IS_NOT_HOMED';
+1007: sErrorText := 'JOINT_OVER_LIMIT';
+1010: sErrorText := 'LINEAR_MOVE_BLOCKED_BY_ROTATION';
+1011: sErrorText := 'THE_ROBOT_IS_IN_ERROR';
+1012: sErrorText := 'SINGULARITY_DETECTED';
+1013: sErrorText := 'ACTIVATION_FAILED';
+1014: sErrorText := 'HOMING_FAILED';
+1016: sErrorText := 'POSE_OUT_OF_REACH';
+1022: sErrorText := 'PROGRAM_SAVING_FAILED_1';
+1023: sErrorText := 'IGNORING_COMMAND_FOR_OFFLINE_MODE';
+1024: sErrorText := 'MASTERING_NEEDED';
+1025: sErrorText := 'RESET_ERROR_NOT_POSSIBLE';
+1026: sErrorText := 'DeactivatedIVATION_NEEDED';
+1027: sErrorText := 'CHANGE_SIMULATION_MODE_FAILED';
+1030: sErrorText := 'ALREADY_SAVING';
+1031: sErrorText := 'PROGRAM_SAVING_ABORTED';
+1033: sErrorText := 'START_CONF_MISMATCH';
+1038: sErrorText := 'ERR_NO_GRIPPER_CONNECTED';
+1040: sErrorText := 'COMMAND_FAILED';
+1041: sErrorText := 'NO_VBOX';
+1042: sErrorText := 'EXT_TOOL_SIM_MUST_Deactivated';
+1043: sErrorText := 'IO_BANK_NOT_PRESENT';
+1044: sErrorText := 'VACUUM_MODULE_NOT_PRESENT';
+3005: sErrorText := 'MOTION_ERROR';
+3006: sErrorText := 'DRIVE_ERROR';
+3009: sErrorText := 'INIT_FAILED';
+3014: sErrorText := 'ERROR_SAVING';
+3020: sErrorText := 'INVALID_OFFLINE_PROGRAM';
+3025: sErrorText := 'GRIPPER_ERROR';
+3026: sErrorText := 'MAINTENANCE_CHECK_DISCOVERY';
+3029: sErrorText := 'EXCESSIVE_TORQUE';
+3037: sErrorText := 'PNEUMATIC_ERROR';
+3039: sErrorText := 'EXT_TOOL_NEED_UPDATE';
+3041: sErrorText := 'IMMINENT_COLLISION';
+3043: sErrorText := 'IO_PORT_PACKET_LOST';
+3044: sErrorText := 'IO_PORT_COMM_ERROR';
+3045: sErrorText := 'IMMINENT_COLLISION_DETECTED';
+3046: sErrorText := 'POWERSUPPLY_ERROR';
+3047: sErrorText := 'SAFE_MODE_BOOT';
+3049: sErrorText := 'AT_WORKZONE_LIMIT';
+END_CASE]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="ForceHoldersRelease" Id="{915dfa82-4cb7-4e16-8e13-4a7d6c7cf507}" FolderPath="Act\">
+      <Implementation>
+        <ST><![CDATA[
+CASE iCheckOperationality OF
+	0: iCheckOperationality := 1;
+	1:	stStation.fbSts1.bReleaseHolders := TRUE;
+		iCheckOperationality := 2;
+	2: stStation.fbSts2.bReleaseHolders := TRUE;
+		iCheckOperationality := 3; 
+	3: stStation.fbSts3.bReleaseHolders := TRUE;
+		iCheckOperationality := 4;
+	4: stStation.fbSts4.bReleaseHolders := TRUE;
+		iCheckOperationality := 5;
+	5: stStation.fbSts5.bReleaseHolders := TRUE;
+		iCheckOperationality := 6;
+	6: stStation.fbSts6.bReleaseHolders := TRUE;
+		iCheckOperationality := 7;
+	7: stStation.fbSts7.bReleaseHolders := TRUE;
+		iCheckOperationality := 8;
+	8: stStation.fbSts8.bReleaseHolders := TRUE;
+		iCheckOperationality := 9;
+	9: stStation.fbSts9.bReleaseHolders := TRUE;
+		iCheckOperationality := 10;
+	10:stStation.fbSts10.bReleaseHolders := TRUE;
+		iCheckOperationality := 0;
+END_CASE]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="GluingState" Id="{d37c997a-7222-4f1a-9132-920f585b940c}" FolderPath="Mthd\">
+      <Declaration><![CDATA[METHOD GluingState
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="HatchLight" Id="{bcf5b322-a933-4383-bc03-9d4019c65204}" FolderPath="Mthd\">
+      <Declaration><![CDATA[METHOD HatchLight : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//stPlcCom.stPlcComOut.bRingLightInfeed := TRUE;
+IF NOT stPlcCom.stPlcComIn.bSafetyOk AND NOT stModuleHmi.bModuleProductionStart THEN
+	stPlcCom.stPlcComOut.bRingLightInfeed := TRUE;
+	stPlcCom.stPlcComOut.bRingLightPass := TRUE;
+	stPlcCom.stPlcComOut.bRingLightReject := TRUE;
+	bRinglightsSet	:= TRUE;
+ELSIF bRinglightsSet THEN
+	stPlcCom.stPlcComOut.bRingLightInfeed := FALSE;
+	stPlcCom.stPlcComOut.bRingLightPass := FALSE;
+	stPlcCom.stPlcComOut.bRingLightReject := FALSE;
+	bRinglightsSet := FALSE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="HatchLocks" Id="{2a5ece7f-27aa-49d2-b2ae-746e38a96812}" FolderPath="Mthd\">
+      <Declaration><![CDATA[METHOD HatchLocks
+VAR
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bUnlockGlueDoor THEN
+	stPlcCom.stPlcComOut.bGlueDoorLock := FALSE;
+ELSIF bLockAll THEN
+	stPlcCom.stPlcComOut.bGlueDoorLock := TRUE;
+	stPlcCom.stPlcComOut.bHatchesLock := TRUE;
+	LockTmr.IN := TRUE;
+ELSE
+	stPlcCom.stPlcComOut.bGlueDoorLock := FALSE;
+	stPlcCom.stPlcComOut.bHatchesLock := FALSE;
+END_IF
+
+
+IF NOT stPlcCom.stPlcComIn.bEstopOk OR NOT stPlcCom.stPlcComIn.bSafetyOk OR fbMeca500.bRobotConfDone AND NOT stModuleHmi.bModuleProductionStart AND stModuleHmi.bModuleStartupDone OR NOT stModuleHmi.bModulePlayPause AND fbMeca500.bRobotConfDone AND fbMeca500.bRobotHomed AND stModuleHmi.bModuleStartupDone OR stModuleHmi.bOpenAllLocks THEN
+	bLockAll := FALSE;
+	bUnlockGlueDoor := FALSE;
+ELSIF stPlcCom.stPlcComIn.bSafetyOk AND NOT fbMeca500.bRobotConfDone OR fbMeca500.bRobotConfDone AND stModuleHmi.bModuleProductionStart THEN
+	IF NOT stModuleHmi.bModuleFault THEN
+		bLockAll := TRUE;
+		bUnlockGlueDoor := FALSE;
+	END_IF
+END_IF
+
+
+
+IF (*stPlcCom.stPlcComIn.bGlueDoorLowerLockClosed AND *)stPlcCom.stPlcComIn.bGlueDoorUpperLockClosed AND stPlcCom.stPlcComIn.bInfeedLockClosed 
+	AND stPlcCom.stPlcComIn.bMainDoorLockClosed AND stPlcCom.stPlcComIn.bPassLockClosed AND stPlcCom.stPlcComIn.bRejectLockClosed AND bLockAll THEN
+	bLocksEngaged := TRUE;
+	LockTmr.IN := FALSE;
+ELSE
+	
+	IF bLockAll AND LockTmr.Q AND NOT bLocksEngaged THEN
+		bLockAll := FALSE;
+		bLocksEngaged := FALSE;
+		LockTmr.IN := FALSE;
+		bUnlockGlueDoor := FALSE;
+		fbEventLogger.sErrorCode:='401';
+		fbEventLogger.bRaiseAlarm[15] :=TRUE;
+	END_IF
+END_IF
+LockTmr(PT := T#3S);]]></ST>
+      </Implementation>
+    </Method>
+    <Action Name="LaserPointers" Id="{0223ac47-5447-43d8-8b90-301b560aec0e}" FolderPath="Act\">
+      <Implementation>
+        <ST><![CDATA[IF NOT stModuleHmi.bModuleStartupDone THEN
+	stPlcCom.stPlcComOut.bLaserPointers1To5 := TRUE;
+	stPlcCom.stPlcComOut.bLaserPointers5To10 := TRUE;
+ELSIF stStation.fbSts1.bTrigAngCam OR stStation.fbSts2.bTrigAngCam OR stStation.fbSts1.bTrigPosCamLaserTest OR stStation.fbSts2.bTrigPosCamLaserTest  OR stStation.fbSts3.bTrigAngCam OR stStation.fbSts4.bTrigAngCam OR stStation.fbSts3.bTrigPosCamLaserTest OR stStation.fbSts4.bTrigPosCamLaserTest OR stStation.fbSts5.bTrigAngCam OR stStation.fbSts5.bTrigPosCamLaserTest THEN
+	stPlcCom.stPlcComOut.bLaserPointers1To5 := TRUE;
+ELSE
+	stPlcCom.stPlcComOut.bLaserPointers1To5 := FALSE;
+	stPlcCom.stPlcComOut.bLaserPointers5To10 := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="LightTower" Id="{a6f1f7c8-f88b-42d5-952f-9d25397e5fed}" FolderPath="Act\">
+      <Implementation>
+        <ST><![CDATA[IF NOT stPlcCom.stPlcComIn.bSafetyOk OR NOT stPlcCom.stPlcComIn.bEstopOk OR stModuleHmi.bProductionStartFailure OR stModuleHmi.bModuleFault THEN
+	fbLightTower.bRedEnable := TRUE;
+	fbLightTower.bBlinkEnable := TRUE;
+ELSIF stModuleHmi.bModuleProductionStart THEN
+	fbLightTower.bRedEnable := FALSE;
+	fbLightTower.bBlinkEnable := FALSE;
+	fbLightTower.bToneEnable := TRUE;
+ELSIF stModuleHmi.bModuleProductionStart THEN
+	fbLightTower.bRedEnable := FALSE;
+	fbLightTower.bBlinkEnable := FALSE;
+	fbLightTower.bToneEnable := FALSE;
+	fbLightTower.bYellowEnable := FALSE;
+	fbLightTower.bGreenEnable := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="OutfeedLight" Id="{498a9713-ad82-4960-8fb3-d5145325ef35}" FolderPath="Mthd\">
+      <Declaration><![CDATA[METHOD OutfeedLight
+VAR_INPUT
+	IN : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF IN THEN
+	stPlcCom.stPlcComOut.bRingLightInfeed := TRUE;
+	stPlcCom.stPlcComOut.bRingLightPass := TRUE;
+	stPlcCom.stPlcComOut.bRingLightReject := TRUE;
+ELSE
+	stPlcCom.stPlcComOut.bRingLightInfeed := FALSE;
+	stPlcCom.stPlcComOut.bRingLightPass := FALSE;
+	stPlcCom.stPlcComOut.bRingLightReject := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="PowerBtn" Id="{b06761a9-9b91-4d15-9e4b-f44db78fef31}" FolderPath="Mthd\">
+      <Declaration><![CDATA[METHOD PowerBtn : BOOL
+VAR_INPUT
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[RelayOnTmr(IN :=  bSetRelay, PT := T#1S, Q => stPlcCom.stPlcComOut.bPowerOff);
+bSetRelay := FALSE;
+IF NOT stModuleHmi.bModuleProductionStart THEN
+		IF stModuleHmi.bModuleStartupDone AND fbMeca500.bRobotHomed OR NOT stModuleHmi.bModuleStartup OR stModuleHmi.bModuleFault THEN
+			IF stModuleHmi.bPowerOff AND NOT bSet THEN
+				bSetRelay := TRUE;
+				bSet := TRUE;
+			END_IF
+		END_IF 
+END_IF
+IF NOT stPlcCom.stPlcComIn.bAcOk THEN
+	stModuleHmi.bAcOk := TRUE;
+ELSE
+	stModuleHmi.bAcOk := FALSE;
+	fbEventLogger.sErrorCode:='403';
+	fbEventLogger.bRaiseAlarm[18]:= TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="RejectLight" Id="{da123b9c-804f-45f4-afe0-a8845545be2c}" FolderPath="Mthd\">
+      <Declaration><![CDATA[METHOD RejectLight
+VAR_INPUT
+	IN : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF IN THEN
+	stPlcCom.stPlcComOut.bRingLightPass := TRUE;
+	stPlcCom.stPlcComOut.bRingLightReject := TRUE;
+ELSE
+	stPlcCom.stPlcComOut.bRingLightReject := FALSE;
+	stPlcCom.stPlcComOut.bRingLightPass := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ResetLight" Id="{548d9907-8d96-40e9-ab52-3c12a18bd464}" FolderPath="Mthd\">
+      <Declaration><![CDATA[METHOD ResetLight : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ResetButtonTmr1();
+ResetButtonTmr2();
+IF NOT stPlcCom.stPlcComIn.bEstopOk OR NOT stPlcCom.stPlcComIn.bSafetyOk THEN
+	IF ResetButtonTmr2.Q OR bSetOnce THEN
+		bSetOnce := FALSE;
+		stPlcCom.stPlcComOut.bResetButtonLight := TRUE;
+		ResetButtonTmr2.IN := FALSE;
+		ResetButtonTmr1.IN := TRUE;
+	END_IF
+	IF ResetButtonTmr1.Q THEN
+		stPlcCom.stPlcComOut.bResetButtonLight := FALSE;
+		ResetButtonTmr2.IN := TRUE;
+		ResetButtonTmr1.IN := FALSE;
+	END_IF
+ELSE
+	bSetOnce := TRUE;
+	stPlcCom.stPlcComOut.bResetButtonLight := FALSE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Action Name="ResetStations" Id="{948baeed-5bde-4700-a8d6-b031bef751be}" FolderPath="Act\">
+      <Implementation>
+        <ST><![CDATA[
+CASE iCheckOperationality OF
+	0: IF stModuleHmi.bProductionStart1To5 THEN
+			iCheckOperationality := 1;
+		ELSIF stModuleHmi.bProductionStart6To10 THEN
+			iCheckOperationality := 6;
+		END_IF
+	1:	IF stStation.fbSts1.bDisabledByCycleDone THEN
+			stModuleHmi.Stations.bActivateStation1 := TRUE;
+		END_IF
+		iCheckOperationality := 2;
+	2: IF stStation.fbSts2.bDisabledByCycleDone THEN
+			stModuleHmi.Stations.bActivateStation2 := TRUE;
+		END_IF
+		iCheckOperationality := 3; 
+	3: IF stStation.fbSts3.bDisabledByCycleDone THEN
+			stModuleHmi.Stations.bActivateStation3 := TRUE;
+		END_IF
+		iCheckOperationality := 4;
+	4: IF stStation.fbSts4.bDisabledByCycleDone THEN
+			stModuleHmi.Stations.bActivateStation4 := TRUE;
+		END_IF
+		iCheckOperationality := 5;
+	5: IF stStation.fbSts5.bDisabledByCycleDone THEN
+			stModuleHmi.Stations.bActivateStation5 := TRUE;
+		END_IF
+		iCheckOperationality := 6;
+	6: IF stStation.fbSts6.bDisabledByCycleDone THEN
+			stModuleHmi.Stations.bActivateStation6 := TRUE;
+		END_IF
+		iCheckOperationality := 7;
+	7: IF stStation.fbSts7.bDisabledByCycleDone THEN
+			stModuleHmi.Stations.bActivateStation7 := TRUE;
+		END_IF
+		iCheckOperationality := 8;
+	8: IF stStation.fbSts8.bDisabledByCycleDone THEN
+			stModuleHmi.Stations.bActivateStation8 := TRUE;
+		END_IF
+		iCheckOperationality := 9;
+	9: IF stStation.fbSts9.bDisabledByCycleDone THEN
+			stModuleHmi.Stations.bActivateStation9 := TRUE;
+		END_IF
+		iCheckOperationality := 10;
+	10: IF stStation.fbSts10.bDisabledByCycleDone THEN
+			stModuleHmi.Stations.bActivateStation10 := TRUE;
+		END_IF
+		iCheckOperationality := 0;
+END_CASE]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="ResetStns" Id="{6e0b6be4-a31f-4d67-ad07-ced5b73a1599}" FolderPath="Mthd\">
+      <Declaration><![CDATA[METHOD ResetStns
+VAR_INPUT
+	All : BOOL;
+	Stns1To5 : BOOL;
+	Stns6To10 : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+CASE iCheckOperationality OF
+	0: IF All OR Stns1To5 THEN
+			iCheckOperationality := 1;
+		ELSIF Stns6To10 THEN
+			iCheckOperationality := 6;
+		END_IF
+	1:	IF stStation.fbSts1.bDisabledByCycleDone THEN
+			stModuleHmi.Stations.bActivateStation1 := TRUE;
+		END_IF
+		iCheckOperationality := 2;
+	2: IF stStation.fbSts2.bDisabledByCycleDone THEN
+			stModuleHmi.Stations.bActivateStation2 := TRUE;
+		END_IF
+		iCheckOperationality := 3; 
+	3: IF stStation.fbSts3.bDisabledByCycleDone THEN
+			stModuleHmi.Stations.bActivateStation3 := TRUE;
+		END_IF
+		iCheckOperationality := 4;
+	4: IF stStation.fbSts4.bDisabledByCycleDone THEN
+			stModuleHmi.Stations.bActivateStation4 := TRUE;
+		END_IF
+		iCheckOperationality := 5;
+	5: IF stStation.fbSts5.bDisabledByCycleDone THEN
+			stModuleHmi.Stations.bActivateStation5 := TRUE;
+		END_IF
+		IF All THEN
+			iCheckOperationality := 6;
+		END_IF
+	6: IF stStation.fbSts6.bDisabledByCycleDone THEN
+			stModuleHmi.Stations.bActivateStation6 := TRUE;
+		END_IF
+		iCheckOperationality := 7;
+	7: IF stStation.fbSts7.bDisabledByCycleDone THEN
+			stModuleHmi.Stations.bActivateStation7 := TRUE;
+		END_IF
+		iCheckOperationality := 8;
+	8: IF stStation.fbSts8.bDisabledByCycleDone THEN
+			stModuleHmi.Stations.bActivateStation8 := TRUE;
+		END_IF
+		iCheckOperationality := 9;
+	9: IF stStation.fbSts9.bDisabledByCycleDone THEN
+			stModuleHmi.Stations.bActivateStation9 := TRUE;
+		END_IF
+		iCheckOperationality := 10;
+	10: IF stStation.fbSts10.bDisabledByCycleDone THEN
+			stModuleHmi.Stations.bActivateStation10 := TRUE;
+		END_IF
+		iCheckOperationality := 0;
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StartupTrig" Id="{445b4bde-c491-40a5-90e3-4502d2a9f5e0}" FolderPath="Mthd\">
+      <Declaration><![CDATA[METHOD StartupTrig
+VAR_INPUT
+END_VAR
+VAR
+	bInitialDone : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF fbMeca500.bRobotConfDone AND stStation.fbSts1.bCheckDone AND stStation.fbSts2.bCheckDone AND stStation.fbSts3.bCheckDone AND 
+stStation.fbSts4.bCheckDone AND stStation.fbSts5.bCheckDone AND stStation.fbSts6.bCheckDone AND stStation.fbSts7.bCheckDone AND stStation.fbSts8.bCheckDone AND 
+stStation.fbSts9.bCheckDone AND stStation.fbSts10.bCheckDone THEN
+	stModuleHmi.bModuleStartupDone := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

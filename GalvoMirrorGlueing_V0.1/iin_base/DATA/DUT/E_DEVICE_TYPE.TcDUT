@@ -1,0 +1,79 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="E_DEVICE_TYPE" Id="{6368a706-75f0-0065-3c91-7f4f08aebfad}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+
+{attribute 'to_string'}
+TYPE E_DEVICE_TYPE :
+(
+	UNDEFINED,
+	
+	// Special case for alarm handler	
+	ACCEPT_ANY,
+	
+	MOTOR,					// Direct drive motor
+
+	SERVO,					// Servo drive
+	
+	FREQ_DRIVE,				// 'TAMU'
+
+	FUSE,
+	
+	RELAIS,
+	
+	VALVE,
+	
+	CYLINDER,
+	
+	HYDRAULIC,
+	
+	SCANNER,				// Eg. sick scanner		
+
+	PRINTER,		
+	
+	DOOR,					// Eg. Safety door
+	
+	ESTOP,
+	
+	BRAKE,
+	
+	PSU,
+	
+	FILTER,					// Eg. oil/air filter
+	
+	CONVEYOR,
+	
+	COMM_CHANNEL,
+	
+	TURN_TABLE,
+	
+	MISC,
+	
+	ROBOT,
+	
+	MAGNET,
+	
+	SENSOR,		// Use this for
+	
+	SPEED_CONTROL,	// Device speed
+	
+	TOOL_CHANGER,
+	
+	BUTTON_BOX,
+	
+	PNEUMATIC,
+	
+	SAFETY,
+	
+	ENCODER,
+	
+	SEQUENCE,
+	
+	CONTROL_SIGNALS,
+	
+	END	// ALWAYS KEEP THIS LAST!!!
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

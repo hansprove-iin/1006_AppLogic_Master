@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_GetCurrentCycleCount" Id="{5a00b2cc-ec1a-4990-a2eb-0f3fd85f519f}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_GetCurrentCycleCount : UDINT
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_GetCurrentCycleCount := IING.cycleCounter;]]></ST>
+    </Implementation>
+    <LineIds Name="FC_GetCurrentCycleCount">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

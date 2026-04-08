@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_Recipes" Id="{b2950151-590b-4f52-9cc4-8147bff9285e}">
+    <Declaration><![CDATA[TYPE ST_Recipes :
+STRUCT
+	Station1To5		: ST_Recipe_AssemblyData;
+	Station5To10	: ST_Recipe_AssemblyData;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

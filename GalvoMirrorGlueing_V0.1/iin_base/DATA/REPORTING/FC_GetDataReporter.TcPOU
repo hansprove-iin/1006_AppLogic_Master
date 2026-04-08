@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_GetDataReporter" Id="{e551286b-1708-469e-b0e6-47d3fc81ab4a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_GetDataReporter : I_DataReporter		// Helper function returning an instance of 'a' data reporter
+	// If no real implementation is available, a dummy/stub implementation will be returned
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF (DATA_REPORTER_BASE.defaultReporter <> 0) THEN
+	FC_GetDataReporter := DATA_REPORTER_BASE.defaultReporter;
+ELSE
+	FC_GetDataReporter := DATA_REPORTER_BASE.dummyReporter;
+END_IF
+]]></ST>
+    </Implementation>
+    <LineIds Name="FC_GetDataReporter">
+      <LineId Id="2" Count="5" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

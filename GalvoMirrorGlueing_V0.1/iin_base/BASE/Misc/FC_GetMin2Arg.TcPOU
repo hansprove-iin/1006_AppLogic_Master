@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_GetMin2Arg" Id="{72aba60e-d1f6-427e-b5c9-9c0ca9305e7a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_GetMin2Arg : REAL
+VAR_INPUT
+	iVal1:	REAL;		// Must not be zero
+	iVal2:	REAL;
+END_VAR
+VAR
+	minVal:	REAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[minVal := iVal1;
+
+IF (iVal2 <> 0) THEN
+	minVal := MIN(minVal, iVal2);
+END_IF
+
+FC_GetMin2Arg := minVal;]]></ST>
+    </Implementation>
+    <LineIds Name="FC_GetMin2Arg">
+      <LineId Id="2" Count="6" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

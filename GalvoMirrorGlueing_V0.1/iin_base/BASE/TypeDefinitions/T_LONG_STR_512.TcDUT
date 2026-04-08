@@ -1,0 +1,6 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="T_LONG_STR_512" Id="{4ad8acf8-ac32-41d8-90ca-a89b7b3d29fa}">
+    <Declaration><![CDATA[TYPE T_LONG_STR_512 : STRING(512); END_TYPE		// Use this instead of STRING which is 80 chars only]]></Declaration>
+  </DUT>
+</TcPlcObject>

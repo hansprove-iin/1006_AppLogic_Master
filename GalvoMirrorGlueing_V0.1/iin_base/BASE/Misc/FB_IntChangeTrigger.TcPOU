@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_IntChangeTrigger" Id="{a6abdd8e-d934-4446-a87d-ac470ef1e24e}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_IntChangeTrigger EXTENDS FB_Base	// Monitors an INTEGER and sets a 1 PLC cycle flag when changed
+VAR_INPUT
+	iInt:			INT;
+END_VAR
+VAR_OUTPUT
+	oChanged:		BOOL;	// TRUE (1 PLC cycle) when iInt has changed
+	oOld:			INT;	// The value before the change
+	oNew:			INT;	// The new (up to date) value
+END_VAR
+VAR
+	old:			INT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[oNew := iInt;
+oChanged := (old <> oNew);
+old := iInt;
+
+IF (NOT oChanged) THEN
+	oOld := old;
+END_IF
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_IntChangeTrigger">
+      <LineId Id="2" Count="8" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

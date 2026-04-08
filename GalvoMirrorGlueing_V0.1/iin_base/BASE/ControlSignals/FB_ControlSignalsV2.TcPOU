@@ -1,0 +1,378 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_ControlSignalsV2" Id="{91bf8a4c-89a1-4e9f-9317-afd875cc1fe6}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ControlSignalsV2 IMPLEMENTS I_ControlSignals	// Handles the control signal inputs (auto/manual/service/reset/hard reset) for use in our application
+VAR_INPUT
+	iExternalReset:					BOOL := FALSE;				// External reset, eg. banner reset
+	iExternalPauseRequest:			BOOL := FALSE;				// Pause request, eg. from doors/button box
+	
+//	iExternalControlSignals:		POINTER TO ST_CONTROL_SIGNALS_V2;	// Used by conveyors (having internal control signals)
+	
+	iAutoReset:						BOOL := FALSE;				// Intended to be used in AUTO mode, no delays in here
+	iSaOkDelayed:					BOOL;						// Used to pause/unpause
+	
+	iExternalAutoPtr:				POINTER TO BOOL;			// Hardwired Auto switch (Packing BB400)
+	iIgnoreCycleStart:				BOOL := FALSE;				// When ignored, state wont go to manual at startup
+	iPos:							E_POS := E_POS.UNDEFINED;
+	iMiscArea:						T_SHORT_STR;	// Misc area in case iPos does not fit well.  Must be from TM_Devices.E_SAFETY_AREA or TM_Base.E_MISC_AREAS. 
+END_VAR
+VAR_OUTPUT
+	{ attribute 'TcHmiSymbol.Show' }
+	oControlSignals:				POINTER TO ST_CONTROL_SIGNALS_V2;
+END_VAR
+VAR_IN_OUT
+	ioTcHmi:	TC_HMI_CS;
+END_VAR
+VAR
+	{ attribute 'TcHmiSymbol.ShowRecursively' }
+	controlSignals:					ST_CONTROL_SIGNALS_V2;
+	previousCs:						ST_CONTROL_SIGNALS_OUT;
+	reset:							BOOL;
+	externalReset:					BOOL;
+	autoReset:						BOOL;
+	hardReset:						BOOL;
+	stopImmediately:				BOOL;
+	resets:							FB_ControlSignalResets;
+	stopImmediatelyPulse:			R_TRIG;
+	
+	autoBoolTrigger:				FB_BoolTrigger;
+	manualBoolTrigger:				FB_BoolTrigger;
+	serviceBoolTrigger:				FB_BoolTrigger;
+	pauseRequestBoolTrigger:		FB_BoolTrigger;
+	
+	serviceTimer:					TON;
+	externalPauseRequestTrigger:	FB_BoolTrigger;
+	saOkTrigger:					FB_BoolTrigger;
+	
+	
+	manualButtonTriggers:			FB_BoolTrigger;
+	
+	externalAuto:					BOOL;
+	externalManual:					BOOL;
+	externalAutoTrigger:			FB_BoolTrigger;
+	failingToSwitchToAuto:			BOOL;
+	
+//	warningEvent:					FB_WarningEvent;
+//	alarmEvent:						FB_AlarmEvent;
+END_VAR
+VAR PERSISTENT
+	{ attribute 'TcHmiSymbol.Show' }
+	settings:						ST_CONTROL_SIGNALS_SETTINGS;
+END_VAR
+VAR_STAT PERSISTENT
+	{ attribute 'TcHmiSymbol.Show' }
+	staticSettings:					ST_CONTROL_SIGNALS_STATIC_SETTINGS;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// ---------------------------------------------- HMI
+controlSignals.in := ioTcHmi.in;
+
+
+controlsignals.settings REF= settings;
+controlsignals.staticSettings REF= staticSettings;
+
+externalPauseRequestTrigger(iIn := iExternalPauseRequest);
+saOkTrigger(iIn := iSaOkDelayed);
+
+// When BBs request to enter, iExternalPauseRequest goes ON and we set the PAUSE signal here ONCE
+// When the safety area goes down, we pause
+// Triggers are used here so that the HMI buttons keep working
+IF (externalPauseRequestTrigger.oRtrig OR saOkTrigger.oFtrig) THEN
+	controlSignals.in.pauseRequest := TRUE;
+END_IF
+
+// If doors are closed and safety is OK, pause is switched OFF (eg. pressing BB pause request and then cancelling it)
+// When the safety area goes ok, we take away the pause request
+IF ((externalPauseRequestTrigger.oFtrig AND iSaOkDelayed) OR saOkTrigger.oRtrig) THEN
+	controlSignals.in.pauseRequest := FALSE;
+END_IF
+
+
+	manualButtonTriggers(iIn := controlSignals.in.manualMode);
+
+
+	// Service mode is switched back OFF
+	IF (serviceTimer.Q) THEN
+		controlSignals.in.serviceMode := FALSE;
+	END_IF	
+
+	// Toggle
+	IF (manualButtonTriggers.oRtrig) THEN
+		controlSignals.out.manual := NOT controlSignals.out.manual;
+	END_IF
+	
+	IF (NOT iIgnoreCycleStart AND IING.cycleStart) THEN
+		controlSignals.out.manual := TRUE;
+	END_IF
+	
+	controlSignals.out.auto := NOT controlSignals.out.manual;
+
+	controlSignals.out.service := controlSignals.in.serviceMode;
+	controlSignals.out.pauseRequest := controlSignals.in.pauseRequest;
+
+	reset := controlSignals.in.reset;
+	externalReset := controlSignals.in.externalReset;
+	
+	autoReset := controlSignals.in.autoReset;
+	hardreset := controlSignals.in.hardReset;
+	stopImmediately := controlSignals.in.stopImmediately;
+
+
+autoBoolTrigger(iIn := controlSignals.out.auto, oRtrig => controlSignals.out.autoPulse, oFtrig => controlSignals.out.autoOffPulse);
+manualBoolTrigger(iIn := controlSignals.out.manual, oRtrig => controlSignals.out.manualPulse, oFtrig => controlSignals.out.manualOffPulse);
+serviceBoolTrigger(iIn := controlSignals.out.service, oRtrig => controlSignals.out.servicePulse, oFtrig => controlSignals.out.serviceOffPulse);
+pauseRequestBoolTrigger(iIn := controlSignals.in.pauseRequest);
+
+// Switching OFF service mode automatically after a delay
+serviceTimer(IN := controlSignals.out.service, PT := staticSettings.serviceResetTime);
+
+stopImmediatelyPulse(CLK := stopImmediately, Q => controlSignals.out.stopImmediately); 
+
+// Hard reset is only possible in service mode
+resets(iReset := reset,	iExternalReset := externalReset,
+	iHardreset := controlSignals.out.manual AND controlSignals.out.service AND hardReset,
+	iAutoReset := autoReset, iPos := iPos, iMiscArea := iMiscArea, ioStaticSettings := staticSettings,
+	oResetPulse => controlSignals.out.resetPulse, oHardResetPulse => controlSignals.out.hardResetPulse,
+	oExtendedResetPulse => controlSignals.out.extendedResetPulse,
+	oExtendedHardResetPulse => controlSignals.out.extendedHardResetPulse);
+
+oControlSignals := ADR(controlSignals);
+
+// External signals are set into this structure which makes it possible to pass as 'iExternalControlSignals'
+controlSignals.in.externalReset := iExternalReset;
+controlSignals.in.autoReset := iAutoReset;
+
+mCheckValues();
+aReportingAndLogging();
+//mInitializeName(IIN.pulse10S);
+
+// Old value for data collection purposes
+previousCs := controlSignals.out;
+
+aExternalSwitch();
+aHmi();
+mWarningsAndAlarms();
+
+
+ioTcHmi.out := controlSignals.out;]]></ST>
+    </Implementation>
+    <Action Name="aExternalSwitch" Id="{7ab385e8-1863-4d75-b399-20bd9b056115}">
+      <Implementation>
+        <ST><![CDATA[IF (iExternalAutoPtr <>  IING.ZERO_POINTER) THEN
+	// Dereference the pointer
+	externalAuto := iExternalAutoPtr^;
+	externalManual := NOT externalAuto;
+	
+	// Trying to switch to Auto but external is still in Manual
+	failingToSwitchToAuto := externalManual AND controlSignals.in.manualMode;
+
+	// Rising/falling edge detection
+	externalAutoTrigger(iIn := externalAuto);
+
+	// External manual always forces the control signal to Manual
+	IF (externalManual) THEN
+		controlSignals.out.manual := TRUE;
+	END_IF
+	
+	// External switched to Auto
+	IF (externalAutoTrigger.oRtrig) THEN
+		controlSignals.out.manual := FALSE;
+	END_IF
+
+ELSE
+	externalAuto := TRUE;
+	externalManual := NOT externalAuto;
+END_IF
+
+]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="aHmi" Id="{4a41b565-9e0e-4a9d-bafd-a134e04cf92e}">
+      <Implementation>
+        <ST><![CDATA[controlSignals.out.externalManualActive := externalManual;
+controlSignals.out.failingToSwitchToAuto := failingToSwitchToAuto;
+
+]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="aReportingAndLogging" Id="{dee05e7c-8b10-48a1-b905-6d8af74a7ff3}">
+      <Implementation>
+        <ST><![CDATA[IF (controlSignals.out.autoPulse) THEN
+	FC_GetLogger().debug(FC_3strConcatSeparator(iSeparator := IING.STRING_SPACE, iStr1 := TO_STRING(iPos), iStr2 := settings.name, iStr3 := ' switched to AUTO'));
+	FC_GetDataReporter().ic_operationModeChanged(iPos, iMiscArea, E_OPERATION_MODE.AUTO);
+END_IF
+IF (controlSignals.out.manualPulse) THEN
+	FC_GetLogger().debug(FC_3strConcatSeparator(iSeparator := IING.STRING_SPACE, iStr1 := TO_STRING(iPos), iStr2 := settings.name, iStr3 := ' switched to MANUAL'));
+	FC_GetDataReporter().ic_operationModeChanged(iPos, iMiscArea, E_OPERATION_MODE.MANUAL);
+END_IF
+
+IF (controlSignals.out.servicePulse) THEN
+	FC_GetLogger().debug(FC_3strConcatSeparator(iSeparator := IING.STRING_SPACE, iStr1 := TO_STRING(iPos), iStr2 := settings.name, iStr3 := ' switched to SERVICE'));
+	FC_GetDataReporter().ic_serviceStateChanged(iPos, iMiscArea, TRUE);
+END_IF
+IF (controlSignals.out.serviceOffPulse) THEN
+	FC_GetLogger().debug(FC_3strConcatSeparator(iSeparator := IING.STRING_SPACE, iStr1 := TO_STRING(iPos), iStr2 := settings.name, iStr3 := ' switched to SERVICE OFF'));
+	FC_GetDataReporter().ic_serviceStateChanged(iPos, iMiscArea, FALSE);
+END_IF
+
+IF (controlSignals.out.resetPulse) THEN
+	FC_GetLogger().info(FC_3strConcatSeparator(iSeparator := IING.STRING_SPACE, iStr1 := TO_STRING(iPos), iStr2 := settings.name, iStr3 := ' reset pulse'));
+	
+	// Data reporting in FB_ControlSignalResets and FB_EventResetHandler and
+END_IF
+
+IF (controlSignals.out.hardResetPulse) THEN
+	FC_GetLogger().info(FC_3strConcatSeparator(iSeparator := IING.STRING_SPACE, iStr1 := TO_STRING(iPos), iStr2 := settings.name, iStr3 := ' hard reset pulse'));
+	FC_GetDataReporter().ic_initializeDone(iPos, iMiscArea, E_RESET_ORIGIN.CONTROL_AREA_MANUAL);
+END_IF
+
+IF (pauseRequestBoolTrigger.oRtrig) THEN
+	FC_GetLogger().debug(FC_3strConcatSeparator(iSeparator := IING.STRING_SPACE, iStr1 := TO_STRING(iPos), iStr2 := settings.name, iStr3 := ' pause requested'));
+END_IF
+
+IF (pauseRequestBoolTrigger.oFtrig) THEN
+	FC_GetLogger().debug(FC_3strConcatSeparator(iSeparator := IING.STRING_SPACE, iStr1 := TO_STRING(iPos), iStr2 := settings.name, iStr3 := ' pause request OFF'));
+END_IF
+]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="ic_getControlSignalsOutPtr" Id="{e37795be-8644-483d-b7dd-b2fb40a84cf9}">
+      <Declaration><![CDATA[METHOD ic_getControlSignalsOutPtr : POINTER TO ST_CONTROL_SIGNALS_OUT
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ic_getControlSignalsOutPtr := ADR(controlSignals.out);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_getControlSignalsPtr" Id="{ed5c29a1-9c88-4d4f-9139-affba3472614}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_getControlSignalsPtr : POINTER TO ST_CONTROL_SIGNALS_V2
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ic_getControlSignalsPtr := oControlSignals;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_isInAuto" Id="{35379c2b-fbbf-4c04-92fa-ac9325a067b0}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_isInAuto : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ic_isInAuto := controlSignals.out.auto;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_isInPause" Id="{5a83486d-0c0e-4e39-80a4-13ff6d8d2289}">
+      <Declaration><![CDATA[METHOD public ic_isInPause : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ic_isInPause := controlSignals.out.pauseRequest;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_switchToAuto" Id="{e73b9d85-b147-4d88-aa9d-84d318c80f7c}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_switchToAuto
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FC_GetLogger().debug(FC_3strConcatSeparator(iSeparator := IING.STRING_SPACE, iStr1 := TO_STRING(iPos), iStr2 := settings.name, iStr3 := ' asked to switched to AUTO'));
+
+
+	controlSignals.out.manual := FALSE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_unPause" Id="{7b118684-24cf-4cde-bc2c-3919e77e675d}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_unPause
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FC_GetLogger().debug(FC_3strConcatSeparator(iSeparator := IING.STRING_SPACE, iStr1 := TO_STRING(iPos), iStr2 := settings.name, iStr3 := ' asked to UN-pause'));
+
+	controlSignals.in.pauseRequest := FALSE;
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="mCheckValues" Id="{d4c6b90e-ce13-4226-beff-f32188e82c0f}">
+      <Declaration><![CDATA[METHOD PRIVATE mCheckValues : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// It can happen that the hard reset time becomes smaller (or 0) than the reset time, either by accident
+// or when memory shift during download messes up
+
+// When this happens it may be impossible to open up the service menu (since the service timer expires too fast)
+//  To prevent problems, the defaults get restored when this happens
+
+IF ((staticSettings.hardResetTime < staticSettings.resetTime) OR (staticSettings.resetTime = T#0S)) THEN
+	staticSettings.resetTime := IING.RESET_TIME;
+	staticSettings.hardResetTime := IING.HARD_RESET_TIME;
+	staticSettings.serviceResetTime := IING.AUTO_SERVICE_RESET_TIME;
+	staticSettings.extendedResetPulseDuration := IING.EXTENDED_RESET_PULSE_DURATION;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="mInitializeName" Id="{0414c566-2a7b-4578-8335-6cc5ac30c7ba}">
+      <Declaration><![CDATA[METHOD PRIVATE mInitializeName : BOOL
+VAR_INPUT
+	iCondition:		BOOL;
+END_VAR
+VAR
+	enumAsInt:					INT;	// INT_TO_STRING(ofAnEnum) prints the whole ENUM
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (iCondition) THEN
+	enumAsInt := iPos;
+	settings.name := INT_TO_STRING(enumAsInt);
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="mWarningsAndAlarms" Id="{5710cecc-c568-408d-97d4-bcfed86907a2}">
+      <Declaration><![CDATA[METHOD mWarningsAndAlarms	// Create warning when external manual is forced
+							// Create alarm when external manual is forced and trying to switch to Automatic
+							
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_ControlSignalsV2">
+      <LineId Id="2" Count="90" />
+    </LineIds>
+    <LineIds Name="FB_ControlSignalsV2.aExternalSwitch">
+      <LineId Id="1" Count="26" />
+    </LineIds>
+    <LineIds Name="FB_ControlSignalsV2.aHmi">
+      <LineId Id="1" Count="3" />
+    </LineIds>
+    <LineIds Name="FB_ControlSignalsV2.aReportingAndLogging">
+      <LineId Id="1" Count="36" />
+    </LineIds>
+    <LineIds Name="FB_ControlSignalsV2.ic_getControlSignalsOutPtr">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_ControlSignalsV2.ic_getControlSignalsPtr">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_ControlSignalsV2.ic_isInAuto">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_ControlSignalsV2.ic_isInPause">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_ControlSignalsV2.ic_switchToAuto">
+      <LineId Id="2" Count="4" />
+    </LineIds>
+    <LineIds Name="FB_ControlSignalsV2.ic_unPause">
+      <LineId Id="2" Count="5" />
+    </LineIds>
+    <LineIds Name="FB_ControlSignalsV2.mCheckValues">
+      <LineId Id="2" Count="11" />
+    </LineIds>
+    <LineIds Name="FB_ControlSignalsV2.mInitializeName">
+      <LineId Id="2" Count="4" />
+    </LineIds>
+    <LineIds Name="FB_ControlSignalsV2.mWarningsAndAlarms">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_OneCycleSignalTof" Id="{d7548b3c-297d-4082-b0e3-8c991259cfe6}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_OneCycleSignalTof		// Delays iSignal by 1 PLC cycle
+VAR_INPUT
+	iSignal:		BOOL;	// signal to be delayed
+END_VAR
+VAR_OUTPUT
+	oSignal:		BOOL;	// 1 PLC cycle delayed signal
+END_VAR
+VAR
+	fallingEdge:	F_TRIG;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fallingEdge(CLK := iSignal);
+oSignal := iSignal OR fallingEdge.Q;
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_OneCycleSignalTof">
+      <LineId Id="2" Count="2" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

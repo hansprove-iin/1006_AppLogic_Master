@@ -1,0 +1,269 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_FileWriterV2" Id="{94a64f88-e4bd-4b14-b242-433b7935a2e1}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_FileWriterV2	// Handles writing of lines to a file.  Maximum line length is 256 characters.
+VAR_INPUT
+	iKeepFileOpen:					BOOL;							// Set TRUE to keep the file open in between writes
+	iAmsNetId:						T_AmsNetId := IING.STRING_BLANK;	// Where to write the file
+	iFileNameAndPath:				T_DEFAULT_STR;					// File name and path of the file
+	iFlush:							BOOL;							// Set TRUE when a file flush is needed (will actually close and re-open the file)
+	iStopWriting:					BOOL;							// Used when the caller of this FB wants to temporarily stop writing (eg. when file rename is ongoing)
+	iControlSignals:				ST_CONTROL_SIGNALS_OUT;			// Control signals (carrying reset signal)
+END_VAR
+VAR_OUTPUT
+	oFileClosed:					BOOL;
+	oFileSize:						DINT;
+	oError:							BOOL;							// TRUE if a file writing error occurs
+	oAdsErrorCode:					E_ADS_ERRORS;
+	oOverflowCount:					UDINT;							// How many times we were not able to write all data to the file (due to internal memory constraints)
+	
+	oFileWriterRecordCnt:			UDINT;
+	oFileWriterBytesUsed:			UDINT;
+END_VAR
+VAR
+	fileHandle:						UINT := 0;
+	fileHandleFromFB_FileOpen:		UINT := 0;						// Separate var since overwritten from FB_FileOpen even if not open anymore
+	fileOpen:						FB_FileOpen;
+	fileWrite:						FB_FileWrite;					// Not using FB_FilePuts since it is limited of writing T_MaxString
+	fileClose:						FB_FileClose;
+
+	fileTell:						FB_FileTell;
+	
+	dataToBeWritten:				BOOL;		// Helper to know when data is buffered and to be written
+	
+	fileNameCopy:					T_DEFAULT_STR;
+	fileNameChangeEdge:				R_TRIG;
+	flush:							BOOL;
+	
+	stepChanged:					BOOL;
+	step:							E_FILE_WRITER_STEPS;
+	oldStepForStepChangeOnly:		E_FILE_WRITER_STEPS;			// Dont use for anything else
+	prevStep:						E_FILE_WRITER_STEPS;
+	
+	ringBufferMemory:				ARRAY[0..RINGBUFFER_SIZE_IN_BYTES-1] OF BYTE;
+	ringBuffer:						FB_MemRingBuffer;
+	
+	longString:						STRING(LONGSTRING_SIZE_IN_BYTES);	// LEN2 has a restriction to 10000 chars
+	
+	fileOpeningError:				UDINT;
+	fileWritingError:				UDINT;
+	fileTellError:					UDINT;
+	fileClosingError:				UDINT;
+	
+	bytesWritten:					UDINT;
+END_VAR
+VAR PERSISTENT
+	overFlowCnt:					UDINT;	// Number of times overflow would have happened
+	concatFailure:					UDINT;	// Number of concat failures, should stay at 0
+END_VAR
+VAR CONSTANT
+	RINGBUFFER_SIZE_IN_BYTES:		UDINT := 30000;
+	LONGSTRING_SIZE_IN_BYTES:		UDINT := 10000;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// When file name changes (eg. from logger), we need to close and re-open the file (with different name)
+fileNameChangeEdge(CLK := NOT (iFileNameAndPath = fileNameCopy));
+fileNameCopy := iFileNameAndPath;
+
+IF (fileNameChangeEdge.Q OR iFlush) THEN		// Rising edge can easily get lost while writing is ongoing (can take several PLC cycles), therefore must 'save' it
+	flush := TRUE;	
+END_IF
+
+dataToBeWritten := ringBuffer.nCount > 0;	// See doWrite
+
+CASE step OF
+	E_FILE_WRITER_STEPS.IDLE:
+		gotoNextStep(iCondition := NOT iStopWriting AND iKeepFileOpen, iNextStep := E_FILE_WRITER_STEPS.OPEN_FILE);
+		gotoNextStep(iCondition := NOT iStopWriting AND NOT iKeepFileOpen AND dataToBeWritten, iNextStep := E_FILE_WRITER_STEPS.OPEN_FILE);
+		
+	E_FILE_WRITER_STEPS.OPEN_FILE:
+		gotoNextStep(iCondition := fileOpen.bError, iNextStep := E_FILE_WRITER_STEPS.OPENING_ERROR);
+		gotoNextStep(iCondition := NOT fileOpen.bBusy, iNextStep := E_FILE_WRITER_STEPS.WAIT_DATA);
+	
+	E_FILE_WRITER_STEPS.WAIT_DATA:
+		gotoNextStep(iCondition := dataToBeWritten, iNextStep := E_FILE_WRITER_STEPS.WRITE_LINE);
+		gotoNextStep(iCondition := flush OR NOT iKeepFileOpen OR iStopWriting, iNextStep := E_FILE_WRITER_STEPS.CLOSE_FILE);
+
+	E_FILE_WRITER_STEPS.WRITE_LINE:
+		gotoNextStep(iCondition := fileWrite.bError, iNextStep := E_FILE_WRITER_STEPS.WRITING_ERROR);
+		gotoNextStep(iCondition := NOT fileWrite.bBusy , iNextStep := E_FILE_WRITER_STEPS.CHECK_FILE);
+		
+	E_FILE_WRITER_STEPS.CHECK_FILE:
+		gotoNextStep(iCondition := fileTell.bError, iNextStep := E_FILE_WRITER_STEPS.TELL_ERROR);
+		gotoNextStep(iCondition := NOT fileTell.bBusy AND (flush OR iStopWriting OR NOT iKeepFileOpen), iNextStep := E_FILE_WRITER_STEPS.CLOSE_FILE);
+		gotoNextStep(iCondition := NOT fileTell.bBusy, iNextStep := E_FILE_WRITER_STEPS.WAIT_DATA);
+
+	E_FILE_WRITER_STEPS.CLOSE_FILE:
+		flush := FALSE;
+		gotoNextStep(iCondition := fileClose.bError, iNextStep := E_FILE_WRITER_STEPS.CLOSING_ERROR);
+		gotoNextStep(iCondition := NOT fileClose.bBusy, iNextStep := E_FILE_WRITER_STEPS.CLEANUP);
+	
+	E_FILE_WRITER_STEPS.CLEANUP:
+		fileHandle := 0;
+		gotoNextStep(iCondition := TRUE, iNextStep := E_FILE_WRITER_STEPS.IDLE);
+	
+	E_FILE_WRITER_STEPS.OPENING_ERROR:
+		oAdsErrorCode := FC_GetAdsErrorCode(fileOpeningError);
+		gotoNextStep(iCondition := fileHandle <> 0, iNextStep := E_FILE_WRITER_STEPS.CLOSE_FILE);
+		gotoNextStep(iCondition := iControlSignals.resetPulse, iNextStep := E_FILE_WRITER_STEPS.IDLE);
+
+	E_FILE_WRITER_STEPS.WRITING_ERROR:
+		oAdsErrorCode := FC_GetAdsErrorCode(fileWritingError);
+		gotoNextStep(iCondition := fileHandle <> 0, iNextStep := E_FILE_WRITER_STEPS.CLOSE_FILE);
+		gotoNextStep(iCondition := iControlSignals.resetPulse, iNextStep := E_FILE_WRITER_STEPS.IDLE);
+
+	E_FILE_WRITER_STEPS.TELL_ERROR:
+		oAdsErrorCode := FC_GetAdsErrorCode(fileTellError);
+ 		gotoNextStep(iCondition := fileHandle <> 0, iNextStep := E_FILE_WRITER_STEPS.CLOSE_FILE);
+		gotoNextStep(iCondition := iControlSignals.resetPulse, iNextStep := E_FILE_WRITER_STEPS.IDLE);
+		
+	E_FILE_WRITER_STEPS.CLOSING_ERROR:
+		oAdsErrorCode := FC_GetAdsErrorCode(fileClosingError);
+		gotoNextStep(iCondition := iControlSignals.resetPulse, iNextStep := E_FILE_WRITER_STEPS.IDLE);
+ELSE
+	step := E_FILE_WRITER_STEPS.IDLE;
+END_CASE
+updateOldStep();
+
+
+IF (stepChanged AND (step = E_FILE_WRITER_STEPS.WAIT_DATA) AND (prevStep = E_FILE_WRITER_STEPS.OPEN_FILE)) THEN
+	fileHandle := fileHandleFromFB_FileOpen;
+END_IF
+
+fileOpen(sNetId := iAmsNetId, sPathName := iFileNameAndPath, nMode := FOPEN_MODEAPPEND,
+	ePath := PATH_GENERIC, bExecute := (step = E_FILE_WRITER_STEPS.OPEN_FILE), hFile => fileHandleFromFB_FileOpen, tTimeout := IING.ADS_WRITE_TIMEOUT, nErrID => fileOpeningError);
+	
+// The data must be updated before the writing starts
+concatBuffers(stepChanged AND (step = E_FILE_WRITER_STEPS.WRITE_LINE));	// Concatenates all data into a long string so writing is more efficient
+
+fileWrite(sNetId := iAmsNetId, hFile := fileHandle, pWriteBuff := ADR(longString), cbWriteLen := LEN2(ADR(longString)), bExecute := (step = (E_FILE_WRITER_STEPS.WRITE_LINE)),
+	tTimeout := IING.ADS_WRITE_TIMEOUT, nErrId => fileWritingError, cbWrite => bytesWritten);
+	
+fileTell(sNetId := iAmsNetId, hFile := fileHandle, bExecute := (step = E_FILE_WRITER_STEPS.CHECK_FILE), tTimeout := IING.ADS_WRITE_TIMEOUT, nSeekPos => oFileSize,
+	nErrId => fileTellError);	
+	
+fileClose(sNetId := iAmsNetId, hFile := fileHandle, bExecute := (step = (E_FILE_WRITER_STEPS.CLOSE_FILE)), tTimeout := IING.ADS_WRITE_TIMEOUT, nErrId => fileClosingError);
+
+ringBuffer(nCount => oFileWriterRecordCnt, cbSize => oFileWriterBytesUsed);
+
+oFileClosed := (step = E_FILE_WRITER_STEPS.IDLE);		// In idle we can be sure the file is closed
+oError := (step = E_FILE_WRITER_STEPS.OPENING_ERROR) OR (step = E_FILE_WRITER_STEPS.WRITING_ERROR) OR (step = E_FILE_WRITER_STEPS.CLOSING_ERROR);
+oOverflowCount := overFlowCnt;
+
+IF (iControlSignals.hardResetPulse) THEN
+	step := E_FILE_WRITER_STEPS.IDLE;
+	ringBuffer.A_Reset();
+	flush := FALSE;
+END_IF
+]]></ST>
+    </Implementation>
+    <Method Name="concatBuffers" Id="{b9fb85b9-d744-4e39-9e41-3f28c1425350}">
+      <Declaration><![CDATA[METHOD PRIVATE concatBuffers : BOOL
+VAR_INPUT
+	iCondition:			BOOL;
+END_VAR
+VAR
+	bufferedLine:		T_LONG_STR_512;	// Data read back from the ringBuffer, must be as big as iData in the doWrite method!
+	trash:				T_LONG_STR_512;	// Must be as big as iData in the doWrite method!
+	shouldFit:			BOOL;
+	
+	bufferedLineLen:	UDINT;
+	longStringLen:		UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (iCondition) THEN
+	longString := '';
+	shouldFit := TRUE;
+	WHILE (ringBuffer.nCount > 0 AND shouldFit) DO
+		// We get the data but dont delete it yet
+		ringBuffer.A_GetHead(pRead := ADR(bufferedLine), cbRead := SIZEOF(bufferedLine), pBuffer := ADR(ringBufferMemory), cbBuffer	:= SIZEOF(ringBufferMemory));
+
+		// Check if bufferedLine will fit to longString
+		bufferedLineLen := LEN2(ADR(bufferedLine));
+		longStringLen:= LEN2(ADR(longString));
+		shouldFit := (longStringLen + bufferedLineLen <= LONGSTRING_SIZE_IN_BYTES);	// Same size as longString
+		IF (shouldFit) THEN
+			// Here we concat onto longString, this should always succeed
+			// If data would be too big for CONCAT2, that data that fits would be added and the rest discarded, therefore we check before hand to ensure all data gets logged correctly
+			shouldFit := CONCAT2(pSrcString1  := ADR(longString), pSrcString2 := ADR(bufferedLine), pDstString := ADR(longString), nDstSize := SIZEOF(longString));
+			IF (shouldFit) THEN
+				// When the data did fit, we remove it from the ringBuffer (we read into a trash variable)
+				ringBuffer.A_RemoveHead(pRead := ADR(trash), cbRead := SIZEOF(trash), pBuffer := ADR(ringBufferMemory), cbBuffer	:= SIZEOF(ringBufferMemory));
+			ELSE
+				// Should never come here
+				IncUDINT(concatFailure); 
+			END_IF
+		ELSE
+			;	// Its ok to leave the while loop since we will write (to file) all we got into longString, after that we create another longString and write again
+			// The 10000 limitation means our file write, writes mostly 10000 bytes at a time
+		END_IF
+	END_WHILE
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="doWrite" Id="{3ca0f0fd-8b20-4b06-9b7a-f2d235dea141}">
+      <Declaration><![CDATA[METHOD PUBLIC doWrite : BOOL		// Will add this data to the queue that will be written in the current PLC cycle.  Data is buffered and file write happens at most once/PLC cycle.
+VAR_INPUT
+	iData:		T_LONG_STR_512;		// The data to be written, up to 512 chars
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Add data to the FIFO
+
+// If SIZEOF is used on iData, the ringbuffer always has entries that are as big as iData, even though the string would be 1 char only
+// When using, LEN2, we can fit more data to the ringbuffer since rarely the iData will be the max length
+// +1 is to account for the string variables final null (it is required!)
+ringBuffer.A_AddTail(pWrite := ADR(iData), cbWrite := (LEN2(ADR(iData)) + 1), 							// What to write
+					 pBuffer := ADR(ringBufferMemory), cbBuffer := SIZEOF(ringBufferMemory));	// The ringbuffer's memory	
+					 
+// If data doesnt fit anymore, bOk will be FALSE					 
+IF (NOT ringBuffer.bOk) THEN
+	IncUDINT(overflowCnt);	// More data is to be written in this PLC cycle but it doesnt fit the ringBuffer
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="gotoNextStep" Id="{330e44cd-a661-46ec-b13d-7252d6a21137}">
+      <Declaration><![CDATA[METHOD PRIVATE gotoNextStep : BOOL
+VAR_INPUT
+	iCondition:	BOOL;
+	iNextStep:	E_FILE_WRITER_STEPS;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (NOT (step<>oldStepForStepChangeOnly)) THEN
+	IF (iCondition) THEN
+		step := iNextStep;
+	END_IF
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Action Name="updateOldStep" Id="{f1c79d7d-16c5-4de8-9a93-0bf6b25269b2}">
+      <Implementation>
+        <ST><![CDATA[IF (step <> oldStepForStepChangeOnly) THEN
+	stepChanged := TRUE;
+	prevStep := oldStepForStepChangeOnly;			// Otherwise next SWITCH CASE checks oldStep which was just updated here!!
+	oldStepForStepChangeOnly := step;
+ELSE 
+	stepChanged := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Action>
+    <LineIds Name="FB_FileWriterV2">
+      <LineId Id="2" Count="94" />
+    </LineIds>
+    <LineIds Name="FB_FileWriterV2.concatBuffers">
+      <LineId Id="2" Count="28" />
+    </LineIds>
+    <LineIds Name="FB_FileWriterV2.doWrite">
+      <LineId Id="2" Count="11" />
+    </LineIds>
+    <LineIds Name="FB_FileWriterV2.gotoNextStep">
+      <LineId Id="2" Count="5" />
+    </LineIds>
+    <LineIds Name="FB_FileWriterV2.updateOldStep">
+      <LineId Id="1" Count="6" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

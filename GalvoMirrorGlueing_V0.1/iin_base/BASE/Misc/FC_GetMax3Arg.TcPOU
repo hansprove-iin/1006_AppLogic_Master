@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_GetMax3Arg" Id="{3c87efd0-572a-4abd-9e3e-313f2506644c}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_GetMax3Arg : REAL
+VAR_INPUT
+	iVal1:	REAL;
+	iVal2:	REAL;
+	iVal3:	REAL;
+END_VAR
+VAR
+	maxVal:	REAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[maxVal := MAX(iVal1, iVal2);
+maxVal := MAX(maxVal, iVal3);
+
+FC_GetMax3Arg := maxVal;]]></ST>
+    </Implementation>
+    <LineIds Name="FC_GetMax3Arg">
+      <LineId Id="2" Count="3" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

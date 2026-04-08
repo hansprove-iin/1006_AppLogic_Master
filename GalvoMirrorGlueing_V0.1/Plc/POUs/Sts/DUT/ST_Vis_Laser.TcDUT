@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_Vis_Laser" Id="{8f9363b0-4a4e-4575-8790-20e5ada3c411}">
+    <Declaration><![CDATA[TYPE ST_Vis_Laser :
+STRUCT
+	
+	stLaserRectangle		: TcVnRotatedRectangle;
+	rLaserOffsetToSetPoint	: ARRAY [0..1] OF LREAL;
+	bImagingStatusOk		: BOOL;
+	bImagingDone			: BOOL;
+	bDetectionFailed		: BOOL;
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

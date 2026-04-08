@@ -1,0 +1,491 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_StepperProgram" Id="{6d53ebe3-e959-09b5-1fa0-9237474b3e01}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'reflection'} 
+FUNCTION_BLOCK FB_StepperProgram EXTENDS FB_BaseWithAlarmEvents  	// Base skeleton for a stepping program
+VAR
+	stepChanged:				BOOL;				// TRUE when step change has happened
+	interceptor:				FB_Interceptor;
+	conditionCacheActive:		BOOL;				// When TRUE, condition caching is activated (so 1 PLC cycle iCondition pulses dont get lost)
+	conditionCache:				BOOL;				// Help var that caches the iCondition (TRUE) signal when paused or interceptor is 'active'
+	stepPtr:					POINTER TO INT;		// Needed for casting the step (as INT) back to step (as ENUM)
+	
+	enableDebug:				BOOL;				// Set TRUE to activate debugging (stepping will stop)
+	maxDebugTon:				TON; 
+	debugAllowSingleStep:		BOOL;				// When TRUE, a single step will be allowed, THEN the debugger becomes active again
+	
+	stepDuration:				TIME;				// The time/duration we have been in the current step
+	
+    {attribute 'instance-path'} 
+    {attribute 'noinit'} 
+	instancePath:				T_SHORT_STR;
+	
+	stoppedBoolLogger:			FB_BoolLogger;
+	stopped2BoolLogger:			FB_BoolLogger;
+	
+	pauseInNextCycle:			BOOL;				// Used by pauseAsNeededWithOneCycleDelay
+	
+	interceptorFailed:			BOOL;				// If interceptor fails in condition x, it will also fail in condition y
+	
+	manualBehaviorIsSameAsPause:	BOOL;
+	
+	// Helpers
+	hardResetPulseForStepperProgram:	BOOL;
+	hardResetPulseDueToGlobalReset:		BOOL;		// helper flag when global reset is called (= a method)
+END_VAR
+VAR PERSISTENT
+	oldStepForStepChangeOnly:	INT;
+	prevStep:					INT;
+	maxDebugTime:				TIME := T#1M;		// The debugger will stay active for a maximum of this time (so not staying ON forever)
+	stepStartedTime:			TIME;				// For calculating time duration of the current step
+END_VAR
+VAR_OUTPUT
+	oDebugStep:					T_SHORT_STR;		// For showing the STEP in Engineering VISU
+	oUserInfo:					T_SHORT_STR;
+	oStopped:					BOOL;				// TRUE when the sequence is halted due to manual mode or pause request
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="callMeRightAfterSwitchCase" Id="{8bcf88dc-9676-4657-bdb0-53d6770a7303}">
+      <Declaration><![CDATA[METHOD PROTECTED callMeRightAfterSwitchCase : BOOL	// MUST to be called after the SWITCH CASE, otherwise the stepChanged is set too late
+VAR_INPUT
+	iLogTraces:		BOOL := TRUE;
+	iExtraTrace:	T_SHORT_STR;
+END_VAR
+VAR
+//	areas:			ST_GLOBAL_RESET_AREAS;
+	primaryArea:	INT;
+	secondaryArea:	INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[updateOldStep();
+trace(iLogTraces, iExtraTrace);
+
+hardResetPulseForStepperProgram := FALSE;
+IF (iControlSignalsIf <> IING.ZERO_POINTER) THEN
+	// Keep iControlSignals here for now (conveyor overwrites it)
+	hardResetPulseForStepperProgram := iControlSignals.hardResetPulse OR iControlSignalsIf.ic_getControlSignalsOutPtr()^.hardResetPulse; 
+ELSE
+	hardResetPulseForStepperProgram := iControlSignals.hardResetPulse;
+END_IF
+
+hardResetPulseForStepperProgram := hardResetPulseForStepperProgram OR hardResetPulseDueToGlobalReset; 
+hardResetPulseDueToGlobalReset := FALSE;
+
+IF (hardResetPulseForStepperProgram) THEN
+	conditionCache := FALSE;			// After hard reset, the iCondition TRUE cache must always be cleared
+	initDebugger();
+	interceptor.init();
+	hardResetWasCalled();				// Here project specific stuff is to be implemented
+END_IF
+
+// Setting this event based causes steps not being visible after hard reset, lets keep it updating this way  
+IF (IING.pulse100Ms) THEN
+	oDebugStep := stepAsString();
+END_IF
+	
+maxDebugTon(IN := enableDebug, PT := maxDebugTime);
+IF (maxDebugTon.Q) THEN
+	initDebugger();
+END_IF
+
+stoppedBoolLogger(iIn := oStopped, iLogRising := TRUE, iLogFalling := TRUE,  iPos := iPos, iDeviceType := iDeviceType, iDeviceId := 'oHalted');
+mHandleSubPausing();
+stopped2BoolLogger(iIn := oStopped, iLogRising := TRUE, iLogFalling := TRUE,  iPos := iPos, iDeviceType := iDeviceType, iDeviceId := 'oHalted again');
+
+
+// we have passed all gotoNextStep's, reset this flag
+interceptorFailed := FALSE;
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="callMeRightBeforeSwitchCase" Id="{b2628731-d400-02b5-111f-859e0056cc7d}">
+      <Declaration><![CDATA[METHOD PROTECTED callMeRightBeforeSwitchCase : BOOL	// MUST be called before the SWITCH CASE
+VAR_INPUT
+	iStepPtr:	POINTER TO INT;		// Pointer to your ENUM step
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[stepPtr := iStepPtr;
+oStopped := FALSE;
+conditionCacheActive := FALSE;	// Need to be activated in each PLC cycle
+
+interceptor(iDebugEnableBreakpoint := enableDebug, ioDebugAllowSingleStep := debugAllowSingleStep);
+
+stepDuration := (TIME() - stepStartedTime);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enableConditionCache" Id="{c0832be1-4bdf-4581-8926-7ecbd380ad70}">
+      <Declaration><![CDATA[METHOD PROTECTED enableConditionCache : BOOL		// Enables caching of iCondition in gotoNextStep
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[conditionCacheActive := TRUE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="gotoNextStep" Id="{063e3aca-4ef9-4638-a0b2-a9dbe79db03d}">
+      <Declaration><![CDATA[METHOD PROTECTED gotoNextStep : BOOL	// To be called from gotoNextStep
+VAR_INPUT
+	iCondition:			BOOL;	// When TRUE, your stepping program will goto iNextStep
+	iNextStep:			INT;	// Nextstep (as INT), conversion to INT happens automatically
+END_VAR
+VAR
+	interceptorResult:	ST_INTERCEPTOR_RESULT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (NOT (stepPtr^ <> oldStepForStepChangeOnly) AND NOT interceptorFailed) THEN
+	IF (oStopped) THEN
+		oUserInfo := 'Paused';
+		setConditionCache(iCondition, 'Condition cached from pause, current step: ');
+	ELSE
+		IF (iCondition OR (conditionCacheActive AND conditionCache)) THEN
+			interceptorResult := interceptor.getResult();
+			IF (interceptorResult.clear) THEN
+				IF (NOT iCondition) THEN	// If we get here, it is coming through a cached condition
+					FC_GetLogger().info(iData := FC_3strConcat(iStr1:= getLoggingId(), iStr2 := ', ', iStr3 := 'Cached condition caused step change'));
+				END_IF
+			
+				// We are good to proceed to the next step
+				stepPtr^ := iNextStep;			// We write the step variable here
+				conditionCache := FALSE;		// Reset the iCondition cache
+	
+				oUserInfo := IING.STRING_BLANK;
+				
+				pauseInNextCycle := FALSE;		// If pause didnt happen, this need to be reset again
+			ELSE
+				oUserInfo := interceptorResult.missing;					
+				setConditionCache(iCondition, 'Condition cached from interceptor, current step: ');
+				
+				interceptorFailed := TRUE;
+			END_IF
+		ELSE	// No pausing, nothing we are waiting for -> clear the UserInfo
+			oUserInfo := IING.STRING_BLANK;
+		END_IF
+	END_IF
+END_IF
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="hardResetWasCalled" Id="{f5d0793f-ae22-47a3-a5eb-af5d0f433e4e}">
+      <Declaration><![CDATA[METHOD PROTECTED hardResetWasCalled : BOOL		// Can be used to execute 'hard reset' functionality, overwrite in your implementation
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Overwrite in your stepping program implementation
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_getCurrentStep" Id="{3c052fcc-1463-480d-a1af-f4db59214320}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_getCurrentStep : T_SHORT_STR		// Returns the current step of this FB -> for visualization purposes
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ic_getCurrentStep := stepAsString();
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_getName" Id="{04cde418-1e16-4b27-b10b-d0d408701905}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_getName : T_SHORT_STR		// Return the instance name of this FB
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ic_getName := instancePath;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_isInAuto" Id="{0ebc6914-4883-45c2-8ae8-ca8b09fb3000}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_isInAuto : BOOL		// Return TRUE when in AUTO
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (iControlSignalsIf <> IING.ZERO_POINTER) THEN
+	ic_isInAuto := iControlSignalsIf.ic_isInAuto();
+ELSE
+	ic_isInAuto := iControlSignals.auto;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_isPauseByCsRequested" Id="{b0f5ba23-5916-40e5-aa63-0abd353ec2f8}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_isPauseByCsRequested : BOOL		// Is Pause by control signals requested
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (iControlSignalsIf <> IING.ZERO_POINTER) THEN
+	ic_isPauseByCsRequested := iControlSignalsIf.ic_isInPause();
+ELSE
+	ic_isPauseByCsRequested := iControlSignals.pauseRequest;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_isReady" Id="{70a0c8e5-a55d-4fe6-8f72-eb4a3ae7729f}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_isReady : BOOL			// Return TRUE when this sequence is READY to start over
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ic_isReady := FALSE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_isSaOk" Id="{31a0db64-5ba7-460f-9cec-2246ad8f8a4d}">
+      <Declaration><![CDATA[METHOD public ic_isSaOk : BOOL		// // Return TRUE when this safety area is ok
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ic_isSaOk := FALSE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_putToAutoAndUnpause" Id="{ed1b09a7-826a-4fab-8389-76977eecf548}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_putToAutoAndUnpause		// Called by FB_GlobalResetArea when sequence is to switch to AUTO and NOT PAUSE
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (iControlSignalsIf <> IING.ZERO_POINTER) THEN
+	iControlSignalsIf.ic_switchToAuto();
+	iControlSignalsIf.ic_unPause();
+END_IF
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="initDebugger" Id="{782be3ea-8784-4bac-8747-4f749433a7ab}">
+      <Declaration><![CDATA[METHOD PRIVATE initDebugger : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[enableDebug := FALSE;
+debugAllowSingleStep := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="isTimeExpired" Id="{42861a0b-cb5a-42c6-ac6a-6a2237185b54}">
+      <Declaration><![CDATA[METHOD PUBLIC isTimeExpired : BOOL		// Returns TRUE when the given time is bigger than the current step duration  
+VAR_INPUT
+	iTime:	TIME;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[isTimeExpired := (stepDuration >= iTime);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="mHandleSubPausing" Id="{fe7f7582-ea78-4637-a497-4ae87968f1c2}">
+      <Declaration><![CDATA[METHOD PROTECTED mHandleSubPausing		// Here you can overwrite the oStopped with information from your sub sequences
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Overwrite in your stepping program implementation
+// oStoppped := oStopped and mySubSequence.oStopped;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="mIsManualBehaviorSameAsPause" Id="{701d7f15-fad5-400e-a5bf-ccbf086c355b}">
+      <Declaration><![CDATA[METHOD PROTECTED mIsManualBehaviorSameAsPause :	BOOL	// Return TRUE when going to Manual is to behave same as Pause
+														// Overwrite as needed in your sequence
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[mIsManualBehaviorSameAsPause := FALSE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="mIsPauseByManualRequested" Id="{5b24588d-055a-431a-9836-2d4ade78b4fc}">
+      <Declaration><![CDATA[METHOD PROTECTED mIsPauseByManualRequested : BOOL		// TRUE means we request pause (because we are in manual)
+														// Not intended to be overriden in your application]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[mIsPauseByManualRequested := mIsManualBehaviorSameAsPause() AND NOT ic_isInAuto();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="mPurgeWpsDueToGlobalReset" Id="{13de8b54-c725-4c39-8fef-5b3ba9378ade}">
+      <Declaration><![CDATA[METHOD PROTECTED mPurgeWpsDueToGlobalReset			// Called after a global reset is done
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Overwrite in your stepping program implementation
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="pauseAsNeeded" Id="{c313fd1a-204d-04bc-154e-824ebd23796f}">
+      <Declaration><![CDATA[METHOD PROTECTED pauseAsNeeded : BOOL		// Will halt program execution when PAUSE is requested
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[oStopped := ic_isPauseByCsRequested() OR mIsPauseByManualRequested();
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="pauseAsNeededByExternalRequest" Id="{205dd8b4-3ce7-400b-b43a-fd707a0fb76c}">
+      <Declaration><![CDATA[METHOD PROTECTED pauseAsNeededByExternalRequest		// Pausing possibility from an external request
+VAR_INPUT
+	iExternalPauseRequest:	BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[oStopped := iExternalPauseRequest;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="pauseAsNeededWithConditionCache" Id="{c6b3bddd-8a52-4201-b6e7-648a69d64535}">
+      <Declaration><![CDATA[METHOD PROTECTED pauseAsNeededWithConditionCache : BOOL		// Will halt program execution when PAUSE is requested
+															// Enables caching of iCondition in gotoNextStep
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[oStopped := ic_isPauseByCsRequested() OR mIsPauseByManualRequested();
+
+enableConditionCache();
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setConditionCache" Id="{ce6760f6-b14c-4a20-96d6-c9b09a8de341}">
+      <Declaration><![CDATA[METHOD PRIVATE setConditionCache : BOOL
+VAR_INPUT
+	iCondition:		BOOL;
+	iReason:		T_SHORT_STR;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (iCondition AND conditionCacheActive AND NOT conditionCache) THEN
+	conditionCache := TRUE;
+	FC_GetLogger().info(iData := FC_4strConcat(iStr1:= getLoggingId(), iStr2 := ', ', iStr3 := iReason, iStr4 := oDebugStep));
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="stepAsString" Id="{5c57f949-9771-07c4-3d55-c5db03010edb}">
+      <Declaration><![CDATA[METHOD PUBLIC stepAsString : T_SHORT_STR	// Return your ENUM step as STRING
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[forceMethodOverwrite(instancePath);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="stepInBetween" Id="{457d95c2-6265-4611-bc94-1795af0d1184}">
+      <Declaration><![CDATA[METHOD PROTECTED stepInBetween : BOOL	// Returns TRUE if the current step is in between (=> and <=) Start and End step
+VAR_INPUT
+	iStart:	INT;	// Start step (inclusive)
+	iEnd:	INT;	// End step (inclusive)
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (stepPtr <> IING.ZERO_POINTER) THEN
+	stepInBetween := (stepPtr^ >= iStart) AND (stepPtr^ <= iEnd);
+ELSE
+	stepInBetween := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="trace" Id="{d7e12d49-c845-0a9e-3a06-be381498fd2b}">
+      <Declaration><![CDATA[METHOD PRIVATE trace : BOOL
+VAR_INPUT
+	iLogTraces:		BOOL;
+	iExtraTrace:	T_SHORT_STR;
+END_VAR
+VAR
+	identifier:	T_SHORT_STR;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (stepChanged AND iLogTraces) THEN
+	IF (FC_StringNotEmpty(iExtraTrace)) THEN
+		identifier := FC_2strConcatSeparator(iSeparator := IING.STRING_UNDERSCORE, iStr1 := getLoggingId(), iStr2 := iExtraTrace);
+	ELSE
+		identifier := getLoggingId();
+	END_IF
+
+	// Do not use oDebugStep here since it gets updated only every xxx ms
+	FC_GetLogger().trace(iData := FC_4strConcat(iStr1 := identifier, iStr2 := ', ', iStr3 := 'Step: ', iStr4 := stepAsString()));
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="updateOldStep" Id="{6ac9d438-f1d3-440e-a09a-7993bf896af2}">
+      <Declaration><![CDATA[METHOD PRIVATE updateOldStep : BOOL
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (stepPtr^ <> oldStepForStepChangeOnly) THEN
+	stepChanged := TRUE;
+	prevStep := oldStepForStepChangeOnly;			// Otherwise next SWITCH CASE checks oldStep which was just updated here!!
+	oldStepForStepChangeOnly := stepPtr^;
+				
+	stepStartedTime := TIME();
+ELSE 
+	stepChanged := FALSE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_StepperProgram">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.callMeRightAfterSwitchCase">
+      <LineId Id="2" Count="39" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.callMeRightBeforeSwitchCase">
+      <LineId Id="2" Count="7" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.enableConditionCache">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.gotoNextStep">
+      <LineId Id="2" Count="32" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.hardResetWasCalled">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.ic_getCurrentStep">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.ic_getName">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.ic_isInAuto">
+      <LineId Id="2" Count="5" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.ic_isPauseByCsRequested">
+      <LineId Id="2" Count="5" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.ic_isReady">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.ic_isSaOk">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.ic_putToAutoAndUnpause">
+      <LineId Id="2" Count="5" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.initDebugger">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.isTimeExpired">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.mHandleSubPausing">
+      <LineId Id="2" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.mIsManualBehaviorSameAsPause">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.mIsPauseByManualRequested">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.mPurgeWpsDueToGlobalReset">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.pauseAsNeeded">
+      <LineId Id="2" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.pauseAsNeededByExternalRequest">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.pauseAsNeededWithConditionCache">
+      <LineId Id="2" Count="3" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.setConditionCache">
+      <LineId Id="2" Count="3" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.stepAsString">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.stepInBetween">
+      <LineId Id="2" Count="4" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.trace">
+      <LineId Id="2" Count="10" />
+    </LineIds>
+    <LineIds Name="FB_StepperProgram.updateOldStep">
+      <LineId Id="2" Count="9" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

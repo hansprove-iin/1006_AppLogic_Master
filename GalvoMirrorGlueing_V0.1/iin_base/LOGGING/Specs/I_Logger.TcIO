@@ -1,0 +1,66 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <Itf Name="I_Logger" Id="{71204e24-e56c-4831-b454-13e00b4a58c7}">
+    <Declaration><![CDATA[INTERFACE I_Logger		// Generic interface for logging 'data', logging can be done to file/HMI/MQTT and depends on the implementation
+]]></Declaration>
+    <Method Name="debug" Id="{acf66993-cc98-4ce3-b58c-91261f06bce4}">
+      <Declaration><![CDATA[METHOD PUBLIC debug : BOOL	// Logs the data with log level 'DEBUG'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="deregister" Id="{8e581078-5239-4afa-a947-8df83fddc49a}">
+      <Declaration><![CDATA[METHOD PUBLIC deregister : BOOL
+VAR_INPUT
+	iWho:				T_SHORT_STR;
+END_VAR
+
+	]]></Declaration>
+    </Method>
+    <Method Name="doLog" Id="{20ae417d-9c55-4753-93e6-ee38ade7b877}">
+      <Declaration><![CDATA[METHOD PUBLIC doLog : BOOL	// Logs the data with log level iLevel
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+	iLevel:		E_LOG_LEVEL := E_LOG_LEVEL.ERROR;	// Log level
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="error" Id="{d3eabb08-a4a0-4938-ab7f-28475f606bf2}">
+      <Declaration><![CDATA[METHOD PUBLIC error : BOOL	// Logs the data with log level 'ERROR'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="info" Id="{065ce348-616c-4b8b-aaf7-1ca93861bf59}">
+      <Declaration><![CDATA[METHOD PUBLIC info : BOOL	// Logs the data with log level 'INFO'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="register" Id="{45cde44d-7e2b-46b8-a710-9056c6985e05}">
+      <Declaration><![CDATA[METHOD PUBLIC register : BOOL
+VAR_INPUT
+	iWho:		T_SHORT_STR;
+	iObserver:	I_Logger;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="trace" Id="{8a503762-f8e2-469b-a2ba-2360d55ffcc7}">
+      <Declaration><![CDATA[METHOD PUBLIC trace : BOOL	// Logs the data with log level 'TRACE'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="warn" Id="{2ad6c622-1b0d-452c-9556-091a795eb1cf}">
+      <Declaration><![CDATA[METHOD PUBLIC warn : BOOL	// Logs the data with log level 'WARN'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+END_VAR
+]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

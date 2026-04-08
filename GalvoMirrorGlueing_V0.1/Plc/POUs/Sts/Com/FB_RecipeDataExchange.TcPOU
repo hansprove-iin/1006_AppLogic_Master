@@ -1,0 +1,85 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_RecipeDataExchange" Id="{3ea66187-9fc6-40c7-b52b-3d9898aaeb4a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_RecipeDataExchange
+VAR_INPUT
+	trigAdsWrite		: BOOL;
+	sendRecipeData	: REFERENCE TO ST_Recipes; // Kirjoittaa nämä tiedot -> toisen pc: MAIN.reveicedLaserData
+	stModuleHmi			: REFERENCE TO ST_ModuleHmi;
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+	adsWriteStatus : INT :=0;
+
+	fbAdsWriteRecipe		:FB_WriteAdsSymByName :=(
+		sNetId :='192.168.1.10.1.1',
+		nPort := 852,
+		eComMode :=E_AdsComMode.eAdsComModeFastCom,
+		tTimeout :=DEFAULT_ADS_TIMEOUT);
+	bStart		: BOOL;
+	delayedStart	:TON;
+	resetCounter	:INT :=0;
+	bAllowStart		:BOOL;
+	retryDelayTON	:TON;
+	bRetrytimer		:BOOL :=FALSE;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+delayedStart (IN:=TRUE, PT:=T#10S);
+bAllowStart := TRUE;
+IF stModuleHmi.bResetCommunication THEN
+	adsWriteStatus := 30;
+END_IF
+
+CASE adsWriteStatus OF
+
+0 : 
+		IF NOT fbAdsWriteRecipe.bBusy  AND delayedStart.Q AND bAllowStart THEN	// oli trigAdsWrite
+			//trigAdsWrite := FALSE; //Dsable this maybe, so that data transfers continuously
+			adsWriteStatus := 10;
+		END_IF
+10 :
+
+		fbAdsWriteRecipe(bWrite := FALSE);
+		fbAdsWriteRecipe(
+			sVarName := 'MAIN_VISION.ReceivedRecipeData', //Destination symbol name/location
+			nLen := SIZEOF(sendRecipeData), //Lähetettävän tiedon koko saadaan suoraan structuurista
+			nSrcAddr := ADR(sendRecipeData), 	//Lähetettävän tiedon osoite saadaan suoraan structuurista
+			bWrite := TRUE );
+		adsWriteStatus := 20;
+20 :
+
+		fbAdsWriteRecipe(bWrite := FALSE);
+		IF NOT fbAdsWriteRecipe.bBusy THEN
+			IF NOT fbAdsWriteRecipe.bError THEN
+				adsWriteStatus := 0;
+			ELSE
+				adsWriteStatus := 30;
+			END_IF
+		END_IF
+30 :
+ 	IF NOT bRetryTimer THEN
+        retryDelayTON(IN := TRUE, PT := T#10S);
+        bRetrytimer := TRUE;
+    ELSE
+        retryDelayTON(IN := TRUE); // keep running
+    END_IF
+
+		IF retryDelayTON.Q THEN
+        	retryDelayTON(IN := FALSE); // Reset timer 
+        	bRetrytimer := FALSE;
+
+        	IF delayedStart.Q AND resetCounter < 3 AND bAllowStart THEN
+            	resetCounter := resetCounter + 1;
+            	adsWriteStatus := 10;         // retry write
+        	ELSE
+            	bAllowStart := FALSE;         // 3 attempts failed
+            	adsWriteStatus := 0;          // go idle?
+        END_IF
+    END_IF
+END_CASE]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

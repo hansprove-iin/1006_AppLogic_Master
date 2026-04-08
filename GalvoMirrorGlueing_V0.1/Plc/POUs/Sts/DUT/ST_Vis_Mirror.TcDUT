@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_Vis_Mirror" Id="{696a5f70-10f6-4cac-99fb-0c6c5eb8690a}">
+    <Declaration><![CDATA[TYPE ST_Vis_Mirror :
+STRUCT
+
+	rDetectedMirrorTypeNumber	: ARRAY [0..10] OF LREAL;
+	stMirrorRectangle			: TcVnRotatedRectangle;
+	rMirrorOffsetToCalPoints 	: ARRAY [0..1] OF LREAL;
+	rMirrorOffsetToMotor		: ARRAY [0..1] OF LREAL;
+	bImagingStatusOk			: BOOL;
+	bLightTestOk				: BOOL;
+	bLaserTestOk				: BOOL;
+	bDetectionFailed			: BOOL;
+	bImagingDone				: BOOL;
+	bReadyForTrigger			: BOOL;
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <Itf Name="I_AlarmObserver" Id="{6214b008-3d2a-4036-9865-3bdc776e05d3}">
+    <Declaration><![CDATA[INTERFACE I_AlarmObserver
+]]></Declaration>
+    <Method Name="cleared" Id="{049a4742-3584-4315-b7f4-ca80395e483b}">
+      <Declaration><![CDATA[METHOD PUBLIC cleared : BOOL		// Called when an alarm is cleared
+VAR_INPUT
+	iAlarm:	ST_CLEAR_ALARM;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="raised" Id="{b89b7ab5-32d1-4c11-a722-7141613373a0}">
+      <Declaration><![CDATA[METHOD PUBLIC raised : BOOL		// Called when an alarm is raised
+VAR_INPUT
+	iAlarm:	ST_ACTIVE_ALARM;
+END_VAR
+]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

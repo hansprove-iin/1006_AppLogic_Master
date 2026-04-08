@@ -1,0 +1,631 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_MidStaion" Id="{405b91db-90c8-49ad-b8af-7992212b0d15}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_MidStaion
+VAR_INPUT
+	bTriggerImage : BOOL;
+ 	stRecipeData: REFERENCE TO ST_Recipes;
+	stCouplerData		: REFERENCE TO ST_CouplerImagingData;
+	iStationId			: INT;
+END_VAR
+VAR_OUTPUT
+	bError : BOOL;
+END_VAR
+VAR
+	hr									: HRESULT;
+	eVisionState						: ETcVnCameraState;
+	fbCamera          					: FB_VN_GevCameraControl;
+	ImageRawDisp						: ITcVnDisplayableImage;
+	ImageFilter							: Tc3_Vision.ITcVnImage;
+	ImageFilterDisp						: ITcVnDisplayableImage;
+	nNewImageCounter 					: UINT;
+	ImageRaw: Tc3_Vision.ITcVnImage;
+	ipImageProsessed					: Tc3_Vision.ITcVnImage;
+	
+	nFilterWidth						: UDINT := 7;
+	fTargetRadius						: REAL := 250;		// Hakuympyrän oletettu säde (=moottorin säde), tämä reseptiin
+	fMinRadius							: REAL := 150;		// Hakuympyrän pienin sallittu säde, tämä reseptiin
+	
+
+	aElement1 							: TcVnPoint2_REAL;
+	aElement2							: TcVnPoint2_REAL;
+	ipEdgePointsL    					: ITcVnContainer;
+	ipEdgePointsR    					: ITcVnContainer;
+	eAlgorithm           				: ETcVnEdgeDetectionAlgorithm;
+	aFitlineL							: TcVnVector4_LREAL;
+	aFitlineR							: TcVnVector4_LREAL;
+	
+	aStartPointCoupler					: TcVnPoint2_REAL;
+	aEndPointCoupler					: TcVnPoint2_REAL;
+	aStartPoint1 						: TcVnPoint2_REAL;
+	aEndPoint1							: TcVnPoint2_REAL;
+	aStartPoint2 						: TcVnPoint2_REAL;
+	aEndPoint2							: TcVnPoint2_REAL;
+	aStartPoint3 						: TcVnPoint2_REAL;
+	aEndPoint3							: TcVnPoint2_REAL;
+	rClawLLineAngleRad						: LREAL;
+	rClawLLineAngleDeg						: LREAL;
+	rClawRLineAngleRad						: LREAL;
+	rClawRLineAngleDeg						: LREAL;
+	rSearchLineDist							: REAL := 10;
+	
+	rLineAngleRad						: LREAL;
+	rLineAngleDeg						: LREAL;
+	rLineAngleResultDeg					: LREAL;
+	aCenter								: TcVnPoint2_REAL;
+	ipContourPoints						: ITcVnContainer;
+	stMotorEllipse						: TcVnRotatedRectangle;
+	ipImageProsessedDisp				: Tc3_Vision.ITcVnDisplayableImage;
+	
+	bGreatSuccess: BOOL;
+	bSuccess_ImageTransform: BOOL;
+	bSuccess_LeftLocate: BOOL;
+	bSuccess_RightLocate: BOOL;
+	bSuccess_DrawCircle: BOOL;
+	bSuccess_FindEllipse: BOOL;
+	bSuccess_FixtureMethod : BOOL;
+	
+	
+
+	
+	rThreshold			: LREAL := 45;
+	rMaxvalue			: LREAL := 255;
+	
+	
+	// RMSE
+	slope     : LREAL;  // a
+    intercept : LREAL;  // b
+    rmsError  : LREAL;  
+	bRmsErr : BOOL;
+	
+END_VAR
+
+VAR RETAIN
+	bModeFixtureToGripper: BOOL := TRUE;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[eVisionState := fbCamera.GetState();
+
+
+stCouplerData.bImageReceived := FALSE;
+hr := 0;
+
+
+
+IF eVisionState = TCVN_CS_ERROR THEN
+	hr := fbCamera.Reset();
+ELSIF eVisionState = TCVN_CS_TRIGGERING THEN
+	hr := fbCamera.TriggerImage();
+ELSIF eVisionState < TCVN_CS_ACQUIRING THEN
+    hr := fbCamera.StartAcquisition();
+ELSIF eVisionState = TCVN_CS_ACQUIRING THEN
+	hr := fbCamera.GetCurrentImage(ImageRaw); // switch to undistorted
+	IF SUCCEEDED(hr) AND ImageRaw <> 0 THEN
+		bError := FALSE;
+		stCouplerData.bImagingDone := FALSE;
+		stCouplerData.bPartDetectFailed := FALSE;
+		stCouplerData.bPartDetectSucceeded := FALSE;
+		stCouplerData.bImageReceived := TRUE;
+		SetParams();
+		nNewImageCounter := nNewImageCounter +1;
+		//hr := F_VN_CopyIntoDisplayableImage (ImageRaw, ImageRawDisp, hr);
+		bSuccess_FixtureMethod := FALSE;
+		FixtureGripper();
+		bSuccess_FixtureMethod := SUCCEEDED(hr);
+		IF NOT bSuccess_FixtureMethod THEN
+			Err.Err; // PALLET IMAGING ERROR
+		ELSE
+			hr := F_VN_CopyIntoDisplayableImage (ipImageProsessed, ipImageProsessedDisp, hr);	
+			stCouplerData.bImagingDone := TRUE;
+		END_IF
+ 		hr := F_VN_CopyIntoDisplayableImage (ImageRaw, ImageRawDisp, hr);
+// 		hr := F_VN_CopyIntoDisplayableImage (ImageFilter, ImageFilterDisp, hr);
+
+	ELSE
+		bError := TRUE;
+		Err.Err; // PALLET IMAGING ERROR
+	END_IF
+END_IF
+			]]></ST>
+    </Implementation>
+    <Method Name="FixtureGripper" Id="{22c0ae82-3f2d-4300-9cf3-05d8f7e13de3}">
+      <Declaration><![CDATA[METHOD FixtureGripper : BOOL
+VAR_INPUT
+
+END_VAR
+
+VAR
+	fFoundStr : REAL;
+	x : ARRAY[1..10] OF LREAL;
+    y : ARRAY[1..10] OF LREAL;
+	i : UDINT;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+//
+//	PARAMETERS
+//
+
+// left claw search area, Search dir right-to-left
+aEndPoint1[0] 	:= 800;
+aEndPoint1[1] 	:= 600;
+aStartPoint1[0] := 1100;
+aStartPoint1[1] := 600;
+
+// Right claw search area, Search dir left-to-right
+aStartPoint2[0] := 1080;
+aStartPoint2[1] := 600;
+aEndPoint2[0] 	:= 1400;
+aEndPoint2[1] 	:= 600;
+
+// Claw bottom search area, search dir bottom up
+aStartPoint3[0] := 1150;
+aStartPoint3[1] := 600;
+aEndPoint3[0] 	:= 1400;
+aEndPoint3[1] 	:= 600;
+
+// Motor Circle finding
+aCenter[0]		:= 1110;
+aCenter[1]		:= 1125;
+
+// Coupler edge find, in relation to found motor center
+// aStartPointCoupler[0] 	:= 0; // 100
+// aStartPointCoupler[1] 	:= 120; //-150
+// aEndPointCoupler[0]		:= 0;
+// aEndPointCoupler[1]		:= 0; // -70
+
+//  //Start values FOR 69636
+// aStartPointCoupler[0] 	:= 0;
+// aStartPointCoupler[1] 	:= 90;
+// aEndPointCoupler[0]		:= 0;
+// aEndPointCoupler[1]		:= 250;
+
+//  //Start values FOR AL-78676
+// aStartPointCoupler[0] 	:= 0;
+// aStartPointCoupler[1] 	:= 0;
+// aEndPointCoupler[0]		:= 0;
+// aEndPointCoupler[1]		:= 100;
+
+//Start values FOR 81984
+// aStartPointCoupler[0] 	:= 0;
+// aStartPointCoupler[1] 	:= 0;
+// aEndPointCoupler[0]		:= 0;
+// aEndPointCoupler[1]		:= 100;
+
+eAlgorithm 		:= TCVN_EDA_APPROX_ERF;
+
+bSuccess_ImageTransform	:= FALSE ;
+bSuccess_LeftLocate		:= FALSE ;
+bSuccess_RightLocate	:= FALSE ;
+bSuccess_DrawCircle		:= FALSE ;
+bSuccess_FindEllipse	:= FALSE ;
+bGreatSuccess := FALSE;
+
+hr := F_VN_ConvertColorSpace(ipSrcImage:= ImageRaw , ipDestImage:= ipImageProsessed ,
+eTransform:= ETcVnColorSpaceTransform.TCVN_CST_GRAY_TO_RGB, hrPrev:= hr);	
+bSuccess_ImageTransform := SUCCEEDED(hr);
+
+
+IF bModeFixtureToGripper THEN
+	// Left Claw positioning
+	hr := F_VN_LocateEdgeExp(
+		ipSrcImage:= ImageRaw, 
+		ipEdgePoints:= ipEdgePointsL, 
+		aStartPoint:= aStartPoint1, 
+		aEndPoint:= aEndPoint1, 
+		eEdgeDirection:= TCVN_ED_DARK_TO_LIGHT, 
+		fMinStrength:= 120,
+		fSearchLineDist  := 10,
+		nMaxThickness := 20,
+		nSearchLines:= 31,
+		eAlgorithm := eAlgorithm,
+		nSubpixelsIterations := 10,
+		fApproxPrecision := 0.001,
+		hrPrev:= hr, 
+		fAvgStrength=> fFoundStr);
+	bSuccess_LeftLocate := SUCCEEDED(hr);
+	IF SUCCEEDED(hr) THEN
+		hr := F_VN_GetAt_TcVnVector2_REAL(ipContainer:= ipEdgePointsL, aElement:= aElement1, nIndex:= 0, hrPrev:= hr);
+		hr := F_VN_DrawPoints(
+			ipPoints:= ipEdgePointsL, 
+			ipDestImage:= ipImageProsessed, 
+			eShape:= ETcVnDrawShape.TCVN_DS_X, 
+			aColor:= Color.Lime, 
+			hrPrev:= hr);
+		hr := F_VN_FitLine(
+			ipPointSet 	:= ipEdgePointsL, 
+			hrPrev		:= hr,
+			aFitLine	:= aFitlineL);
+		hr := F_VN_DrawLine_TcVnVector4_LREAL(
+			ipDestImage := ipImageProsessed,
+			aColor		:= Color.Aqua,
+			nThickness	:= 1,
+			aLine		:= aFitlineL,
+			hrPrev		:= hr);
+		rClawLLineAngleRad := ATAN(aFitlineL[0]/ aFitlineL[1]); 	
+ 		rClawLLineAngleDeg := rClawLLineAngleRad * (180/PI); 
+// 		IF rClawLLineAngleDeg > 0 THEN
+// 			rClawLLineAngleDeg := rClawLLineAngleDeg - 90;
+// 		ELSE
+// 			rClawLLineAngleDeg := -rClawLLineAngleDeg - 90;
+// 		END_IF
+	END_IF
+	
+	// Right Claw positioning
+	hr := F_VN_LocateEdgeExp(
+		ipSrcImage:= ImageRaw, 
+		ipEdgePoints:= ipEdgePointsR, 
+		aStartPoint:= aStartPoint2, 
+		aEndPoint:= aEndPoint2, 
+		eEdgeDirection:= TCVN_ED_DARK_TO_LIGHT, 
+		fMinStrength:= 120,
+		fSearchLineDist  := 10,
+		nMaxThickness := 20,
+		nSearchLines:= 31,
+		eAlgorithm := eAlgorithm,
+		nSubpixelsIterations := 10,
+		fApproxPrecision := 0.001,
+		hrPrev:= hr, 
+		fAvgStrength=> fFoundStr);
+	bSuccess_RightLocate := SUCCEEDED(hr);
+	IF SUCCEEDED(hr) THEN
+		hr := F_VN_GetAt_TcVnVector2_REAL(ipContainer:= ipEdgePointsR, aElement:= aElement2, nIndex:= 0, hrPrev:= hr);
+		hr := F_VN_DrawPoints(
+			ipPoints:= ipEdgePointsR, 
+			ipDestImage:= ipImageProsessed, 
+			eShape:= ETcVnDrawShape.TCVN_DS_X, 
+			aColor:= Color.Lime, 
+			hrPrev:= hr);
+		hr := F_VN_FitLine(
+			ipPointSet 	:= ipEdgePointsR, 
+			hrPrev		:= hr,
+			aFitLine	:= aFitlineR);
+		hr := F_VN_DrawLine_TcVnVector4_LREAL(
+			ipDestImage := ipImageProsessed,
+			aColor		:= Color.Aqua,
+			nThickness	:= 1,
+			aLine		:= aFitlineR,
+			hrPrev		:= hr);
+		rClawRLineAngleRad := ATAN(aFitlineR[0]/ aFitlineR[1]); 	
+		rClawRLineAngleDeg := rClawRLineAngleRad * (180/PI); 
+// 		IF rClawRLineAngleDeg > 0 THEN
+// 			rClawRLineAngleDeg := rClawRLineAngleDeg - 90;
+// 		ELSE
+// 			rClawRLineAngleDeg := -rClawRLineAngleDeg - 90;
+// 		END_IF
+	END_IF
+END_IF
+
+
+hr := F_VN_DrawCircle(
+		nCenterX 	:= REAL_TO_UDINT(aCenter[0]),
+		nCenterY	:= REAL_TO_UDINT(aCenter[1]),
+		nRadius		:= REAL_TO_UDINT(fTargetRadius),
+		ipDestImage	:= ipImageProsessed,
+		aColor		:= Color.Aqua,
+		nThickness	:= 1,
+		hrPrev		:= hr
+);
+bSuccess_DrawCircle := SUCCEEDED(hr);
+// Circle Finding (voi laittaa joko fixturoituna gripperiin tai jos robotin paikka tarpeeksi vakio, keskiö kovakoodattuna)
+IF rThreshold > 1 THEN
+	hr := F_VN_Threshold(
+		ipSrcImage      :=  ImageRaw,
+		ipDestImage     :=  ImageFilter,
+		fThreshold      :=  rThreshold, // half value range: (2^8)/2=128
+		fMaxValue       :=  rMaxvalue, // max value of 8-bit image: (2^8)-1=255
+		eThresholdType  :=  TCVN_TT_BINARY,
+		hrPrev          :=  hr
+	);
+ELSE
+	hr := F_VN_CopyImage(ipSrcImage := ImageRaw, ipDestImage := ImageFilter, hrPrev := hr);
+END_IF
+hr := F_VN_CopyIntoDisplayableImage (ImageFilter, ImageFilterDisp, hr);
+hr := F_VN_LocateEllipseExp(
+	ipSrcImage				:= ImageRaw, 
+	ipContourPoints			:= ipEdgePointsR, 
+	aCenter					:= aCenter,  
+	eEdgeDirection			:= TCVN_ED_DARK_TO_LIGHT, 
+	fMinStrength			:= 30, // 30
+	hrPrev 					:= hr,
+	fMinSearchRadius 		:= fMinRadius,
+	fSearchRadius 			:= fTargetRadius,
+	eAlgorithm				:= eAlgorithm,
+	nSubpixelsIterations	:= 10,
+	fApproxPrecision		:= 0.001,
+	nMaxThickness			:= 10,
+	nSearchLines			:= 31,
+	bInvertSearchDirection	:= TRUE,
+	stEllipse				:= stMotorEllipse
+);
+bSuccess_FindEllipse := SUCCEEDED(hr);
+IF SUCCEEDED(hr) THEN
+	
+//  	hr :=  F_VN_DrawPoints(
+// 		ipPoints:= ipContourPoints, 
+// 		ipDestImage:= ipImageProsessed, 
+// 		eShape:= ETcVnDrawShape.TCVN_DS_X, 
+// 		aColor:= Color.Lime, 
+// 		hrPrev:= hr);
+	hr := F_VN_DrawEllipse(
+		hrPrev		:= hr,
+		stEllipse 	:= stMotorEllipse,
+		ipDestImage := ipImageProsessed,
+		aColor		:= Color.Lime,
+		nThickness	:= 1,	
+	);
+	hr := F_VN_DrawPoint(
+		nX 			:= REAL_TO_UDINT(stMotorEllipse.aCenter[0]),
+		nY			:= REAL_TO_UDINT(stMotorEllipse.aCenter[1]),
+		ipDestImage := ipImageProsessed,
+		aColor		:= Color.Lime,
+		eShape		:= ETcVnDrawShape.TCVN_DS_CIRCLE,
+		hrPrev		:= hr);
+END_IF
+
+// Tähän vielä couplerin viivanhaku löydetyn ellipsin keskipisteen perusteella.
+
+aStartPointCoupler[0] := aStartPointCoupler[0] + stMotorEllipse.aCenter[0];
+aStartPointCoupler[1] := aStartPointCoupler[1] + stMotorEllipse.aCenter[1];
+aEndPointCoupler[0] := aEndPointCoupler[0] + stMotorEllipse.aCenter[0];
+aEndPointCoupler[1] := aEndPointCoupler[1] + stMotorEllipse.aCenter[1];
+
+hr := F_VN_DrawPoint(
+		nX 			:= REAL_TO_UDINT(aStartPointCoupler[0]),
+		nY			:= REAL_TO_UDINT(aStartPointCoupler[1]),
+		ipDestImage := ipImageProsessed,
+		aColor		:= Color.Red,
+		eShape		:= ETcVnDrawShape.TCVN_DS_SQUARE,
+		hrPrev		:= hr);
+		
+hr := F_VN_DrawPoint(
+		nX 			:= REAL_TO_UDINT(aEndPointCoupler[0]),
+		nY			:= REAL_TO_UDINT(aEndPointCoupler[1]),
+		ipDestImage := ipImageProsessed,
+		aColor		:= Color.Red,
+		eShape		:= ETcVnDrawShape.TCVN_DS_DIAMOND,
+		hrPrev		:= hr);
+
+hr := F_VN_LocateEdgeExp(
+	ipSrcImage:= ImageFilter, 
+	ipEdgePoints:= ipEdgePointsR, 
+	aStartPoint:= aStartPointCoupler,
+	aEndPoint:= aEndPointCoupler, 
+	eEdgeDirection:= TCVN_ED_LIGHT_TO_DARK, 
+	fMinStrength:= 100,
+	fSearchLineDist  := rSearchLineDist,
+	nMaxThickness := 10,
+	nSearchLines:= 10,
+	eAlgorithm := eAlgorithm,
+	nSubpixelsIterations := 10,
+	fApproxPrecision := 0.001,
+	hrPrev:= hr, 
+	fAvgStrength=> fFoundStr);
+bGreatSuccess := SUCCEEDED(hr);
+IF SUCCEEDED(hr) THEN
+	FOR i := 1 TO 10 DO
+		hr := F_VN_GetAt_TcVnVector2_REAL(ipContainer:= ipEdgePointsR, aElement:= aElement2, nIndex:= i, hrPrev:= hr);
+		x[i] := aElement2[0];
+		y[i] := aElement2[1];
+	END_FOR 
+	RMSE(x := x, y := y,bExecute := TRUE);
+	hr := F_VN_GetAt_TcVnVector2_REAL(ipContainer:= ipEdgePointsR, aElement:= aElement2, nIndex:= 0, hrPrev:= hr);
+	hr := F_VN_DrawPoints(
+		ipPoints:= ipEdgePointsR, 
+		ipDestImage:= ipImageProsessed, 
+		eShape:= ETcVnDrawShape.TCVN_DS_X, 
+		aColor:= Color.Lime, 
+		hrPrev:= hr);
+	hr := F_VN_FitLine(
+		ipPointSet 	:= ipEdgePointsR, 
+		hrPrev		:= hr,
+		aFitLine	:= aFitlineR);
+		
+		
+	rLineAngleRad := ATAN(aFitlineR[0]/ aFitlineR[1]); 	
+	rLineAngleDeg := rLineAngleRad * (180/PI);
+	IF rLineAngleDeg > 0 THEN
+		rLineAngleDeg := rLineAngleDeg - 90;
+	ELSE
+		rLineAngleDeg := -rLineAngleDeg - 90;
+	END_IF
+	rLineAngleResultDeg :=  rLineAngleDeg + ((rClawRLineAngleDeg + rClawLLineAngleDeg)/2);
+	IF NOT bRmsErr THEN
+		IF rLineAngleResultDeg < 10  AND rLineAngleResultDeg > -10 THEN
+			stCouplerData.rCouplerAngleDeg := rLineAngleResultDeg;
+			stCouplerData.rCouplerAngleRad := (rLineAngleResultDeg * (PI/180));
+			stCouplerData.bPartDetectFailed := FALSE;
+			stCouplerData.bPartDetectSucceeded := TRUE;
+		ELSE
+			stCouplerData.bPartDetectSucceeded := FALSE;
+			stCouplerData.bPartDetectFailed := TRUE;
+		END_IF
+	ELSE
+		stCouplerData.bPartDetectSucceeded := FALSE;
+		stCouplerData.bPartDetectFailed := TRUE;
+	END_IF
+	hr := F_VN_DrawLine_TcVnVector4_LREAL(
+		ipDestImage := ipImageProsessed,
+		aColor		:= Color.Aqua,
+		nThickness	:= 1,
+		aLine		:= aFitlineR,
+		hrPrev		:= hr);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="PositionDetect" Id="{b3a2798d-e1a1-4cbf-923a-678061d11374}">
+      <Declaration><![CDATA[METHOD PositionDetect : BOOL
+
+VAR
+	EdgeLoop 					: ULINT;
+	nNewArrayValue 				: INT;
+	
+	bCheckOnce 					: BOOL := TRUE;
+	bCheckOnceSuc				: BOOL := TRUE;
+	
+	aStartPointT 				: TcVnPoint2_REAL;
+	aEndPointT					: TcVnPoint2_REAL;
+	aStartPointS 				: TcVnPoint2_REAL;
+	aEndPointS					: TcVnPoint2_REAL;
+	
+	ipEdgePointsT				: ITcVnContainer;
+	ipEdgePointsS				: ITcVnContainer;
+	hrEdgeT						: HRESULT;
+
+	EdgeLoopDown 					: ULINT;
+	EndPointXTDown 					: REAL := 0;
+	aElementTopDown 				: TcVnPoint2_REAL;
+	nNewArrayValueDown 				: INT;
+	
+	
+	aStartPointTDown 				: TcVnPoint2_REAL;
+	aEndPointTDown					: TcVnPoint2_REAL;
+	ipEdgePointsTDown				: ITcVnContainer;
+	aLine           				: TcVnVector4_LREAL;
+
+
+	PartAnglerad					: LREAL;
+	PartAngle						: LREAL;
+	EndPointXT 						: REAL := 0;
+	nOffset							: INT;
+	nPixelMax						: LREAL := 10;
+	
+END_VAR
+
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[EndPointXT := 0;
+hrEdgeT := 0;
+
+
+hrEdgeT := F_VN_LocateEdge(
+	ipSrcImage:= ImageRaw, 
+	ipEdgePoints:= ipEdgePointsT, 
+	aStartPoint:= aStartPointT, 
+	aEndPoint:= aEndPointT, 
+	eEdgeDirection:= ETcVnEdgeDirection.TCVN_ED_Light_TO_Dark, 
+	fMinStrength:= 45, 
+	nSearchLines:= 1, 
+	hrPrev:= hr, 
+	fAvgStrength=> );
+hrEdgeT := F_VN_LocateEdge(
+	ipSrcImage:= ImageRaw, 
+	ipEdgePoints:= ipEdgePointsS, 
+	aStartPoint:= aStartPointS, 
+	aEndPoint:= aEndPointS, 
+	eEdgeDirection:= ETcVnEdgeDirection.TCVN_ED_Light_TO_Dark, 
+	fMinStrength:= 45, 
+	nSearchLines:= 1, 
+	hrPrev:= hr, 
+	fAvgStrength=> );
+IF SUCCEEDED(hrEdgeT) THEN
+	hrEdgeT := F_VN_DrawPoints(
+		ipPoints:= ipEdgePointsT, 
+		ipDestImage:= ipImageProsessed, 
+		eShape:= ETcVnDrawShape.TCVN_DS_X, 
+		aColor:= Color.Lime, 
+		hrPrev:= hr);
+	hrEdgeT := F_VN_GetAt_TcVnVector2_REAL(ipContainer:= ipEdgePointsT, aElement:= aElement1, nIndex:= 0, hrPrev:= hrEdgeT);
+	hrEdgeT := F_VN_GetAt_TcVnVector2_REAL(ipContainer:= ipEdgePointsS, aElement:= aElement2, nIndex:= 0, hrPrev:= hrEdgeT);
+ELSE
+	IF bCheckOnce THEN
+		ADSLOGSTR(msgCtrlMask := ADSLOG_MSGTYPE_ERROR, msgFmtStr := 'Error1', strArg:= ' ');
+		bCheckOnce := FALSE;
+	END_IF
+	EndPointXT := EndPointXT + 30;
+END_IF
+	
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="RMSE" Id="{e5c1ed19-1e85-4d09-b084-654846d131ba}">
+      <Declaration><![CDATA[METHOD RMSE : BOOL
+VAR_INPUT // This method calculates the RMS Error value of found points
+    x : ARRAY[1..10] OF LREAL;
+    y : ARRAY[1..10] OF LREAL;
+	bExecute : BOOL;
+END_VAR
+VAR
+ 	i       : INT;
+    n       : LREAL := 10.0;
+    sumX    : LREAL := 0.0;
+    sumY    : LREAL := 0.0;
+    sumXY   : LREAL := 0.0;
+    sumX2   : LREAL := 0.0;
+    yFit    : LREAL;
+    errSum  : LREAL := 0.0;	
+
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sumX := 0;
+sumY := 0;
+sumXY := 0;
+sumX2 := 0;
+IF bExecute THEN
+	FOR i := 1 TO 10 DO
+		sumX  := sumX  + x[i];
+		sumY  := sumY  + y[i];
+		sumXY := sumXY + (x[i] * y[i]);
+		sumX2 := sumX2 + (x[i] * x[i]);
+	END_FOR
+	
+	
+	IF (n * sumX2 - sumX * sumX) <> 0 THEN
+		slope := (n * sumXY - sumX * sumY) /
+				 (n * sumX2 - sumX * sumX);
+	ELSE
+		slope := 0;
+	END_IF
+	intercept := (sumY - slope * sumX) / n;
+	FOR i := 1 TO 10 DO
+		yFit := slope * x[i] + intercept;
+		errSum := errSum + (y[i] - yFit) * (y[i] - yFit);
+	END_FOR
+	
+	rmsError := SQRT(errSum / n);
+	IF rmsError > 1.5 THEN
+		bRmsErr := TRUE;
+	ELSE
+		bRmsErr := FALSE;
+	END_IF
+	bExecute := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SetParams" Id="{b38bf109-c6ee-4daa-b6af-f536a6a0df52}">
+      <Declaration><![CDATA[METHOD SetParams : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE iStationId OF
+	1..5:
+		rThreshold := stRecipeData.Station1To5.rThreshold;
+		aStartPointCoupler := stRecipeData.Station1To5.aStartPointCoupler;
+		aEndPointCoupler := stRecipeData.Station1To5.aEndPointCoupler;
+		rSearchLineDist :=  stRecipeData.Station1To5.rSearchLineDist;
+	6..10:
+		rThreshold := stRecipeData.Station5To10.rThreshold;
+		aStartPointCoupler := stRecipeData.Station5To10.aStartPointCoupler;
+		aEndPointCoupler := stRecipeData.Station5To10.aEndPointCoupler;
+		rSearchLineDist :=  stRecipeData.Station5To10.rSearchLineDist;
+END_CASE
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TrigImage" Id="{5f18a8df-3853-4c75-a69b-42f98fe522c8}">
+      <Declaration><![CDATA[METHOD TrigImage : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbCamera.TriggerImage();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

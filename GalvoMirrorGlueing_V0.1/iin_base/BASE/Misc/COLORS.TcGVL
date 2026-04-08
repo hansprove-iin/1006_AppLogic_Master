@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <GVL Name="COLORS" Id="{2cb4853d-b8a1-4a82-867e-c5aceb51aa4e}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'global_init_slot' := '40001'}
+VAR_GLOBAL CONSTANT
+	LILA:	DWORD := 16#FF0F0DF1;
+	PINK:	DWORD := 16#FFE943D4;
+	ORANGE:	DWORD := 16#FFFFCC00;
+	BLUE :	DWORD := 16#FF0000FF;
+	RED	:	DWORD := 16#FFFF0000;
+	YELLOW:	DWORD := 16#FFFFFF00;
+	GREEN:	DWORD := 16#FF00FF00;
+	GREY:	DWORD := 16#FFC0C0C0;
+	WHITE:	DWORD := 16#FFFFFFFF;
+	BLACK:	DWORD := 16#FF000000;	
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_GluetipCoordinates" Id="{dc1e6dc9-f127-4ef3-bed5-c9fb446b94d5}">
+    <Declaration><![CDATA[TYPE ST_GluetipCoordinates :
+STRUCT
+	X : REAL;
+	Y : REAL;
+	Z : REAL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="ST_PERSISTENCY_SERVICE" Id="{e5f77ef2-7645-4703-a0d4-cf98cfd81c80}">
+    <Declaration><![CDATA[TYPE ST_PERSISTENCY_SERVICE :
+STRUCT
+	saveNow:		BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

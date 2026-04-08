@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_AngleData" Id="{d3d24c75-5724-4168-a914-369038b9b6f7}">
+    <Declaration><![CDATA[TYPE ST_AngleData :
+STRUCT
+	stLaserData1	: ST_Vis_Laser;
+	stLaserData2	: ST_Vis_Laser;
+	stLaserData3	: ST_Vis_Laser;
+	stLaserData4	: ST_Vis_Laser;
+	stLaserData5	: ST_Vis_Laser;
+	stLaserData6	: ST_Vis_Laser;
+	stLaserData7	: ST_Vis_Laser;
+	stLaserData8	: ST_Vis_Laser;
+	stLaserData9	: ST_Vis_Laser;
+	stLaserData10	: ST_Vis_Laser;
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

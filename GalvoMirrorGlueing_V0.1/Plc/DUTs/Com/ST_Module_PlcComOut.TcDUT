@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_Module_PlcComOut" Id="{43f2e64d-d9b6-40f8-b49b-d9fb9e9a81b1}">
+    <Declaration><![CDATA[TYPE ST_Module_PlcComOut :
+STRUCT
+	bTriggerGluing1			: BOOL;
+	bLaserPointers1To5		: BOOL;
+	bLaserPointers5To10		: BOOL;
+	bResetButtonLight		: BOOL;
+	bMecaReset				: BOOL;
+	bRobotSwStop			: BOOL;
+	
+	bRingLightGlue			: BOOL;
+	bRingLightInfeed		: BOOL;
+	bRingLightPass			: BOOL;
+	bRingLightReject		: BOOL;
+	
+	bGlueDoorLock			: BOOL;
+	bHatchesLock			: BOOL;
+	bPowerOff				: BOOL;
+	bGlueStopValve			: BOOL;
+	bGlueSelectingValve		: BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

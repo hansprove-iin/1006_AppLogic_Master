@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_3strConcatSeparator" Id="{bb5ea7cc-5606-41fc-97ca-5b3372daa1d4}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_3strConcatSeparator : T_DEFAULT_STR		// Concatenates 3 strings with given separator
+VAR_INPUT
+	iSeparator:		STRING := IING.STRING_UNDERSCORE;
+	iStr1:			T_DEFAULT_STR;
+	iStr2:			T_DEFAULT_STR;
+	iStr3:			T_DEFAULT_STR;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_3strConcatSeparator := FC_2strConcatSeparator(iSeparator := iSeparator,
+	iStr1 := FC_2strConcatSeparator(iSeparator := iSeparator, iStr1 := iStr1, iStr2 := iStr2), iStr2 := iStr3);]]></ST>
+    </Implementation>
+    <LineIds Name="FC_3strConcatSeparator">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

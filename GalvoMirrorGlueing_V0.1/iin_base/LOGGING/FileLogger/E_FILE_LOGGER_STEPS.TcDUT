@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="E_FILE_LOGGER_STEPS" Id="{7513dcf2-3cbd-4cbc-a2d8-27957bc93d09}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_FILE_LOGGER_STEPS :
+(
+	WAIT_ACTIVITY := 0,
+	
+	CHECK_SIZE,
+	
+	CLOSE_FILE,
+	
+	SCAN_FOLDER,
+	
+	ITERATE_FILES,
+	
+	RENAME_FILE,
+	
+	RENAME_FILE_ERROR,
+	
+	END
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

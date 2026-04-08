@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <GVL Name="Color" Id="{e4a178e0-704b-45ee-bae1-b18eebbd48de}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL
+	Black	: TcVnVector4_LREAL := [0,0,0,0];
+	White	: TcVnVector4_LREAL := [255,255,255,0];
+
+	Maroon	: TcVnVector4_LREAL := [128,0,0,0];
+	Red		: TcVnVector4_LREAL := [255,0,0,0];
+	Orange	: TcVnVector4_LREAL := [255,165,0,0];
+	Yellow	: TcVnVector4_LREAL := [255,255,0,0];
+	Olive	: TcVnVector4_LREAL := [128,128,0,0];
+	Green	: TcVnVector4_LREAL := [0,128,0,0];
+	Purple	: TcVnVector4_LREAL := [128,0,128,0];
+	Fuchsia	: TcVnVector4_LREAL := [255,0,255,0];
+	Lime	: TcVnVector4_LREAL := [0,255,0,0];
+	Teal	: TcVnVector4_LREAL := [0,128,128,0];
+	Aqua	: TcVnVector4_LREAL := [0,255,255,0];
+	Blue	: TcVnVector4_LREAL := [0,0,255,0];
+	Navy	: TcVnVector4_LREAL := [0,0,128,0];
+	Gray	: TcVnVector4_LREAL := [128,128,128,0];
+	Silver	: TcVnVector4_LREAL := [192,192,192,0];
+
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

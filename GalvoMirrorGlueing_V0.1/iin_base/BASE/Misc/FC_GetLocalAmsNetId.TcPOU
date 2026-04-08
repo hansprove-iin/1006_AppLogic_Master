@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_GetLocalAmsNetId" Id="{e51e6130-b7b0-4201-9df8-3a3213a1e5d5}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_GetLocalAmsNetId : T_AmsNetId		// Returns the local AMS net id
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_GetLocalAmsNetId := IING.localAmsNetId;]]></ST>
+    </Implementation>
+    <LineIds Name="FC_GetLocalAmsNetId">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

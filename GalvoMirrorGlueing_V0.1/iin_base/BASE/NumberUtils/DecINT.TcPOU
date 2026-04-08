@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="DecINT" Id="{f2d3e73d-0f4d-4120-ab2a-64f22c5f5e67}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION DecINT : INT				// Increments the given UINT value
+VAR_IN_OUT
+	ioNum:	INT;		// Value to increment
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[DecINT := ioNum := ioNum - 1;
+]]></ST>
+    </Implementation>
+    <LineIds Name="DecINT">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

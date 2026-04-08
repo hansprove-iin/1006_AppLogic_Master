@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="ST_FILE_LOGGER_SERVICE" Id="{28ebcf7a-dc81-0d44-2a9d-f9d58e354ca9}">
+    <Declaration><![CDATA[TYPE ST_FILE_LOGGER_SERVICE :
+STRUCT
+	doFileFlush:			BOOL;							// Set TRUE when flush is wanted
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

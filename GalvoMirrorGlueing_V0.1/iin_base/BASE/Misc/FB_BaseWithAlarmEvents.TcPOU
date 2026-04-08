@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_BaseWithAlarmEvents" Id="{0f1fb99f-4b4c-47f3-869f-321b7d583874}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_BaseWithAlarmEvents EXTENDS FB_Base		// Base block providing alarm and forcing functions
+VAR
+//	alarmEvent:					FB_AlarmEvent;
+//	warningEvent:				FB_WarningEvent;
+	
+//	forceEvent:					FB_ForceEvent;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="forceMethodOverwrite" Id="{db7c41e4-c189-4838-a0de-4edca0adf025}">
+      <Declaration><![CDATA[METHOD PROTECTED forceMethodOverwrite : BOOL
+VAR_INPUT
+	iCaller: T_SHORT_STR;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FC_GetLogger().info(FC_2strConcatSeparator(iSeparator := IING.STRING_SPACE, iStr1 := 'Overwrite this method: ', iStr2 := iCaller));]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_BaseWithAlarmEvents">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_BaseWithAlarmEvents.forceMethodOverwrite">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

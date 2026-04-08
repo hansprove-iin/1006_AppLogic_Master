@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="E_StepperState" Id="{4de45bb8-fc09-4ba5-adbb-27018f9f93fc}">
+    <Declaration><![CDATA[TYPE E_StepperState :
+	
+(
+	Offline,
+	Reset,
+	Power,
+	Error,
+	Operational,
+	EncHoming,
+	Homing,
+	Jog
+);
+
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

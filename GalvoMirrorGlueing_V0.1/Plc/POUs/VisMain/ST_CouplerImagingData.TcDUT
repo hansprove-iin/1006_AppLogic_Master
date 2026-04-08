@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_CouplerImagingData" Id="{41ee3cce-0a5c-4d9b-a362-d549fd6581ad}">
+    <Declaration><![CDATA[TYPE ST_CouplerImagingData :
+STRUCT
+	bImagingDone	: BOOL;
+	rCouplerAngleRad	: LREAL;
+	rCouplerAngleDeg	: LREAL;
+	bImageReceived : BOOL;
+	bPartDetectFailed : BOOL;
+	bPartDetectSucceeded	: BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

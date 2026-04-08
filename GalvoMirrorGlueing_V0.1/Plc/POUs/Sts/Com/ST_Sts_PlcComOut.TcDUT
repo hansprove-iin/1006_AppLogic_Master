@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_Sts_PlcComOut" Id="{c451a995-5e6c-4b37-9b64-162fb8e09a61}">
+    <Declaration><![CDATA[TYPE ST_Sts_PlcComOut :
+STRUCT
+	bUnderLight			: BOOL;
+	bGripper			: BOOL;
+	bPusher				: BOOL;
+	bHeaterFan			: BOOL;
+	bHeaterElement		: BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

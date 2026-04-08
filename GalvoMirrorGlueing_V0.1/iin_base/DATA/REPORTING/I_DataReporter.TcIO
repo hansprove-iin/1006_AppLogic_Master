@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <Itf Name="I_DataReporter" Id="{ebdecb4e-b51e-491d-8e63-605dcf0c7cec}">
+    <Declaration><![CDATA[INTERFACE I_DataReporter		// Interface for all data/mqtt reporting calls.
+	// Idea is to keep logic away from the project/application, also reporting can be done in several ways, such as mqtt
+]]></Declaration>
+    <Method Name="ic_deviceSpeedChanged" Id="{df4b5c37-b7f2-4f5c-a8ed-d6bf46fa9e2d}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_deviceSpeedChanged	// To be called when the (device) speed changes
+VAR_INPUT
+	iPos:			E_POS;				// Position enumerate
+	iMiscArea:		T_SHORT_STR;		// Safety or misc area enumerate (string). If defined/non-empty, use this instead of iPos
+	iNew:			INT;				// The new speed value
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="ic_initializeDone" Id="{94c0db7c-13e6-43ae-a76b-96f0d54ec099}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_initializeDone	// To be called when a initialization (aka hard reset) is done
+VAR_INPUT
+	iPos:			E_POS;				// The position
+	iMiscArea:		T_SHORT_STR;		// Safety or misc area enumerate (string). If defined/non-empty, use this instead of iPos
+	iOrigin:		E_RESET_ORIGIN;	
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="ic_operationModeChanged" Id="{574e22a5-4ed7-4bab-9ca9-a292156e6777}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_operationModeChanged	// To be called when the control signal operation mode changes
+VAR_INPUT
+	iPos:			E_POS;				// The position
+	iMiscArea:		T_SHORT_STR;		// Safety or misc area enumerate (string). If defined/non-empty, use this instead of iPos
+	iNew:			E_OPERATION_MODE;	// New operation mode
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="ic_resetDone" Id="{24f47a14-d2a1-4736-b556-25a73c2547b1}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_resetDone	// To be called when the control signal operation mode changes
+VAR_INPUT
+	iPos:			E_POS;				// The position
+	iMiscArea:		T_SHORT_STR;		// Safety or misc area enumerate (string). If defined/non-empty, use this instead of iPos
+	iOrigin:		E_RESET_ORIGIN;
+	iResetKeyLabel:	T_SHORT_STR;		// What reset key was pressed
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="ic_serviceStateChanged" Id="{e6c14018-e297-42b6-ac0e-83847a618099}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_serviceStateChanged		// To be called when the (control signal) service state changes
+VAR_INPUT
+	iPos:			E_POS;				// The position
+	iMiscArea:		T_SHORT_STR;		// Safety or misc area enumerate (string). If defined/non-empty, use this instead of iPos
+	iState:			BOOL;				// TRUE = service activated, FALSE = service deactivated
+END_VAR
+]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

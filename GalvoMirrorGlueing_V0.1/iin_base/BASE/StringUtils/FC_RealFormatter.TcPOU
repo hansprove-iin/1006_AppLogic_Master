@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_RealFormatter" Id="{349ebb16-d1d0-4c85-bb9d-56f369a6edca}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_RealFormatter : T_SHORT_STR
+VAR_INPUT
+	iReal:				REAL;
+	iNumberOfDecimals:	INT;
+END_VAR
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_RealFormatter := LREAL_TO_FMTSTR(in := iReal, iPrecision := iNumberOfDecimals, bRound := FALSE);
+]]></ST>
+    </Implementation>
+    <LineIds Name="FC_RealFormatter">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

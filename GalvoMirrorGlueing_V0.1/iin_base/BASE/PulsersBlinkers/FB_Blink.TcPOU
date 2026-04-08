@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_Blink" Id="{4e6d1302-a27d-49de-b207-85db729200c0}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Blink		// Blink at the specified time
+VAR_INPUT
+	iTime:		TIME;		// Blinking time
+END_VAR
+VAR_OUTPUT
+	oBlink:		BOOL;		// The blinker (iTime TRUE followed by iTime FALSE)
+END_VAR
+VAR
+	ton:		TON;
+	tof: 		TOF;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[ton(IN := NOT (oBlink), PT := iTime);
+tof(IN := ton.Q, PT := iTime, Q => oBlink);
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_Blink">
+      <LineId Id="2" Count="2" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

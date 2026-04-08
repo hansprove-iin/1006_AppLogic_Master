@@ -1,0 +1,83 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_GlueState" Id="{1b1df1aa-cfe9-4738-9c38-8a0b4beadea6}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_GlueState
+VAR_INPUT
+	stModuleHmi		: REFERENCE TO ST_ModuleHmi;
+	stPlcCom		: REFERENCE TO ST_Module_PlcCom;
+END_VAR
+VAR
+	GlueSetTmr		: TON;
+	tTimeLeft		: TIME;
+	sTime			: STRING;
+	bDispensingSet	: BOOL;
+	iDot			: INT;
+END_VAR
+VAR_IN_OUT
+	bDetectionSucceeded : BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[GlueSetTmr(PT := T#30M); 
+
+tTimeLeft := GlueSetTmr.PT - GlueSetTmr.ET;
+sTime := (TIME_TO_STRING(tTimeLeft));
+
+iDot := FIND(sTime, '.');
+IF iDot > 0 THEN
+	stModuleHmi.sTimeSinceDispensing   := LEFT(sTime, iDot - 1);                                                  
+END_IF
+
+
+IF bDetectionSucceeded THEN
+	stModuleHmi.bDetectionSucceeded := TRUE;
+END_IF
+
+IF tTimeLeft > T#15M AND stModuleHmi.bDetectionSucceeded AND bDispensingSet THEN
+	IF NOT stModuleHmi.bProductionStageCompleted THEN
+		stModuleHmi.bDispensingStageDone := TRUE;
+	ELSE
+		stModuleHmi.bDetectionSucceeded := FALSE;
+		bDispensingSet := FALSE;
+		bDetectionSucceeded := FALSE;
+		stModuleHmi.bDispensingStageDone := FALSE;
+		stModuleHmi.bDispensingPressed := FALSE;
+	END_IF
+END_IF
+IF stModuleHmi.bProductionStartFailure THEN
+	stModuleHmi.bDetectionSucceeded := FALSE;
+	stModuleHmi.bDispensingStageDone := FALSE;
+	stModuleHmi.bDispensingPressed := FALSE;
+END_IF
+IF stModuleHmi.bDetectionSucceeded THEN
+	stModuleHmi.bAllowManDispensing := TRUE;
+	bDispensingSet := TRUE;
+ELSE
+	stModuleHmi.bAllowManDispensing := FALSE;
+END_IF
+
+IF stModuleHmi.bDispensingPressed THEN
+	GlueSetTmr.IN := TRUE;
+ELSIF stModuleHmi.bDetectionSucceeded THEN
+	stModuleHmi.bAllowManDispensing := TRUE;
+	GlueSetTmr.IN := FALSE;
+ELSE
+	stModuleHmi.bAllowManDispensing := FALSE;
+END_IF
+
+IF stModuleHmi.bGlueDispensing THEN
+	stPlcCom.stPlcComOut.bTriggerGluing1 := TRUE;
+	stModuleHmi.bDispensingPressed := TRUE;
+ELSE
+	stPlcCom.stPlcComOut.bTriggerGluing1 := FALSE;
+END_IF
+
+IF stModuleHmi.bToggleDispensingPressure THEN
+	stPlcCom.stPlcComOut.bGlueSelectingValve := TRUE;
+ELSE
+	stPlcCom.stPlcComOut.bGlueSelectingValve := FALSE;
+END_IF
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

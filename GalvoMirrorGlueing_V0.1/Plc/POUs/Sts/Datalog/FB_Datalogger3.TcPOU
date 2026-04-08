@@ -1,0 +1,288 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Datalogger3" Id="{5acf0cc4-fec7-4855-9a41-7ebf077f123f}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Datalogger3
+VAR_INPUT
+	iScaledTemp				: INT;
+	sAssemblytype				: STRING;	//Needs to be set to the correct var in fb_stsAct, comes from st_recipe_assemblydata
+	iStationIdDirect		: UDINT; // Station Id from strecipe assemblydata. 
+	stMirrorData       		: REFERENCE TO ST_Vis_Mirror;
+	stLaserData				: REFERENCE TO ST_Vis_Laser;
+	fbHeaterControl			: REFERENCE TO FB_HeaterControl;
+	stRecipeData			: reference TO ST_Recipe_AssemblyData;
+                        	
+    bEnable             	: BOOL;        // Rising edge = add one log entry
+    bSave               	: BOOL;        // Rising edge = write CSV to a NEW timestamped file
+	//istation				: INT :=8;
+	stRecipeAssemblyData	: REFERENCE TO ST_Recipe_AssemblyData;
+	fbStsAct				: REFERENCE TO FB_StsAct;
+	
+	//sMotTypeTest			: STRING := '7A6681';
+//     Stepperpos          : LREAL;
+//     SensorVal           : INT;
+//     StepperHomed        : BOOL;
+//     Var4                : BOOL;
+//     Var5                : LREAL;
+//     Var6                : INT;
+//     Var7                : LREAL;
+//     Var8                : BOOL;
+//     Var9                : BOOL;
+//     Error               : BOOL;
+END_VAR
+
+VAR_OUTPUT
+    bBusy               	: BOOL;
+    bDone               	: BOOL;
+    bError              	: BOOL;
+	bArrayWriteDone			: BOOL;
+END_VAR                 	
+                        	
+VAR                     	
+                        	
+    aLog        			: ARRAY[0..999] OF ST_LogEntry;
+    WriteIndex  			: UINT := 0;
+    Count       			: UINT := 0;
+    ReadIndex   			: UINT := 0;
+                			
+                			
+    rEnable     			: R_TRIG;
+    rSave       			: R_TRIG;
+                			
+                			
+    fbOpen      			: FB_FileOpen;
+    fbWrite     			: FB_FileWrite;
+    fbClose     			: FB_FileClose;
+                			
+    hFile       			: UINT;
+    sLine       			: STRING(255);
+    sCRLF       			: STRING(2) := '$R$L'; // CRLF //Rivinvaihto
+    // Base folder      	
+    sBaseFolder 			: STRING(255) := 'C:\ProgramData\Beckhoff\TwinCAT\3.1\Boot\'; //Usbitikulle rassaus
+    sFileName   			: STRING(255);		// Full path with timestamped filename
+                        	
+    index          			: UINT;
+    eState         			: INT := 0;
+                        	
+                        	
+    fbSysTime  				: FB_LocalSystemTime;
+    CurrentDT  				: TIMESTRUCT;
+                        	
+                        	
+    sSystemTime				: STRING(64);		//Full systemtime in string
+	sTimeShort				: STRING (64);		//Shortened systemtime. Järjestelmäaika string josta millisekunnit pois
+    pos        				: INT;
+	iDot					: INT;				//Tunnistetaan piste sekuntien ja millis välissä
+	            			
+	MotorId					: STRING(64);		//Only for testing
+	                    	
+	WriteDoneTof			: TOF;
+	DoneTof					: TOF;
+	bDoneStatus				: BOOL;
+	bWriteDone				: BOOL;
+	
+	//Station id variables
+	sStationIdConvert 		: STRING;			//Asemanumeron kääntö stringiksi
+	sStationID				: STRING;			//' _S'+Aseman numero stringinä
+	sStationS				: STRING := '_S';	// S kirjain tiedostonimeen osoittamaan asemaa, turha? Voisi korvata '_S'
+	sStationUnderScore		: STRING := '_';
+	sFileNameStationId		: STRING;			// Final station id to be printed on the filename '_SX_'
+	
+	sFinalTimeString		: STRING;			// Aika stringinä, josta poistettu ms ja s
+	SystemDT	:DT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[WriteDoneTof( IN := bWriteDone	, PT := T#0.2S, Q => bArrayWriteDone);
+DoneTof(IN := bDoneStatus, PT := T#0.2S, Q => bDone);
+bWriteDone := FALSE;
+bDoneStatus := FALSE;
+
+
+//Station id filename modification
+sStationIDconvert := UDINT_TO_STRING (iStationIdDirect); //Käännetään asemanumero strngiksi
+sStationID:=CONCAT(sStationS, sStationIDconvert); //Yhdistetään _S ja asemanumero string, syntyy _SX, jossa X asemanumero
+sFileNameStationId := CONCAT (sStationID, sStationUnderScore); //Yhidstetään edellinen _SX ja alaviiva perään, syntyy _SX_
+
+
+//  GET SYSTEM TIME from amsnetid
+fbSysTime(sNetID :='192.168.1.11.1.1',		//192.168.1.11.1.1 //Asetettu testi-pcn amsnetid
+					bEnable := TRUE);
+
+
+// LOG 1 SET OF DATA WHEN bENABLE
+rEnable(CLK := bEnable);
+
+IF rEnable.Q AND NOT bBusy THEN
+
+    aLog[WriteIndex].tStamp	:= fbSysTime.systemTime;
+    aLog[WriteIndex].Var1	:= stMirrorData.rMirrorOffsetToCalPoints[1];  //stDetection.stMirror.rMirrorOffsetToCalPoints[1];
+    aLog[WriteIndex].Var2	:= stLaserData.rLaserOffsetToSetPoint[0];     //stDetection.stLaser.rLaserOffsetToSetPoint[0];
+    aLog[WriteIndex].Var3	:= iscaledtemp;                               //fbHeater.ScaledTemp;
+
+    // Advance write pointer
+    WriteIndex := WriteIndex + 1;
+	bWriteDone := TRUE;
+    IF WriteIndex > 999 THEN WriteIndex := 0; END_IF
+
+    // Increment count to 1000
+    IF Count < 1000 THEN Count := Count + 1; END_IF
+END_IF
+
+
+
+//bSave START NEW FILE WRITE 
+rSave(CLK := bSave);
+
+IF rSave.Q AND (Count > 0) AND (NOT bBusy) THEN
+    
+// Build filename
+sSystemTime := SYSTEMTIME_TO_STRING(fbSysTime.systemTime);
+//Remove millis from systemtime
+iDot := FIND(sSystemTime, '.');
+	IF iDot > 0 THEN
+	    sTimeShort := LEFT(sSystemTime, iDot - 1);                  
+	ELSE
+	    sTimeShort := sSystemTime;                                   
+	END_IF
+
+// Convert : to -
+FOR pos := 1 TO LEN(sTimeShort) DO
+    IF sTimeShort[pos] = BYTE#58 THEN      // ':' ASCII 58
+        sTimeShort[pos] := BYTE#45;        // replace with '-' ASCII 45
+    END_IF
+END_FOR;
+
+// Convert  -  into _
+sTimeShort[10] := BYTE#95;
+
+sFinalTimeString := LEFT(sTimeShort, LEN(sTimeShort) - 3); //Removing seconds from the timestring
+
+// Build final filename
+sFileName := CONCAT(sBaseFolder, 'Log_');
+sFileName := CONCAT(sfileName,sAssemblyType ); //Assemblynumero suoraan tähän stringinä, alaviiva logista ja asemanumerosta.
+sFileName := CONCAT(sfileName,sFileNameStationId );  //Tähän viritetty station id _SX_.
+sFileName := CONCAT(sFileName, sFinalTimeString); //aika ilman millis, hävitetään sekunnitkin?
+sFileName := CONCAT(sFileName, '.csv');
+
+    // Arm save sequence
+    bBusy  := TRUE;
+    bDone  := FALSE;
+    bError := FALSE;
+    eState := 10;
+END_IF
+
+//SAVE STATE MACHINE
+
+CASE eState OF
+    // Idle
+    0: 
+      
+    // Open NEW filE
+    10:
+        fbOpen(
+            sPathName := sFileName,
+            nMode     := FOPEN_MODEWRITE,     // NEW FILE every save
+            ePath     := PATH_GENERIC,
+            bExecute  := TRUE
+        );
+        eState := 20;
+    
+    // Wait for file open
+    20:
+        fbOpen(bExecute := FALSE);
+
+        IF NOT fbOpen.bBusy AND NOT fbOpen.bError THEN
+            hFile := fbOpen.hFile;
+            eState := 30;
+
+        ELSIF fbOpen.bError THEN
+            bError := TRUE;
+            eState := 100;
+        END_IF
+
+    // Write header
+    30:
+        sLine := 'Time,MirrorOffset,LaserOffset';
+        sLine := CONCAT(sLine, sCRLF);
+
+        fbWrite(
+            hFile      := hFile,
+            pWriteBuff := ADR(sLine),
+            cbWriteLen := LEN(sLine),
+            bExecute   := TRUE
+        );
+        eState := 31;
+
+    // Wait header write
+    31:
+        fbWrite(bExecute := FALSE);
+
+        IF NOT fbWrite.bBusy AND NOT fbWrite.bError THEN
+            ReadIndex := 0;
+            eState := 40;
+        END_IF
+
+    //  Write data rows
+    40:
+        fbWrite(bExecute := FALSE);
+
+        IF ReadIndex < Count THEN
+            index := (WriteIndex + 1000 - Count + ReadIndex) MOD 1000; //MAKES SURE INDEX IS POSITIVE
+
+            // Build CSV row
+            sLine := SYSTEMTIME_TO_STRING(aLog[index].tStamp);  
+            sLine := CONCAT(sLine, ',');
+            sLine := CONCAT(sLine, LREAL_TO_STRING(aLog[index].Var1));
+            sLine := CONCAT(sLine, ',');
+            sLine := CONCAT(sLine, LREAL_TO_STRING(aLog[index].Var2));
+            sLine := CONCAT(sLine, ',');
+            sLine := CONCAT(sLine, INT_TO_STRING(aLog[index].Var3));
+            sLine := CONCAT(sLine, sCRLF);
+
+            fbWrite(
+                hFile      := hFile,
+                pWriteBuff := ADR(sLine),
+                cbWriteLen := LEN(sLine),
+                bExecute   := TRUE );
+
+            eState := 41;
+
+        ELSE
+            eState := 50; // no more rows
+        END_IF
+
+
+    // Wait row write
+    41:
+        fbWrite(bExecute := FALSE);
+
+        IF NOT fbWrite.bBusy AND NOT fbWrite.bError THEN
+            ReadIndex := ReadIndex + 1;
+            eState := 40;   // next row
+        END_IF
+
+
+    // Close file
+    50:
+        fbClose(hFile := hFile, bExecute := TRUE);
+        eState := 60;
+
+    // Finish & reset buffer
+    60:
+        fbClose(bExecute := FALSE);
+
+        Count := 0;
+        WriteIndex := 0;
+
+        bBusy := FALSE;
+        bDone := TRUE;
+        eState := 0;
+   
+    100:
+        bBusy := FALSE;
+        bError := TRUE;
+        eState := 0;
+
+END_CASE]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

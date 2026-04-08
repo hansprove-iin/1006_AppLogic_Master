@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="ST_CONTROL_SIGNALS_STATIC_SETTINGS" Id="{e5e918fb-d7b5-4349-97d1-10f08a401ebf}">
+    <Declaration><![CDATA[TYPE ST_CONTROL_SIGNALS_STATIC_SETTINGS:
+STRUCT
+	resetTime:						TIME := IING.RESET_TIME;
+	hardResetTime:					TIME := IING.HARD_RESET_TIME;
+	serviceResetTime:				TIME := IING.AUTO_SERVICE_RESET_TIME;	// Time after which service mode is swithced OFF
+	extendedResetPulseDuration:		TIME := IING.EXTENDED_RESET_PULSE_DURATION;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

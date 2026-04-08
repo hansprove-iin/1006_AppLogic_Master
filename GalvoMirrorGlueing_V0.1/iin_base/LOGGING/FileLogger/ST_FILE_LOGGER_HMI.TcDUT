@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="ST_FILE_LOGGER_HMI" Id="{6097df69-5561-013e-3612-12c5e60fd6ec}">
+    <Declaration><![CDATA[TYPE ST_FILE_LOGGER_HMI :
+STRUCT
+	// Modifiable from HMI
+	service:					REFERENCE TO ST_FILE_LOGGER_SERVICE;
+	settings:					REFERENCE TO ST_FILE_LOGGER_SETTINGS;	
+	controlSignals:				REFERENCE TO ST_CONTROL_SIGNALS_IN;
+
+	amsNetId:					T_AmsNetId;
+	fileNameAndPath:			T_DEFAULT_STR;					// VISU helper
+	tracingOn:					BOOL;							// TRUE when log level is trace
+	tracingTimeExpired:			TIME;							// Amount of trace time expired
+	autoResetOn:				BOOL;							// TRUE when auto reset is ON
+	outResetTimer:				TIME;							// After this time, auto reset will be done
+	error:						BOOL;							// TRUE if a file writing error occurs
+	adsErrorCode:				E_ADS_ERRORS;
+	fileWriterRecordCnt:		UDINT;
+	fileWriterBytesUsed:		UDINT;
+	fileWriterOverflowCount:	UDINT;							// How many times we were not able to write all data to the file (due to internal memory constraints)
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

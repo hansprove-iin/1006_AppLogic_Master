@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_Stations" Id="{b1cf8e71-73e1-4e0d-9b24-64bde1ecf756}">
+    <Declaration><![CDATA[TYPE ST_Stations :
+STRUCT
+	fbSts1		: FB_StsAct;
+	fbSts2		: FB_StsAct;
+	fbSts3		: FB_StsAct;
+	fbSts4		: FB_StsAct;
+	fbSts5		: FB_StsAct;
+	fbSts6		: FB_StsAct;
+	fbSts7		: FB_StsAct;
+	fbSts8		: FB_StsAct;
+	fbSts9		: FB_StsAct;
+	fbSts10		: FB_StsAct;
+	
+	stSts1 : ST_Sts1_PoseData;
+	stSts2 : ST_Sts2_PoseData;
+	stSts3 : ST_Sts3_PoseData;
+	stSts4 : ST_Sts4_PoseData;
+	stSts5 : ST_Sts5_PoseData;
+	stSts6 : ST_Sts6_PoseData;
+	stSts7 : ST_Sts7_PoseData;
+	stSts8 : ST_Sts8_PoseData;
+	stSts9 : ST_Sts9_PoseData;
+	stSts10 : ST_Sts10_PoseData;
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

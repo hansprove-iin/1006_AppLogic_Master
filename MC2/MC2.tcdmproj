@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Name>Drive Manager 2</Name>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{d90aa0a1-369e-42fc-af2f-12f566b0ba87}</ProjectGuid>
+    <TcPath>
+    </TcPath>
+    <AssemblyName>MC2</AssemblyName>
+    <RootNamespace>MC2</RootNamespace>
+  </PropertyGroup>
+</Project>

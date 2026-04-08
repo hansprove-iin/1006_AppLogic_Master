@@ -1,0 +1,674 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_StsAct" Id="{d77ecb03-27a3-46d9-b882-4de3bb2cb264}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_StsAct
+VAR_IN_OUT
+	bActivateStation : BOOL;
+END_VAR
+VAR_INPUT
+	stLaserData	: REFERENCE TO ST_Vis_Laser;
+	stMirrorData : REFERENCE TO ST_Vis_Mirror;
+	stModuleHmi	: REFERENCE TO ST_ModuleHmi;
+	stModulePlcCom	: REFERENCE TO ST_Module_PlcCom;
+
+	bEngageSlider	:  BOOL;
+	bEngageHolder : BOOL;
+	bRobotReadyForStation : BOOL;
+	bDismountingDone : BOOL;
+	bAdjDone: BOOL;
+	iStationId	: UDINT;
+	rAssemblyCuringTime : REAL := 1; // IN HOURS
+	bAllowStart : BOOL;
+	iAdjustmentCount : INT;
+	bReleaseHolders : BOOL;
+END_VAR
+VAR_OUTPUT
+	bTrigPosCam		: BOOL;
+	bTrigAngCam		: BOOL;
+	bTrigPosCamLightTest	: BOOL; // triggaa testiohjelman kameralle joka katsoo että laseri, taustavalo ja itse kamera toimii. Palaute tieto on stDetectionData.stMirror.bImagingStatusOk
+	bTrigPosCamLaserTest : BOOL;
+	bTrigPosCamCoupler : BOOL;
+	bInHoldForRobot : BOOL;
+	rRobotAdjValue	: LREAL;
+	bStationChecksPassed : BOOL;
+	bCheckDone : BOOL;
+	bHoldRobotForAdj : BOOL;
+	bAssemblyFailed	: BOOL;
+
+
+	sTimeLeft		: STRING;
+	bDisabledByCycleDone	: BOOL;
+	bPlacingDone	: BOOL;
+END_VAR
+VAR
+	stPlcCom	: ST_Sts_PlcCom;
+	fbStepper	: FB_Stepper;
+	fbHeater 	: FB_HeaterControl;
+	eStationState	: E_StsActState;
+	stRecipe		:ST_Recipe_AssemblyData;
+	fbEventLogger		: FB_EventLogger;
+	
+	// PROPERTIES
+	bMotorInStation	: BOOL;
+	bAllPartsInStation : BOOL;
+	bStationDone : BOOL;
+	// MOTOR MOTION COMMANDS
+	bStepForward: BOOL;
+	bStepBackwards : BOOL;
+	bExecuteAdj : BOOL;
+	
+	//INTERNAL STATUS VARIABLES
+	bDetectionRetry: BOOL;
+	rDetectedOffset	: LREAL;
+	bLastDatalog	: BOOL;
+	iStatus2Cycles	: UINT;
+	bInitialStartup	: BOOL;
+	bResetStation	: BOOL;
+	bSetOnce : BOOL;
+	bEstopCycled	: BOOL;
+	iErrorId		: INT;
+	sErrorId		: STRING;
+	tTimeLeft		: TIME;
+	iDot			: INT;
+	sTime			: STRING;
+	
+	// CASE STEP HANDLERS
+	iAssemblyCheckStep	: INT;
+	iPosAdjStep			: INT;
+	iStartupCheckStep	: INT;
+	iStatus2Step		: INT;
+	iDatalogStep		: INT;
+	iMountingStep		: INT;
+	
+	// STATUS VARIABLES
+	iAssemblyStatus : INT; // IF CURING HAS JUST BEGUN STATUS IS 1. WHEN FIRST ACCEPTED CHECK HAS OCCURED STATUS IS 2. WHEN ASSEMBLY HAS REACHED 30 MIN ACCEPETED TIME STATUS IS 3. WHEN STS IS EMPTY STATUS IS 0.
+	// TIMERS
+	StartupCheckTmr : TON;
+	StartupStartTmr : TON;
+	DataloggingTmr1 : TON;
+	DataloggingTmr2	: TON;
+	AssemblyDoneTmr : TON;
+	bImagingTmr : TON;
+	AxisResetTmr	: TON;
+	MountingTmr	: TON;
+	MoveTmr	: TON;
+	
+	fbdatalogger2		: FB_Datalogger2;
+	fbdatalogger3		: FB_Datalogger3;
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbHeater(stPlcCom := stPlcCom, iStationId := iStationId, stModulePlcCom := stModulePlcCom);
+fbStepper(rStepperVel := 10, stPlcCom := stPlcCom, bEstopOk := stModulePlcCom.stPlcComIn.bEstopOk);
+StartupCheckTmr(PT := T#120S);
+StartupStartTmr(PT := UDINT_TO_TIME(iStationId * 4 * 1000));
+AssemblyDoneTmr(PT := REAL_TO_TIME(rAssemblyCuringTime * 60 * 60 * 1000));
+DataloggingTmr1(PT := T#2M);
+DataloggingTmr2(PT := T#5M);
+bImagingTmr(PT := T#1.5S);
+AxisResetTmr(PT:= T#5S);
+fbdatalogger2(stMirrorData := stMirrorData, stLaserData := stLaserData, iScaledTemp := fbHeater.ScaledTemp);
+fbdatalogger3(stMirrorData:=stMirrorData, stLaserData :=stLaserData, iScaledTemp := fbHeater.ScaledTemp, stRecipeAssemblyData:=stRecipe,iStationIdDirect:=iStationId, sAssemblytype:=stRecipe.sAssemblyType );
+MountingTmr(PT := T#5S);
+MoveTmr(PT := T#5S);
+fbEventLogger(sErrorCode := sErrorId, stModuleHmi := stModuleHmi);
+tTimeLeft := AssemblyDoneTmr.PT - AssemblyDoneTmr.ET;
+sTime := (TIME_TO_STRING(tTimeLeft));
+
+
+iDot := FIND(sTime, '.');
+IF iDot > 0 THEN
+	sTimeLeft := LEFT(sTime, iDot - 1);                                                  
+END_IF
+
+IF NOT stModulePlcCom.stPlcComIn.bEstopOk THEN
+	eStationState := E_StsActState.Disabled;
+	bEstopCycled := TRUE;
+ELSIF bEstopCycled THEN
+	bEstopCycled := FALSE;
+	bResetStation := TRUE;
+ELSIF NOT bActivateStation THEN
+	eStationState := E_StsActState.Disabled;
+END_IF
+
+IF stModuleHmi.bModuleProductionStop THEN
+	eStationState := E_StsActState.HoldForValveRelease;
+END_IF
+
+CASE eStationState OF
+	E_StsActState.StartupCheck:	
+		CASE iStartupCheckStep OF
+			0: bStationChecksPassed := FALSE;
+				bActivateStation := TRUE;
+				bDisabledByCycleDone := FALSE;
+				bSetOnce := TRUE;
+				bCheckDone := FALSE;
+					IF stModulePlcCom.stPlcComIn.bEstopOk AND stModulePlcCom.stPlcComIn.bSafetyOk THEN
+						IF NOT bInitialStartup THEN
+							IF stModuleHmi.bModuleStartup THEN
+								StartupStartTmr.IN := TRUE;
+								bInitialStartup := TRUE;
+							END_IF
+						ELSE
+							StartupStartTmr.IN := TRUE;
+						END_IF
+					END_IF
+				IF StartupStartTmr.Q THEN
+					iStartupCheckStep := 1;
+				END_IF
+			1:	IF fbStepper.bAxisReady THEN
+					AxisResetTmr.IN := FALSE;
+					fbStepper.bResetAxis := FALSE;
+					iStartupCheckStep := 2;
+				ELSIF fbStepper.bError THEN
+					fbStepper.bResetAxis := TRUE;
+					AxisResetTmr.IN := TRUE;
+				ELSIF AxisResetTmr.Q THEN
+					eStationState := E_StsActState.Disabled;
+					AxisResetTmr.IN := FALSE;
+				END_IF
+				
+			2:	StartupCheckTmr.IN := TRUE;
+				fbStepper.bExecuteEncHoming := TRUE;
+				fbHeater.bExecuteTest := TRUE;
+				iStartupCheckStep := 3;
+			3: 
+				IF stPlcCom.stPlcComIn.bGripperHomeSensor AND NOT stPlcCom.stPlcComIn.bSliderHomeSensor THEN
+					bTrigPosCamLightTest := TRUE;
+					bTrigPosCam := TRUE;
+					stPlcCom.stPlcComOut.bUnderLight := TRUE;
+					iStartupCheckStep := 4;
+				ELSE
+					stPlcCom.stPlcComOut.bGripper := TRUE;
+					stPlcCom.stPlcComOut.bPusher := TRUE;
+				END_IF
+			4: IF stMirrorData.bLightTestOk THEN
+					bTrigPosCamLightTest := FALSE;
+					bTrigPosCam := FALSE;
+					IF NOT stMirrorData.bImagingDone THEN
+						iStartupCheckStep := 5;
+					END_IF
+				ELSIF stMirrorData.bDetectionFailed THEN
+					bTrigPosCamLightTest := FALSE;
+					bTrigPosCam := FALSE;
+					eStationState := E_StsActState.Disabled;
+					iErrorId := 305;
+					sErrorId := CONCAT(CONCAT('3', UDINT_TO_STRING(iStationId)), '5');
+					fbEventLogger.bRaiseAlarm[12]:= TRUE;
+				END_IF
+			5: stPlcCom.stPlcComOut.bUnderLight := FALSE;
+				bTrigPosCamLaserTest := TRUE;
+				IF stMirrorData.bReadyForTrigger THEN
+					bTrigPosCam := TRUE;
+					iStartupCheckStep := 6;
+				END_IF
+				
+			6: IF stMirrorData.bLaserTestOk THEN
+					bTrigPosCamLaserTest := FALSE;
+					bTrigPosCam := FALSE;
+					IF NOT stMirrorData.bImagingDone THEN
+						iStartupCheckStep := 7;
+					END_IF
+				ELSIF stMirrorData.bDetectionFailed THEN
+					bTrigPosCam := FALSE;
+					eStationState := E_StsActState.Disabled;
+					bTrigPosCamLaserTest := FALSE;
+					fbEventLogger.bRaiseAlarm[13] := TRUE;
+					sErrorId := CONCAT(CONCAT('3', UDINT_TO_STRING(iStationId)), '6');
+					iErrorId := 306;
+				END_IF 
+ 			7: IF fbStepper.bAxisReady AND fbStepper.bEnchomingDone THEN
+					iStartupCheckStep := 8;
+				ELSIF fbStepper.bError THEN
+					eStationState := E_StsActState.Disabled;
+					iErrorId := 300; // lisää muuttujan fbStepper.nErrorID tekstiin
+					sErrorId := CONCAT(CONCAT(CONCAT('3', UDINT_TO_STRING(iStationId)), '5'), UDINT_TO_STRING(fbStepper.nErrorID));			//OLi CONCAT(CONCAT('3', INT_TO_STRING(iStationId)), '0');
+					fbEventLogger.bRaiseAlarm[8]:= TRUE;	//StepperError?
+				END_IF
+				
+			8: IF fbHeater.bTestTempReached THEN
+					fbHeater.bExecuteTest := FALSE;
+					iStartupCheckStep := 9; 
+				END_IF
+				
+			9: bStationChecksPassed := TRUE;
+				bCheckDone := TRUE;
+				eStationState := E_StsActState.Idle; // VAIHDA IDLEEN
+				iStartupCheckStep := 0;
+			
+		END_CASE
+		IF StartupCheckTmr.Q THEN
+			IF iStartupCheckStep > 6 THEN
+				eStationState := E_StsActState.Disabled;
+				iErrorId := 302;
+				sErrorId := CONCAT(CONCAT('3', UDINT_TO_STRING(iStationId)), '2');
+				fbEventLogger.bRaiseAlarm[10]:= TRUE;
+			ELSIF iStartupCheckStep <= 3 THEN
+				eStationState := E_StsActState.Disabled;
+				iErrorId := 301;
+				sErrorId := CONCAT(CONCAT('3', UDINT_TO_STRING(iStationId)), '1');
+				fbEventLogger.bRaiseAlarm[9]:= TRUE;
+			END_IF
+		END_IF
+		
+	E_StsActState.AssemblyCheck:
+		CASE iAssemblyCheckStep OF
+			0: CASE iAssemblyStatus OF
+				0: eStationState := E_StsActState.Idle;
+				1: iAssemblyCheckStep := 1;
+				2: bPlacingDone := TRUE;
+					 CASE iStatus2Step OF
+						0: DataloggingTmr1.IN := TRUE;
+							iStatus2Step := 1; 
+						1: 	IF DataloggingTmr1.Q  AND iStatus2Cycles < 15 THEN
+								DataloggingTmr1.IN := FALSE;
+								iStatus2Step := 2;
+							ELSIF iStatus2Cycles >= 15 THEN
+								iAssemblyStatus := 3;
+								iStatus2Cycles := 0;
+								DataloggingTmr1.IN := FALSE;
+							END_IF
+							
+						2: iStatus2Cycles := iStatus2Cycles +1;
+							iStatus2Step := 0;
+							iAssemblyCheckStep := 1;
+					END_CASE
+				3: IF AssemblyDoneTmr.Q THEN
+						iAssemblyStatus := 4;
+						iAssemblyCheckStep := 1;
+						bLastDatalog := TRUE;
+					ELSE
+						DataloggingTmr2.IN := TRUE;
+						IF DataloggingTmr2.Q THEN
+							iAssemblyCheckStep := 1;
+							DataloggingTmr2.IN := FALSE;
+						END_IF
+					END_IF
+				4: eStationState := E_StsActState.RobotSlotHold;
+					bStationDone := TRUE;
+			END_CASE
+			
+			
+			1: stPlcCom.stPlcComOut.bUnderLight := TRUE;
+				bTrigPosCam := TRUE;
+				iAssemblyCheckStep := 2;
+			2:	IF stMirrorData.bImagingDone THEN	
+					bTrigPosCam := FALSE;
+					iAssemblyCheckStep := 3;
+					stPlcCom.stPlcComOut.bUnderLight := FALSE;
+				ELSIF stMirrorData.bDetectionFailed THEN
+					IF NOT bDetectionRetry THEN
+						bTrigPosCam := FALSE;
+						iAssemblyCheckStep := 1;
+						bDetectionRetry := TRUE;
+					ELSE
+						iErrorId := 1106; // ERROR CODES NOT CREATED, This error tells that detection failed twice in current station.
+						Err.Err;
+						eStationState := E_StsActState.Disabled;
+					END_IF
+				END_IF
+				
+			3:	IF iAssemblyStatus = 1 THEN
+					IF iAdjustmentCount < 10 THEN
+						IF stMirrorData.rMirrorOffsetToCalPoints[1] > 0.01 OR stMirrorData.rMirrorOffsetToCalPoints[1] < -0.01 THEN
+							eStationState := E_StsActState.RobotSlotHold;
+							iAssemblyCheckStep := 0;
+							bDetectionRetry := FALSE;
+						ELSE
+							bHoldRobotForAdj := FALSE;
+							iAssemblyCheckStep := 4;
+						END_IF
+					ELSE
+						bAssemblyFailed := TRUE;
+					END_IF
+				ELSE 
+					iAssemblyCheckStep := 4;
+				END_IF
+				
+			4: bImagingTmr.IN := TRUE;
+				IF bImagingTmr.Q THEN
+					bTrigAngCam := TRUE;
+					bImagingTmr.IN := FALSE;
+					iAssemblyCheckStep := 5;
+				END_IF
+			5: IF stLaserData.bImagingDone THEN
+					bTrigAngCam := FALSE;
+					iAssemblyCheckStep := 6;
+				ELSIF stLaserData.bDetectionFailed THEN
+					IF NOT bDetectionRetry THEN
+						bTrigAngCam := FALSE;
+						iAssemblyCheckStep := 4;
+						bDetectionRetry := TRUE;
+					ELSE
+						iErrorId := 1106; // ERROR CODES NOT CREATED, This error tells that detection failed twice in current station.
+						Err.Err;
+						eStationState := E_StsActState.Disabled;
+					END_IF
+				END_IF
+			6:	IF iAssemblyStatus <= 2 THEN
+				
+					MoveTmr.IN := TRUE;
+					IF stLaserData.rLaserOffsetToSetPoint[0] < -5 THEN 
+						rDetectedoffset := (stLaserData.rLaserOffsetToSetPoint[0]/10);
+						bStepForward := TRUE;
+						IF MoveTmr.Q THEN
+							eStationState := E_StsActState.AngleAdj;
+							MoveTmr.IN := FALSE;
+							iAssemblyCheckStep := 4;
+							bDetectionRetry := FALSE;
+						END_IF
+					ELSIF stLaserData.rLaserOffsetToSetPoint[0] > 5 THEN
+						rDetectedoffset := (stLaserData.rLaserOffsetToSetPoint[0]/10);
+						bStepBackwards := TRUE;
+						eStationState := E_StsActState.AngleAdj;
+						iAssemblyCheckStep := 4;
+						bDetectionRetry := FALSE;
+					ELSE
+						iAssemblyCheckStep := 7;
+					END_IF
+				ELSE
+					iAssemblyCheckStep := 8;
+				END_IF
+				stLaserData.bImagingDone := FALSE;
+				
+			7:	iAssemblyStatus := 2;
+				iAssemblyCheckStep := 8;
+			8: eStationState := E_StsActState.DataLogging;
+				iAssemblyCheckStep := 0;
+
+		END_CASE
+	
+	E_StsActState.Idle:
+		IF stModuleHmi.bModuleProductionStart AND bAllowStart AND bStationChecksPassed THEN
+			eStationState := E_StsActState.RobotSlotHold;
+		END_IF
+		
+		
+	E_StsActState.AngleAdj:
+		IF fbStepper.bAxisReady THEN
+			IF bStepForward THEN
+				fbStepper.rStepCount := rDetectedoffset;
+				IF fbStepper.rStepCount = rDetectedoffset THEN
+					fbStepper.bStepForward := TRUE;
+					bStepForward := FALSE;
+				END_IF
+			ELSIF bStepBackwards THEN
+				fbStepper.rStepCount := rDetectedoffset;
+				fbStepper.bStepBackward := TRUE;
+				bStepBackwards := FALSE;
+			END_IF
+			IF fbStepper.bDone THEN
+				eStationState := E_StsActState.AssemblyCheck;
+			END_IF
+		END_IF
+		
+	E_StsActState.RobotSlotHold:
+		IF bRobotReadyForStation THEN
+			bInHoldForRobot := FALSE;
+			IF NOT bMotorInStation THEN
+				eStationState := E_StsActState.ProductMounting;
+			ELSIF bAllPartsInStation AND NOT bStationDone THEN
+				eStationState := E_StsActState.PositionAdj;
+			ELSIF bStationDone THEN
+				eStationState := E_StsActState.ProductDisMounting;
+			END_IF
+		ELSE
+			bInHoldForRobot := TRUE;
+		END_IF
+		
+	E_StsActState.PositionAdj:
+		CASE iPosAdjStep OF
+		0: rRobotAdjValue := stMirrorData.rMirrorOffsetToCalPoints[1];
+			iPosAdjStep := 1;
+		1: bExecuteAdj := TRUE;
+			iPosAdjStep := 2;
+		2: IF bAdjDone THEN
+				bExecuteAdj := FALSE;
+				iPosAdjStep := 0;
+				iAdjustmentCount := iAdjustmentCount +1;
+				eStationState := E_StsActState.AssemblyCheck;
+				bAdjDone := FALSE;
+			END_IF
+		END_CASE
+		
+	E_StsActState.ProductMounting: // LISÄÄ ANTURITARKISTUKSET
+		CASE iMountingStep OF
+			0: IF bEngageHolder THEN
+					stPlcCom.stPlcComOut.bGripper := FALSE;
+					bMotorInStation := TRUE;
+					iMountingStep := 1;
+				ELSE
+					stPlcCom.stPlcComOut.bGripper := TRUE;
+				END_IF
+			1: stPlcCom.stPlcComOut.bUnderLight := TRUE;
+				stPlcCom.stPlcComOut.bPusher := FALSE;
+				bImagingTmr.IN := TRUE;
+				iMountingStep := 2;
+			2: IF bImagingTmr.Q THEN
+					bTrigPosCamCoupler := TRUE;
+					bImagingTmr.IN := FALSE;
+					bTrigPosCam := TRUE;
+					iMountingStep := 3;
+				END_IF
+			3: 	IF stMirrorData.bImagingDone THEN
+					bTrigPosCamCoupler := FALSE;
+					stPlcCom.stPlcComOut.bPusher := TRUE;
+					bTrigPosCam := FALSE;
+					iMountingStep := 4;
+				END_IF
+			4:IF bEngageSlider AND NOT stPlcCom.stPlcComIn.bSliderHomeSensor THEN
+					stPlcCom.stPlcComOut.bPusher := FALSE;
+					bAllPartsInStation := TRUE;
+					bHoldRobotForAdj := TRUE;
+					iMountingStep := 5;
+				END_IF
+				 
+			5: 	IF bEngageHolder AND bEngageSlider THEN
+					fbHeater.bHeatingOnOff := TRUE;
+					AssemblyDoneTmr.IN := TRUE;
+					MountingTmr.IN := TRUE;
+					IF MountingTmr.Q THEN
+						iMountingStep := 0;
+						eStationState := E_StsActState.AssemblyCheck;
+						MountingTmr.IN := FALSE;
+						iAssemblyStatus := 1;
+					END_IF
+				END_IF
+		END_CASE
+		
+		
+	
+	E_StsActState.ProductDisMounting:
+		IF NOT bEngageHolder THEN
+			stPlcCom.stPlcComOut.bGripper := TRUE;
+		END_IF
+		IF NOT bEngageSlider THEN
+			stPlcCom.stPlcComOut.bPusher := TRUE;
+		END_IF
+		IF bDismountingDone THEN
+			bDisabledByCycleDone := TRUE;
+			eStationState := E_StsActState.Disabled;
+			bMotorInStation := FALSE;
+			bAllPartsInStation := FALSE;
+			bDismountingDone := FALSE;
+		END_IF
+		
+		
+		
+	E_StsActState.DataLogging:
+		CASE iDatalogStep OF
+			0: fbdatalogger3.bEnable := TRUE;
+				iDatalogStep := 1;
+			1: 	IF fbdatalogger3.bArrayWriteDone THEN
+					fbdatalogger3.bEnable := FALSE;
+					iDatalogStep := 2;
+				END_IF
+			
+			2: 	IF bLastDataLog THEN
+				// fbDatalogger.bSave := TRUE;
+				 fbdatalogger3.bSave := TRUE;
+				// fbdatalogger3.bSave :=TRUE;
+				IF fbdatalogger3.bDone THEN
+					 fbdatalogger3.bSave :=FALSE;
+					 bLastDataLog := FALSE;
+				 END_IF
+				 // OKSENNA DATA TIEDOSTOON
+			ELSE
+				fbdatalogger3.bEnable := FALSE;
+				iDatalogStep := 0;
+				eStationState := E_StsActState.AssemblyCheck;
+			END_IF
+		END_CASE
+		
+	E_StsActState.HoldForValveRelease:
+		IF bReleaseHolders THEN
+			stPlcCom.stPlcComOut.bGripper := TRUE;
+			stPlcCom.stPlcComOut.bPusher := TRUE;
+			bDisabledByCycleDone := TRUE;
+			bReleaseHolders := FALSE;
+			eStationState := E_StsActState.Disabled;
+		END_IF
+	
+	E_StsActState.Disabled:
+		Initialize();
+		fbStepper.Initialize();
+		bCheckDone := TRUE;
+		IF bSetOnce THEN
+			bActivateStation := FALSE;
+			bSetOnce := FALSE;
+		END_IF
+		IF bResetStation OR bActivateStation THEN
+			fbStepper.bResetAxis := TRUE;
+			eStationState := E_StsActState.StartupCheck;
+			bResetStation := FALSE;
+		END_IF
+		
+END_CASE]]></ST>
+    </Implementation>
+    <Property Name="AllPartsInStation" Id="{f33fd603-38aa-4bc5-b381-ff217b7548b0}">
+      <Declaration><![CDATA[PROPERTY AllPartsInStation : BOOL]]></Declaration>
+      <Get Name="Get" Id="{146b0ff7-39ec-4ad3-8c78-504f8a134839}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[AllPartsInStation := bAllPartsInStation;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{4fc92940-ec8b-414a-a2b4-08ae577efcc6}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[bAllPartsInStation := AllPartsInStation;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="AssemblyDone" Id="{d6153a7f-3ced-414e-bbe5-eabb6cd73eb4}">
+      <Declaration><![CDATA[PROPERTY AssemblyDone : BOOL]]></Declaration>
+      <Get Name="Get" Id="{930158f4-5691-4c72-ba57-bae3f97ccfd1}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[AssemblyDone := bStationDone;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{4ed76b85-6b9e-4cbc-9d3d-0794f56e864d}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[bStationDone := AssemblyDone;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="bHolderSensor" Id="{39843b72-a0ec-4db2-a1d5-7c5842cf96c9}">
+      <Declaration><![CDATA[PROPERTY bHolderSensor : BOOL]]></Declaration>
+      <Get Name="Get" Id="{b6424e34-6fa5-41f9-9669-17763cc816ae}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[bHolderSensor := stPlcCom.stPlcComIn.bGripperHomeSensor;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="bSliderSensor" Id="{f521ca3e-0c05-4762-8166-309eafbc5c03}">
+      <Declaration><![CDATA[PROPERTY bSliderSensor : BOOL]]></Declaration>
+      <Get Name="Get" Id="{2b6cce55-76d2-471a-bcf1-73167cb8dc4c}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[bSliderSensor := stPlcCom.stPlcComIn.bSliderHomeSensor;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="Initialize" Id="{96b3f8bc-4005-46c0-b558-30ccaf3ccea3}">
+      <Declaration><![CDATA[METHOD Initialize : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[	StartupStartTmr.IN := FALSE;
+	iAssemblyStatus := 0;
+	iDatalogStep := 0;
+	iAssemblyCheckStep := 0;
+	fbHeater.bHeatingOnOff := FALSE;
+	fbHeater.bExecuteTest := FALSE;
+	fbdatalogger3.bEnable := FALSE;
+	fbdatalogger3.bSave := FALSE;
+	StartupStartTmr.IN := FALSE;
+	AssemblyDoneTmr.IN := FALSE;
+	DataloggingTmr1.IN := FALSE;
+	DataloggingTmr2.IN := FALSE;
+	bImagingTmr.IN := FALSE;
+	stPlcCom.stPlcComOut.bUnderLight := FALSE;
+	bTrigPosCam := FALSE;
+	bTrigAngCam := FALSE;
+	bStationChecksPassed := FALSE;
+	bStationDone := FALSE;
+	bAllPartsInStation := FALSE;
+	bMotorInStation := FALSE;
+	bStepForward := FALSE;
+	bStepBackwards := FALSE;
+	bLastDatalog := FALSE;
+	iStatus2Cycles := 0;
+	bDetectionRetry := FALSE;
+	iPosAdjStep	:= 0;
+	iStartupCheckStep := 0;
+	iStatus2Step := 0;
+	bTrigPosCamLightTest := FALSE;
+	bTrigPosCamLaserTest := FALSE;
+	StartupCheckTmr.IN := FALSE;
+	stMirrorData.bLightTestOk := FALSE;
+	stMirrorData.bLaserTestOk := FALSE;
+	iMountingStep := 0;
+	iAdjustmentCount := 0;
+	bHoldRobotForAdj := FALSE;
+	bPlacingDone := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="MotorInStation" Id="{2985b027-2f52-4b48-9548-825a0d2f5d3d}">
+      <Declaration><![CDATA[PROPERTY MotorInStation : BOOL]]></Declaration>
+      <Get Name="Get" Id="{6fe70559-c5ce-49eb-8d34-0d6ef76f118f}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[MotorInStation := bMotorInStation;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{8e0882d8-015e-4a7a-a23f-bf80e5eacb08}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[bMotorInStation := MotorInStation;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+  </POU>
+</TcPlcObject>

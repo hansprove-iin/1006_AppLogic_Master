@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_GetLogger" Id="{02758bb5-9ed9-4f09-9ae5-45c51963556e}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_GetLogger : I_Logger		// Gets the deault logger instance
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// At PLC start and before cycleStart is called, the default Logger can be NULL, can cause a NULL pointer exception (eg. File logging instance before cycleStart and control signals calls logging) 
+IF (LOGGER.defaultLogger <> 0) THEN
+	FC_GetLogger := LOGGER.defaultLogger;
+ELSE
+	FC_GetLogger := LOGGER.nullLogger;
+END_IF
+]]></ST>
+    </Implementation>
+    <LineIds Name="FC_GetLogger">
+      <LineId Id="2" Count="6" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

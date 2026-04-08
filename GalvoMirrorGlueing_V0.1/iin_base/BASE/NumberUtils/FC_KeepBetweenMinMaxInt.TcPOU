@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_KeepBetweenMinMaxInt" Id="{0a77126e-a8aa-4a9d-8a54-f54c7c669409}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_KeepBetweenMinMaxInt			// Keeps the given ioValue in between iMin (Floor) and iMax (Ceiling)  
+VAR_INPUT
+	iMin:		INT;
+	iMax:		INT;
+END_VAR
+VAR_IN_OUT
+	ioValue:		INT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF (ioValue > iMax) THEN
+	ioValue := iMax;
+ELSIF (ioValue < iMin) THEN
+	ioValue := iMin;
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FC_KeepBetweenMinMaxInt">
+      <LineId Id="2" Count="4" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

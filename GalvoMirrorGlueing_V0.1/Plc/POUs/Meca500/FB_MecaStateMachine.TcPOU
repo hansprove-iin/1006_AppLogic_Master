@@ -1,0 +1,240 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_MecaStateMachine" Id="{9506f5b3-e8a0-4167-9a45-d42a73c948c5}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_MecaStateMachine
+VAR_INPUT
+	rOperatingSpeed		: REFERENCE TO REAL;
+	stModuleHmi : REFERENCE TO ST_ModuleHmi;
+	stStations	: REFERENCE TO ST_Stations;
+	stPlcCom	: REFERENCE TO ST_Module_PlcCom;
+	stAssemblyData : REFERENCE TO ST_Recipes;
+	bLocksEngaged : BOOL;
+	stCouplerData : REFERENCE TO ST_CouplerImagingData;
+	bAllowStart : BOOL;
+	bExecuteNeedleTest : BOOL;
+	bExecuteNeedleReTest : BOOL;
+	bNewPlacingActive	: BOOL;
+END_VAR
+VAR_OUTPUT
+	bRobotConfDone	: BOOL;
+	bRobotHomed : BOOL;
+	bNeedleRecheckSucceeded : BOOL;
+	bNeedleFailed : BOOL;
+	iWorkingStation : INT;
+	bDismountingActive : BOOL;
+END_VAR
+VAR_IN_OUT
+		bNeedleSucceeded : BOOL;
+END_VAR
+VAR
+	MecaControlStep 	: E_MecaStatus;
+	fbMecaConf			: FB_MecaConf;
+	fbManualControl		: FB_ManualControl;
+	fbOperating			: FB_Operating;
+	fbGluingPositioning	: FB_GluingTipPositioning;
+	fbLinearAxis 		: FB_LinearAxisFunctions;
+	PoseHome			: ARRAY [1..6] OF REAL := [-90,0,0,0,90,0]; // JOINT VALUES
+	PoseBeforeHome			: ARRAY [1..6] OF REAL := [-90,0,0,0,90,0]; // JOINT VALUES
+	Delay				:Meca500_Delay;
+	Gripper				:Meca500_Gripper;
+	MoveGripper			:Meca500_MoveGripper;
+	MovePose			:Meca500_MovePose;
+	MoveJoints			:Meca500_MoveJoints;
+	GetEOAT 			:Meca500_GetEOAT;
+	Sent: BOOL;
+	Buffered: BOOL;
+	Error: BOOL;
+
+	
+	bInitialStartup	: BOOL;
+	bConfDone : BOOL;
+	iHomingStep	: INT;
+	stTipOffsets : ST_GluetipCoordinates;
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbLinearAxis(stPlcCom := stPlcCom, stModuleHmi := stModuleHmi);
+
+IF NOT stPlcCom.stPlcComIn.bEstopOk OR NOT stPlcCom.stPlcComIn.bSafetyOk THEN
+	MecaControlStep := E_MecaStatus.Offline;
+	bRobotConfDone := FALSE;
+ELSIF stModuleHmi.MecaHmi.bManualJog AND bConfDone THEN // Enusres that manual jog can not be activated if not safe.
+	MecaControlStep := E_MecaStatus.HmiManual;
+ELSE
+	stModuleHmi.MecaHmi.bManualJog := FALSE;
+END_IF
+IF NOT bRobotHomed THEN
+	IF NOT fbOperating.bOperatingActive AND NOT stModuleHmi.bModulePlayPause AND stModuleHmi.bModuleProductionStart OR stModuleHmi.bModuleProductionStop OR stModuleHmi.bPowerOff THEN
+		MecaControlStep := E_MecaStatus.Home;
+	END_IF
+END_IF
+
+CASE MecaControlStep OF // Lisää koodi jossa akselistot ajetaan kotia luukun tai sammutuksen takia.
+	E_MecaStatus.Offline:
+		bConfDone := FALSE;
+		fbLinearAxis.AxisReset := FALSE;
+		bNeedleFailed := FALSE;
+		fbLinearAxis.ExecuteHoming := FALSE;
+		bNeedleRecheckSucceeded := FALSE;
+		bNewPlacingActive := FALSE;
+		iHomingStep := 0;
+		fbMecaConf(bConfDone := bConfDone, stPlcCom := stPlcCom, bRecoveryMode := stModuleHmi.MecaHmi.bRecoveryMode);
+		fbMecaConf.Initialize();
+		fbGluingPositioning.Initialize();
+		IF bLocksEngaged THEN
+			IF NOT bInitialStartup THEN
+				IF stPlcCom.stPlcComIn.bEstopOk AND stPlcCom.stPlcComIn.bSafetyOk THEN
+					IF stModuleHmi.bModuleStartup AND NOT stModuleHmi.MecaHmi.bRecoveryMode OR stModuleHmi.MecaHmi.bRecoveryMode THEN
+						fbOperating.Initialize();
+						bInitialStartup := TRUE;
+						MecaControlStep := E_MecaStatus.Conf;
+					END_IF
+				END_IF
+			ELSE
+				IF stPlcCom.stPlcComIn.bEstopOk AND stPlcCom.stPlcComIn.bSafetyOk AND NOT stModuleHmi.bModuleFault THEN
+					fbOperating.Initialize();
+					MecaControlStep := E_MecaStatus.Conf;
+				END_IF
+			END_IF
+		END_IF
+		
+	E_MecaStatus.Conf:
+		fbMecaConf(bConfDone := bConfDone, stPlcCom := stPlcCom, bRecoveryMode := stModuleHmi.MecaHmi.bRecoveryMode, rOperatingSpeed := rOperatingSpeed); 
+		IF NOT bConfDone AND NOT fbMecaConf.bRecoveryModeActive THEN
+			fbMecaConf.bExecute := TRUE;
+		ELSIF fbMecaConf.bRecoveryModeActive THEN // if robot is in collision danger, recovery mode is needed to jog it out before robot homing.
+			MecaControlStep := E_MecaStatus.HmiManual;
+		ELSIF fbMecaConf.bError THEN
+			MecaControlStep := E_MecaStatus.Offline;
+			IF NOT stModuleHmi.bModuleStartupDone THEN
+				stModuleHmi.bModuleFault := TRUE;
+			END_IF
+		ELSE
+			fbLinearAxis.AxisReset := TRUE;
+			fbMecaConf.bExecute := FALSE;
+			IF NOT fbLinearAxis.LinearAxisBusy AND fbLinearAxis.bAxisHomed AND NOT fbLinearAxis.bError THEN
+				fbLinearAxis.AxisReset := FALSE;
+				MecaControlStep := E_MecaStatus.Home;
+			ELSIF  fbLinearAxis.bError THEN
+				MecaControlStep := E_MecaStatus.Offline;
+				IF NOT stModuleHmi.bModuleStartupDone THEN
+					stModuleHmi.bModuleFault := TRUE;
+				END_IF
+			END_IF
+		END_IF
+
+		
+		
+	E_MecaStatus.Home:
+		CASE iHomingStep OF
+			0: PoseBeforeHome[1] := Meca500.GVL.Meca500.Inputs.Joint_Set.SubIndex_001;
+			PoseBeforeHome[4] := Meca500.GVL.Meca500.Inputs.Joint_Set.SubIndex_004;
+			PoseBeforeHome[6] := Meca500.GVL.Meca500.Inputs.Joint_Set.SubIndex_006;
+			iHomingStep := 1;
+			1: MoveJoints(Joint_Angle := PoseBeforeHome,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+			2: fbLinearAxis.AxisTargetPos := 0;
+				fbLinearAxis.ExecuteMovement := TRUE;
+				MoveJoints(Joint_Angle := PoseHome,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+			3: IF fbLinearAxis.bAxisHomed AND Meca500.GVL.Meca500.Inputs.Motion_Status.EOM THEN
+				bRobotHomed := TRUE;
+				fbLinearAxis.ExecuteMovement := FALSE;
+				MecaControlStep := E_MecaStatus.Idle; 
+				iHomingStep := 0;
+			END_IF
+		END_CASE
+		
+		IF Sent AND Buffered THEN
+			iHomingStep := iHomingStep +1;
+			Sent := FALSE;
+			Buffered := FALSE;
+		END_IF
+	
+	
+	E_MecaStatus.Idle:
+		bRobotConfDone := TRUE;
+		bNewPlacingActive := FALSE;
+		IF bExecuteNeedleTest THEN 
+ 			MecaControlStep := E_MecaStatus.GluingpPos;
+		ELSIF bExecuteNeedleReTest THEN
+			MecaControlStep := E_MecaStatus.GluingpPos;
+		ELSIF bNeedleSucceeded AND bNeedleRecheckSucceeded AND bAllowStart THEN
+			fbOperating.bExecutePlacing := TRUE;
+			MecaControlStep := E_MecaStatus.Operating;
+		END_IF
+	
+		
+	E_MecaStatus.HmiManual:
+		fbManualControl(stModuleHmi := stModuleHmi);
+		IF NOT stModuleHmi.MecaHmi.bManualJog AND NOT stModuleHmi.MecaHmi.bRecoveryMode THEN
+			IF NOT bConfDone OR fbMecaConf.bRecoveryModeActive THEN //If estop was reseted with recovery mode on, this will ensure that conf is finished.
+				fbMecaConf.Initialize();
+				MecaControlStep := E_MecaStatus.Conf;
+			ELSE
+				MecaControlStep := E_MecaStatus.Idle;
+			END_IF
+		ELSE
+			stModuleHmi.MecaHmi.bManualJog := TRUE; // To ensure that recovery mode is not active when trying to exit manual jog
+		END_IF
+		
+	E_MecaStatus.GluingpPos:
+		bExecuteNeedleTest := FALSE;
+		fbGluingPositioning(stPlcCom := stPlcCom, stTipOffsets => stTipOffsets, rJogSpeed := rOperatingSpeed, ); // TARKISTA MITEN STARTUP CHECK TOTEUTTAA VIRHETILAN KORJAA JOS NEULA EI LÖYDY KOTIA AJO
+		IF fbGluingPositioning.bDetectionDone THEN
+			fbGluingPositioning.bExecutePositining := FALSE;
+			bNeedleSucceeded := TRUE;
+			MecaControlStep := E_MecaStatus.Idle;
+		ELSIF fbGluingPositioning.bDetectionFailed THEN
+			MecaControlStep := E_MecaStatus.Idle;
+			fbGluingPositioning.bExecutePositining := FALSE;
+			bNeedleFailed := TRUE;
+		ELSIF fbGluingPositioning.bReDetectionDone THEN
+			MecaControlStep := E_MecaStatus.Idle;
+			fbGluingPositioning.bExecutePositining := FALSE;
+			bNeedleRecheckSucceeded := TRUE;
+		ELSE
+			fbGluingPositioning.bExecutePositining := TRUE;
+			IF bExecuteNeedleReTest THEN
+				bExecuteNeedleReTest := FALSE;
+				fbGluingPositioning.bReCheckNeedle := TRUE;
+			END_IF
+		END_IF
+		
+	E_MecaStatus.Operating:
+		fbOperating(stStation := stStations, 
+			stAssemblyData := stAssemblyData, 
+			stPlcCom := stPlcCom, 
+			fbLinearAxis := fbLinearAxis,
+			bRobotHomed := bRobotHomed,
+			stModuleHmi := stModuleHmi,
+			stCouplerData := stCouplerData,
+			stTipOffsets := stTipOffsets,
+			bNewPlacingActive := bNewPlacingActive,
+			rJogSpeed := rOperatingSpeed,
+			bDismountingActive => bDismountingActive,
+			iWorkingStation => iWorkingStation);
+		
+END_CASE
+
+// continuous write of current robot posture
+stModuleHmi.MecaHmi.aCurrentPose[1] := Meca500.GVL.Meca500.Inputs.End_Effector_Pose.SubIndex_001;
+stModuleHmi.MecaHmi.aCurrentPose[2] := Meca500.GVL.Meca500.Inputs.End_Effector_Pose.SubIndex_002;
+stModuleHmi.MecaHmi.aCurrentPose[3] := Meca500.GVL.Meca500.Inputs.End_Effector_Pose.SubIndex_003;
+stModuleHmi.MecaHmi.aCurrentPose[4] := Meca500.GVL.Meca500.Inputs.End_Effector_Pose.SubIndex_004;
+stModuleHmi.MecaHmi.aCurrentPose[5] := Meca500.GVL.Meca500.Inputs.End_Effector_Pose.SubIndex_005;
+stModuleHmi.MecaHmi.aCurrentPose[6] := Meca500.GVL.Meca500.Inputs.End_Effector_Pose.SubIndex_006;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

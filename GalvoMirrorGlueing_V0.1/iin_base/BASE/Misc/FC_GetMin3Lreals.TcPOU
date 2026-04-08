@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_GetMin3Lreals" Id="{f17e01d6-e5bb-423a-bd3f-aaad92e206b4}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_GetMin3Lreals : LREAL		// Returns the minimum of specified values 
+VAR_INPUT
+	iLreal1:	LREAL;
+	iLreal2:	LREAL;
+	iLreal3:	LREAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_GetMin3Lreals := MIN(iLreal1, iLreal2);
+FC_GetMin3Lreals := MIN(FC_GetMin3Lreals, iLreal3); 
+]]></ST>
+    </Implementation>
+    <LineIds Name="FC_GetMin3Lreals">
+      <LineId Id="2" Count="2" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

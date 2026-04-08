@@ -1,0 +1,43 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_Recipe_AssemblyData" Id="{6ed417b0-e9c2-4a0b-baab-20f50e6bd2e5}">
+    <Declaration><![CDATA[TYPE ST_Recipe_AssemblyData :
+STRUCT
+	rGalvoThickness			: REAL;
+	rMirrorDimensions : ARRAY [0..3] OF REAL; //[0] Width at mirror girp center position (gripperWidth), [1] Width, [2] height, [3] Thickness
+ 	
+	// To enable new mirror variations to be added only based on offset values
+	rMirrorGripPointOffsetToEdgeX	: REAL; // Distance from grip centerpoint to mirror edge on the direction of the gluing side
+	rMirrorCenterOffsetToWeightCenterY : REAL; // Distance from mirror weight centerpoint to mirror width centerpoint.
+	rLaserPointSetValue	: REAL;
+	rCouplerGroveDepth	: REAL; // Depth from CAD files of the couplers
+	// Coupler detection variables
+	rThreshold			: LREAL;
+	aStartPointCoupler					: TcVnPoint2_REAL;
+	aEndPointCoupler					: TcVnPoint2_REAL;
+	rSearchLineDist							: REAL;
+	//
+	wPalletBinary		: WORD;
+	sAssemblyType	: STRING;
+	sMotorType	: STRING;
+	sMirrorType	: STRING;
+	sGlueType	: STRING;
+	sCouplerType : STRING;
+	
+	// for data exchange
+	bTrigCam1	: BOOL;
+	bTrigCam2	: BOOL;
+	bTrigCam3	: BOOL;
+	bTrigCam4	: BOOL;
+	bTrigCam5	: BOOL;
+	bTrigCam6	: BOOL;
+	bTrigCam7	: BOOL;
+	bTrigCam8	: BOOL;
+	bTrigCam9	: BOOL;
+	bTrigCam10	: BOOL;
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

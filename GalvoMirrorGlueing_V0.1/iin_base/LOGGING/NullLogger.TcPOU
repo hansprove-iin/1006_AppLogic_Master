@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="NullLogger" Id="{d92f1651-c559-4d36-bdc4-359e3585c04d}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION NullLogger : I_Logger		// Returns a null logger instance 
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[NullLogger := LOGGER.nullLogger;]]></ST>
+    </Implementation>
+    <LineIds Name="NullLogger">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

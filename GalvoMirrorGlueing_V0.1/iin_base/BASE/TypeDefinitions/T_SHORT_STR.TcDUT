@@ -1,0 +1,6 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="T_SHORT_STR" Id="{96307ca4-124a-44b9-ad38-ab987bbcebeb}">
+    <Declaration><![CDATA[TYPE T_SHORT_STR : STRING(80); END_TYPE		// Use this for 'shorter' string]]></Declaration>
+  </DUT>
+</TcPlcObject>

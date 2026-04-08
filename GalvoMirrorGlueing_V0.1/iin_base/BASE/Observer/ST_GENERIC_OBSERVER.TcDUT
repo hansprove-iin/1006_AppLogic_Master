@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="ST_GENERIC_OBSERVER" Id="{13e5b407-c75a-49eb-b984-0a1427cc945f}">
+    <Declaration><![CDATA[TYPE ST_GENERIC_OBSERVER :
+STRUCT
+	who:		T_SHORT_STR;			// Unique identifier of this observer
+	observer:	POINTER TO BYTE;		// Interface CASTed to a generic POINTER, to be CASTed back in your application
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

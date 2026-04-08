@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_GetLocalDateAndTimeString" Id="{cbe7610b-d777-46a7-a715-09a2a480dd71}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_GetLocalDateAndTimeString : T_SHORT_STR		// Returns the local date and time as string,  eg. '27:05:2019 15:58:40:302'. Use E_REGIO_SELECTION at FB_CycleStart for a different format.]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_GetLocalDateAndTimeString := IING.localDateAndTimeString;]]></ST>
+    </Implementation>
+    <LineIds Name="FC_GetLocalDateAndTimeString">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

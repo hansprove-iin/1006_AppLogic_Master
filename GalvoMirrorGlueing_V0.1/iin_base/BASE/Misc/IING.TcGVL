@@ -1,0 +1,122 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <GVL Name="IING" Id="{e0eada0b-798b-4243-ae85-97b700fc71d6}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'global_init_slot' := '40002'}
+VAR_GLOBAL
+	epochtime :						ULINT;				// Epoch time (milliseconds)
+	localSystemTime:				TIMESTRUCT;			// Local system time
+	localDateString:				T_SHORT_STR;		// Local date string, eg. '27:5:2019'. Use E_REGIO_SELECTION at FB_CycleStart for a different format.
+	usDateString:					T_SHORT_STR;		// US style date string, especially usefull for naming log files
+	localTimeString:				T_SHORT_STR;		// Local time as string, eg. '15:58:40:302'
+	localDateAndTimeString:			T_SHORT_STR;		// Local date and time as string,  eg. '27:5:2019 15:58:40:302'. Use E_REGIO_SELECTION at FB_CycleStart for a different format.
+	localHostName:					T_DEFAULT_STR;		// Local hostname
+	localAmsNetId:					T_AmsNetId;			// Local AMS net id
+	localTimeSecAccuracy:			T_SHORT_STR;		// Local time as string, eg. '15:58:40', seconds accuracy
+	localTimeMinAccuracy:			T_SHORT_STR;		// Local time as string, eg. '15:58', minutes accuracy
+	iso8601Time:					T_SHORT_STR;		// Time in ISO 8601 format
+	
+	cycleTime:						ULINT;				// Current PLC cycle time in msec
+	cycleStart:						BOOL;				// TRUE during first PLC cycle
+	lastPlcRestart:					T_SHORT_STR;		// Timestamp of last PLC restart
+	dayHasChanged:					BOOL;				// TRUE for 1 PLC cycle when a day change occurs
+
+	// Blinkers, usefull for making a light beacon blink
+	blink100Ms:						BOOL;			// 100ms blinker  
+	blink500Ms:						BOOL;			// 500ms blinker
+	blink1S:						BOOL;			// 1S blinker
+	blink2S:						BOOL;			// 2S blinker
+	blink5S:						BOOL;			// 5S blinker
+	blink10S:						BOOL;			// 10S blinker
+	
+	invertedBlink100Ms:				BOOL;			// Inverted 100ms blinker
+	invertedBlink500Ms:				BOOL;			// Inverted 500ms blinker
+	invertedBlink1S:				BOOL;			// Inverted 1S blinker
+	invertedBlink2S:				BOOL;			// Inverted 2S blinker
+	invertedBlink5S:				BOOL;			// Inverted 5S blinker
+	invertedBlink10S:				BOOL;			// Inverted 10S blinker
+ 
+	// 1 'PLC cycle' long pulsers 
+	pulse100Ms:						BOOL;
+	pulse500Ms:						BOOL;
+	pulse1S:						BOOL;
+	pulse2S:						BOOL;
+	pulse10S:						BOOL;
+	pulse30S:						BOOL;
+	pulse1M:						BOOL;
+	pulse1H:						BOOL;
+	
+	STRING_EMPTY_NON_CONSTANT:		T_SHORT_STR := '';			// Some VISUs want write access
+	cycleCounter:					UDINT;			// Gets incremented each PLC cycle
+	adsPort:						UINT;			// The ADS port we are running on
+	
+	simulatorActive:				BOOL;		// TRUE when running in simulation mode (TC project variant 'simulator')
+	pointerSize:					UINT;		// Number of bytes for a pointer (=size)
+END_VAR
+
+VAR_GLOBAL CONSTANT
+	TIME_OFFSET_1601 : 				ULINT := 11644472389000;	// Jan 01, 1601 (gotten from online millisecond calculator)
+	TIME_OFFSET_20MINS :			ULINT := 20 *60 *1000;		// 1601 offset is 20 mins WRONG!
+	EPOCH_CORRECTION :				ULINT := TIME_OFFSET_1601 + TIME_OFFSET_20MINS;		// Correction to get proper EPOCH timestamp instead of Beckhoff timestamp
+	
+	STRING_BLANK:					T_SHORT_STR := '';				// Use this instead of '', renamed from EMPTY->BLANK since same string exist in Beckhoff libs
+	STRING_COLON: 					T_SHORT_STR := ':';				// Use this instead of ':'
+	STRING_SPACE: 					T_SHORT_STR := ' ';				// Use this instead of ' '
+	STRING_UNDERSCORE:				T_SHORT_STR := '_';				// Use this instead of '_'
+	STRING_DASH:					T_SHORT_STR := '-';				// Use this instead of '-'
+	STRING_COMMA:					T_SHORT_STR := ',';				// Use this instead of ','
+	STRING_STAR:					T_SHORT_STR := '*';				// Use this instead of '*'
+	STRING_SLASH:					T_SHORT_STR := '/';				// Use this instead of '/'
+	STRING_BACKSLASH:				T_SHORT_STR := '\';				// Use this instead of '\'
+	STRING_SQUARE_BRACKET_OPEN:		T_SHORT_STR := '[';				// Use this instead of '['
+	STRING_SQUARE_BRACKET_CLOSE:	T_SHORT_STR := ']';				// Use this instead of ']'
+	STRING_DOT:						T_SHORT_STR := '.';				// Use this instead of '.'
+	STRING_PIPE:					T_SHORT_STR := '|';				// Use this instead of '|'
+	STRING_AM:						T_SHORT_STR := 'AM';			// Use for time formatting
+	STRING_PM:						T_SHORT_STR := 'PM';			// Use for time formatting
+	STRING_BASE_SETTINGS_INITIAL_NAME:	T_SHORT_STR := '???';	// Initial name for the base setting
+	STRING_EQUALS:					T_SHORT_STR := '=';				// Use this instead of '='
+	STRING_EXCLAMATION:				T_SHORT_STR := '!';				// Use this instead of '!'
+	STRING_UNDEFINED:				STRING := 'undefined';
+	
+	
+	
+	STRING_LINE_FEED:				T_SHORT_STR := '$0A';			// Use this when adding a line feed (eg. file handling)
+	
+	STRING_80_CHARS:				T_SHORT_STR := '0123456789012345678901234567890123456789012345678901234567890123456789012345678_';	// Use this for testing string functions (string by default is 80 chars only)
+	STRING_TODO:					T_SHORT_STR := 'TODO';
+	
+	ADS_WRITE_TIMEOUT:				TIME := T#1S;				// Default ADS time-out for our applications
+	ADS_WRITE_RETRIES:				UDINT := 3;					// Default number of ADS retries
+	ADS_DEFAULT_PORT:				T_AmsPort := 851;			// Default ADS port (for 1st PLC)
+	ADS_MB_INDEX_GROUP:				UDINT := 16#4020;			// ADS MB index group
+	
+	IDX_UNDEFINED:					INT := -1;					// Use this to make an array index invalid (instead of just 0)
+	INVALID_UINT:					INT := -1;					// Use this to make an UINT invalid (instead of just 0)
+	
+	RESET_TIME:						TIME := T#100MS;			// Normal reset default time/delay
+	HARD_RESET_TIME:				TIME := T#1S;				// Hard reset default time/delay
+	AUTO_SERVICE_RESET_TIME:		TIME := T#5M;				// Time after which service mode is switched OFF
+	EXTENDED_RESET_PULSE_DURATION:	TIME := T#250MS;
+	SERVO_POWER_SAVINGS_TIME:		TIME := T#5M;				// Automatic powering down of a SERVO	
+	
+	BITS_IN_WORD:					UINT := 16;					// Number of bits in a WORD
+	BITS_IN_DWORD:					UINT := 32;					// Number of bits in a DWORD
+	
+	FULL_SPEED:						REAL := 100.0;				// Use this as the default velocity override speed
+	
+	ZERO_POINTER:					UDINT := 0;					// Use this to 'null' a pointer/reference
+	ONE_INCH:						LREAL := 25.4;				// One inch
+
+	ONE_KBYTE:						DINT := 1024;				// One kilobyte in bytes	
+	ONE_MBYTE:						DINT := 1048576;			// One megabyte in bytes
+	
+	MAX_UDINT:						UDINT := 16#FFFFFFFF;		// Biggest possible UDINT
+	MAX_INT:						INT := 32767;				// Max value for an INT
+
+	EVENT_INDICATION_NONE:			T_EVENT_CHAR_INDICATOR := STRING_BLANK;
+	EVENT_INDICATION_WARNING:		T_EVENT_CHAR_INDICATOR := 'W';
+	EVENT_INDICATION_ALARM:			T_EVENT_CHAR_INDICATOR := 'A';	
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_TimeStringToDt" Id="{78072e99-b5d5-48fa-8702-2fb35120d538}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_TimeStringToDt : DT		// Converts a time string to 'DT', this is usefull for doing calculations on time
+VAR_INPUT
+	iTime:				T_SHORT_STR;		// Time as string
+END_VAR
+VAR
+	timeStamp:			T_SHORT_STR;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[timeStamp := FC_GetLocalDateString();
+timeStamp := FC_2strConcatSeparator(iSeparator := ' ', iStr1 := timeStamp, iStr2 := iTime);
+
+FC_TimeStringToDt := FC_DateAndTimeToDt(iDateAndTime := timeStamp);]]></ST>
+    </Implementation>
+    <LineIds Name="FC_TimeStringToDt">
+      <LineId Id="2" Count="3" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

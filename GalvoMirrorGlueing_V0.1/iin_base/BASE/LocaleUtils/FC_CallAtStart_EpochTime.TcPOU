@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_CallAtStart_EpochTime" Id="{3b4901ee-67eb-4924-9100-6b24c3dec127}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_CallAtStart_EpochTime : BOOL		// Called from FB_Cyclestart, DO NOT call from your application
+												// Stores the EPOCH time to IIN.epochtime
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// To be called once/cycle
+
+IING.epochtime := (F_GetSystemTime() / 10000) - IING.EPOCH_CORRECTION;	// System is in 100nseconds -> divide by 10000 for milliseconds
+]]></ST>
+    </Implementation>
+    <LineIds Name="FC_CallAtStart_EpochTime">
+      <LineId Id="2" Count="3" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

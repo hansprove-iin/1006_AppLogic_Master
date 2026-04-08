@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <GVL Name="LOGGER" Id="{c5ea9adb-daf4-4dd6-ab1b-a55fcfb2ad99}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL
+	nullLogger:				FB_NullLogger;					// DEV 0 logger
+	defaultLogger:			I_Logger;	
+END_VAR
+]]></Declaration>
+  </GVL>
+</TcPlcObject>

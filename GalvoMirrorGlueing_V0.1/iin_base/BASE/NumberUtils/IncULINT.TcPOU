@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="IncULINT" Id="{2e5640c3-7558-4a4c-9b21-818e0f3756e0}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION IncULINT : ULINT		// Increments the given ULINT value
+VAR_IN_OUT
+	ioNum:	ULINT;		// Value to increment
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IncULINT := ioNum := ioNum + 1;
+]]></ST>
+    </Implementation>
+    <LineIds Name="IncULINT">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

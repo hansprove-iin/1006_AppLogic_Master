@@ -1,0 +1,434 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{a314f689-2f6c-45b2-8f72-6cf3e2397cd2}</ProjectGuid>
+    <Name>iin_base</Name>
+    <Application>{ee87e12a-040d-4a33-a22e-fa65a3f40348}</Application>
+    <TypeSystem>{a7cc446e-c12c-42ec-a9d2-77d0d2e02ad9}</TypeSystem>
+    <Implicit_Task_Info>{7400cd97-23bd-4ebc-856c-a1f61676b5e5}</Implicit_Task_Info>
+    <Implicit_KindOfTask>{70c8670d-acd3-4d22-b9bb-51883c62ed91}</Implicit_KindOfTask>
+    <Implicit_Jitter_Distribution>{f38cbb08-e982-4a50-a8d6-3adf143b9b4a}</Implicit_Jitter_Distribution>
+    <LibraryReferences>{49fd7576-af6c-4bba-89a8-a48909d7cd09}</LibraryReferences>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Company>IIN Solutions Oy</Company>
+    <Title>IIN_Base_T</Title>
+    <ProjectVersion>0.0.3</ProjectVersion>
+    <Placeholder>IIN_Base</Placeholder>
+    <Author>Author</Author>
+    <Released>false</Released>
+    <LibraryCategories>
+      <LibraryCategory xmlns="">
+        <Id>{243332cf-c981-4526-aa2c-72ea07d45af8}</Id>
+        <Version>1.0.0.0</Version>
+        <DefaultName>IIN</DefaultName>
+      </LibraryCategory>
+    </LibraryCategories>
+    <SelectedLibraryCategories>
+      <Id xmlns="">{243332cf-c981-4526-aa2c-72ea07d45af8}</Id>
+    </SelectedLibraryCategories>
+    <ProgramVersion>3.1.4026.21</ProgramVersion>
+    <VirtualLibrary>true</VirtualLibrary>
+  </PropertyGroup>
+  <ItemGroup>
+    <PlaceholderReference Include="Tc2_Standard">
+      <DefaultResolution>Tc2_Standard, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_Standard</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_System">
+      <DefaultResolution>Tc2_System, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_System</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc2_Utilities">
+      <DefaultResolution>Tc2_Utilities, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc2_Utilities</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="VisuDialogs">
+      <DefaultResolution>VisuDialogs, * (System)</DefaultResolution>
+      <Namespace>VisuDialogs</Namespace>
+    </PlaceholderReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="ALARMS" />
+    <Folder Include="ALARMS\AlarmObserver" />
+    <Folder Include="ALARMS\AppSupport" />
+    <Folder Include="ALARMS\DUT" />
+    <Folder Include="ALARMS\GVL" />
+    <Folder Include="ALARMS\POU" />
+    <Folder Include="BASE" />
+    <Folder Include="BASE\AdsUtils" />
+    <Folder Include="BASE\ControlSignals" />
+    <Folder Include="BASE\CycleStartEnd" />
+    <Folder Include="BASE\FileUtils" />
+    <Folder Include="BASE\LocaleUtils" />
+    <Folder Include="BASE\Misc" />
+    <Folder Include="BASE\NumberUtils" />
+    <Folder Include="BASE\Observer" />
+    <Folder Include="BASE\Persistency" />
+    <Folder Include="BASE\PulsersBlinkers" />
+    <Folder Include="BASE\StringUtils" />
+    <Folder Include="BASE\TypeDefinitions" />
+    <Folder Include="DATA" />
+    <Folder Include="DATA\DUT" />
+    <Folder Include="DATA\REPORTING" />
+    <Folder Include="LOGGING" />
+    <Folder Include="LOGGING\FileLogger" />
+    <Folder Include="LOGGING\GenericLogger" />
+    <Folder Include="LOGGING\NullLogger" />
+    <Folder Include="LOGGING\Specs" />
+    <Folder Include="VISION" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="ALARMS\AlarmObserver\I_AlarmObserver.TcIO" />
+    <Compile Include="ALARMS\AppSupport\FB_Interceptor.TcPOU" />
+    <Compile Include="ALARMS\AppSupport\FB_StepperProgram.TcPOU" />
+    <Compile Include="ALARMS\AppSupport\FC_GetLoggingId.TcPOU" />
+    <Compile Include="ALARMS\AppSupport\FC_GetPositionWithId.TcPOU" />
+    <Compile Include="ALARMS\AppSupport\FC_GetPosNrWithId.TcPOU" />
+    <Compile Include="ALARMS\AppSupport\ST_INTERCEPTOR.TcDUT" />
+    <Compile Include="ALARMS\AppSupport\ST_INTERCEPTOR_RESULT.TcDUT" />
+    <Compile Include="ALARMS\DUT\ST_ACTIVE_ALARM.TcDUT" />
+    <Compile Include="ALARMS\DUT\ST_ALARM_BASE.TcDUT" />
+    <Compile Include="ALARMS\DUT\ST_CLEAR_ALARM.TcDUT" />
+    <Compile Include="ALARMS\DUT\ST_RAISE_ALARM.TcDUT" />
+    <Compile Include="BASE\AdsUtils\E_ADS_ERRORS.TcDUT" />
+    <Compile Include="BASE\AdsUtils\FC_GetAdsErrorCode.TcPOU" />
+    <Compile Include="BASE\AdsUtils\TL_ADS_ERRORS.TcTLO">
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="BASE\ControlSignals\FB_ControlSignalResets.TcPOU" />
+    <Compile Include="BASE\ControlSignals\FB_ControlSignalsV2.TcPOU" />
+    <Compile Include="BASE\ControlSignals\I_ControlSignals.TcIO" />
+    <Compile Include="BASE\ControlSignals\ST_CONTROL_SIGNALS_IN.TcDUT" />
+    <Compile Include="BASE\ControlSignals\ST_CONTROL_SIGNALS_OUT.TcDUT" />
+    <Compile Include="BASE\ControlSignals\ST_CONTROL_SIGNALS_SETTINGS.TcDUT" />
+    <Compile Include="BASE\ControlSignals\ST_CONTROL_SIGNALS_STATIC_SETTINGS.TcDUT" />
+    <Compile Include="BASE\ControlSignals\ST_CONTROL_SIGNALS_V2.TcDUT" />
+    <Compile Include="BASE\ControlSignals\TC_HMI_CS.TcDUT" />
+    <Compile Include="BASE\CycleStartEnd\FB_CycleEnd.TcPOU" />
+    <Compile Include="BASE\CycleStartEnd\FB_CycleStart.TcPOU" />
+    <Compile Include="BASE\CycleStartEnd\FC_GetCurrentCycleCount.TcPOU" />
+    <Compile Include="BASE\FileUtils\FC_FilePathGenerator.TcPOU" />
+    <Compile Include="BASE\LocaleUtils\E_REGIO_SELECTION.TcDUT" />
+    <Compile Include="BASE\LocaleUtils\FB_GetLocalTimeAndDate.TcPOU" />
+    <Compile Include="BASE\LocaleUtils\FB_TimeSync.TcPOU" />
+    <Compile Include="BASE\LocaleUtils\FC_CallAtStart_EpochTime.TcPOU" />
+    <Compile Include="BASE\LocaleUtils\FC_DateAndTimeToDt.TcPOU" />
+    <Compile Include="BASE\LocaleUtils\FC_FormatTime.TcPOU" />
+    <Compile Include="BASE\LocaleUtils\FC_GetEpochTime.TcPOU" />
+    <Compile Include="BASE\LocaleUtils\FC_GetLocalDateAndTimeString.TcPOU" />
+    <Compile Include="BASE\LocaleUtils\FC_GetLocalDateString.TcPOU" />
+    <Compile Include="BASE\LocaleUtils\FC_GetLocalTimeString.TcPOU" />
+    <Compile Include="BASE\LocaleUtils\FC_GetLocalTimeStringMinAccuracy.TcPOU" />
+    <Compile Include="BASE\LocaleUtils\FC_GetLocalTimeStringSecAccuracy.TcPOU" />
+    <Compile Include="BASE\LocaleUtils\FC_GetUsDateString.TcPOU" />
+    <Compile Include="BASE\LocaleUtils\FC_NowAsDt.TcPOU" />
+    <Compile Include="BASE\LocaleUtils\FC_TimeStringToDt.TcPOU" />
+    <Compile Include="BASE\Misc\COLORS.TcGVL">
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="BASE\Misc\FB_Base.TcPOU" />
+    <Compile Include="BASE\Misc\FB_BaseWithAlarmEvents.TcPOU" />
+    <Compile Include="BASE\Misc\FB_BoolLogger.TcPOU" />
+    <Compile Include="BASE\Misc\FB_BoolTrigger.TcPOU" />
+    <Compile Include="BASE\Misc\FB_DelayedReset.TcPOU" />
+    <Compile Include="BASE\Misc\FB_HandshakeDelay.TcPOU" />
+    <Compile Include="BASE\Misc\FB_IntChangeTrigger.TcPOU" />
+    <Compile Include="BASE\Misc\FB_IntLogger.TcPOU" />
+    <Compile Include="BASE\Misc\FB_MemoryMonitor.TcPOU" />
+    <Compile Include="BASE\Misc\FB_OneCycleSignalTof.TcPOU" />
+    <Compile Include="BASE\Misc\FB_TofOnRtrig.TcPOU" />
+    <Compile Include="BASE\Misc\FC_GetLocalAmsNetId.TcPOU" />
+    <Compile Include="BASE\Misc\FC_GetLocalHostName.TcPOU" />
+    <Compile Include="BASE\Misc\FC_GetMax3Arg.TcPOU" />
+    <Compile Include="BASE\Misc\FC_GetMax3Lreals.TcPOU" />
+    <Compile Include="BASE\Misc\FC_GetMax4Arg.TcPOU" />
+    <Compile Include="BASE\Misc\FC_GetMin2Arg.TcPOU" />
+    <Compile Include="BASE\Misc\FC_GetMin3Arg.TcPOU" />
+    <Compile Include="BASE\Misc\FC_GetMin3Lreals.TcPOU" />
+    <Compile Include="BASE\Misc\FC_GetMin4Arg.TcPOU" />
+    <Compile Include="BASE\Misc\IING.TcGVL">
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="BASE\Misc\ST_BASE_SETTINGS.TcDUT" />
+    <Compile Include="BASE\NumberUtils\AddREAL.TcPOU" />
+    <Compile Include="BASE\NumberUtils\DecINT.TcPOU" />
+    <Compile Include="BASE\NumberUtils\FC_CheckMinMaxInt.TcPOU" />
+    <Compile Include="BASE\NumberUtils\FC_CheckMinMaxReal.TcPOU" />
+    <Compile Include="BASE\NumberUtils\FC_KeepBetweenMinMax.TcPOU" />
+    <Compile Include="BASE\NumberUtils\FC_KeepBetweenMinMaxInt.TcPOU" />
+    <Compile Include="BASE\NumberUtils\FC_KeepRealBetweenMinMax.TcPOU" />
+    <Compile Include="BASE\NumberUtils\FC_LimitMaxReal.TcPOU" />
+    <Compile Include="BASE\NumberUtils\FC_LimitMinReal.TcPOU" />
+    <Compile Include="BASE\NumberUtils\FC_WithinMinMax.TcPOU" />
+    <Compile Include="BASE\NumberUtils\FC_WithinRange.TcPOU" />
+    <Compile Include="BASE\NumberUtils\IncINT.TcPOU" />
+    <Compile Include="BASE\NumberUtils\IncUDINT.TcPOU" />
+    <Compile Include="BASE\NumberUtils\IncUINT.TcPOU" />
+    <Compile Include="BASE\NumberUtils\IncULINT.TcPOU" />
+    <Compile Include="BASE\Observer\FB_GenericObserver.TcPOU" />
+    <Compile Include="BASE\Observer\GVL_GENERIC_OBSERVER.TcGVL">
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="BASE\Observer\ST_GENERIC_OBSERVER.TcDUT" />
+    <Compile Include="BASE\Observer\ST_VALID_OBSERVERS.TcDUT" />
+    <Compile Include="BASE\Persistency\FB_Persistency.TcPOU" />
+    <Compile Include="BASE\Persistency\ST_PERSISTENCY_HMI.TcDUT" />
+    <Compile Include="BASE\Persistency\ST_PERSISTENCY_OUT.TcDUT" />
+    <Compile Include="BASE\Persistency\ST_PERSISTENCY_SERVICE.TcDUT" />
+    <Compile Include="BASE\Persistency\ST_PERSISTENCY_SETTINGS.TcDUT" />
+    <Compile Include="BASE\PulsersBlinkers\FB_Blink.TcPOU" />
+    <Compile Include="BASE\PulsersBlinkers\FB_Blinkers.TcPOU" />
+    <Compile Include="BASE\PulsersBlinkers\FB_Pulse.TcPOU" />
+    <Compile Include="BASE\PulsersBlinkers\FB_Pulsers.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_2strConcatSeparator.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_3strConcat.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_3strConcatSeparator.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_4strConcat.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_4strConcatSeparator.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_5strConcat.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_5strConcatSeparator.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_6strConcat.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_6strConcatSeparator.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_7strConcat.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_7strConcatSeparator.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_8strConcat.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_8strConcatSeparator.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_CharReplace.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_FindLastOccurence.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_InitializeNameAsNeeded.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_IsBaseNameDefined.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_LrealFormatter.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_RealFormatter.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_StringEmpty.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_StringNotEmpty.TcPOU" />
+    <Compile Include="BASE\StringUtils\FC_UintFormatter.TcPOU" />
+    <Compile Include="BASE\StringUtils\IsStringEqualIgnoreCase.TcPOU" />
+    <Compile Include="BASE\TypeDefinitions\T_DEFAULT_STR.TcDUT" />
+    <Compile Include="BASE\TypeDefinitions\T_EVENT_CHAR_INDICATOR.TcDUT" />
+    <Compile Include="BASE\TypeDefinitions\T_HEART_BEAT.TcDUT" />
+    <Compile Include="BASE\TypeDefinitions\T_LONG_STR_512.TcDUT" />
+    <Compile Include="BASE\TypeDefinitions\T_SHORT_STR.TcDUT" />
+    <Compile Include="DATA\DUT\E_ALARM_REASON.TcDUT" />
+    <Compile Include="DATA\DUT\E_ALARM_TYPE.TcDUT" />
+    <Compile Include="DATA\DUT\E_DEVICE_TYPE.TcDUT" />
+    <Compile Include="DATA\DUT\E_OPERATION_MODE.TcDUT" />
+    <Compile Include="DATA\DUT\E_POS.TcDUT" />
+    <Compile Include="DATA\DUT\E_PRIORITY.TcDUT" />
+    <Compile Include="DATA\DUT\E_RESET_ORIGIN.TcDUT" />
+    <Compile Include="DATA\DUT\T_DEVICE_ID.TcDUT" />
+    <Compile Include="DATA\REPORTING\DATA_REPORTER_BASE.TcGVL">
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="DATA\REPORTING\FB_DummyDataReporter.TcPOU" />
+    <Compile Include="DATA\REPORTING\FC_GetDataReporter.TcPOU" />
+    <Compile Include="DATA\REPORTING\I_DataReporter.TcIO" />
+    <Compile Include="LOGGING\FC_GetLogger.TcPOU" />
+    <Compile Include="LOGGING\FileLogger\E_FILE_LOGGER_STEPS.TcDUT" />
+    <Compile Include="LOGGING\FileLogger\E_FILE_SCANNER_STEPS.TcDUT" />
+    <Compile Include="LOGGING\FileLogger\E_FILE_WRITER_STEPS.TcDUT" />
+    <Compile Include="LOGGING\FileLogger\FB_FileLogger.TcPOU" />
+    <Compile Include="LOGGING\FileLogger\FB_FileNameAndPath.TcPOU" />
+    <Compile Include="LOGGING\FileLogger\FB_FileScannerV2.TcPOU" />
+    <Compile Include="LOGGING\FileLogger\FB_FileWriterV2.TcPOU" />
+    <Compile Include="LOGGING\FileLogger\ST_FILE_LOGGER_HMI.TcDUT" />
+    <Compile Include="LOGGING\FileLogger\ST_FILE_LOGGER_SERVICE.TcDUT" />
+    <Compile Include="LOGGING\FileLogger\ST_FILE_LOGGER_SETTINGS.TcDUT" />
+    <Compile Include="LOGGING\GenericLogger\FB_GenericLogger.TcPOU" />
+    <Compile Include="LOGGING\LOGGER.TcGVL">
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="LOGGING\NullLogger.TcPOU" />
+    <Compile Include="LOGGING\NullLogger\FB_NullLogger.TcPOU" />
+    <Compile Include="LOGGING\Specs\E_LOG_LEVEL.TcDUT" />
+    <Compile Include="LOGGING\Specs\FB_LogLevel.TcPOU" />
+    <Compile Include="LOGGING\Specs\I_Logger.TcIO" />
+    <Compile Include="LOGGING\Specs\TL_LOG_LEVEL.TcTLO" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="iin_base.tmc">
+      <SubType>Content</SubType>
+    </None>
+  </ItemGroup>
+  <ProjectExtensions>
+    <PlcProjectOptions>
+      <XmlArchive>
+  <Data>
+    <o xml:space="preserve" t="OptionKey">
+      <v n="Name">"&lt;ProjectRoot&gt;"</v>
+      <d n="SubKeys" t="Hashtable" ckt="String" cvt="OptionKey">
+        <v>{192FAD59-8248-4824-A8DE-9177C94C195A}</v>
+        <o>
+          <v n="Name">"{192FAD59-8248-4824-A8DE-9177C94C195A}"</v>
+          <d n="SubKeys" t="Hashtable" />
+          <d n="Values" t="Hashtable" />
+        </o>
+        <v>{246001F4-279D-43AC-B241-948EB31120E1}</v>
+        <o>
+          <v n="Name">"{246001F4-279D-43AC-B241-948EB31120E1}"</v>
+          <d n="SubKeys" t="Hashtable" />
+          <d n="Values" t="Hashtable" />
+        </o>
+        <v>{29BD8D0C-3586-4548-BB48-497B9A01693F}</v>
+        <o>
+          <v n="Name">"{29BD8D0C-3586-4548-BB48-497B9A01693F}"</v>
+          <d n="SubKeys" t="Hashtable" ckt="String" cvt="OptionKey">
+            <v>NamingConventions</v>
+            <o>
+              <v n="Name">"NamingConventions"</v>
+              <d n="SubKeys" t="Hashtable" />
+              <d n="Values" t="Hashtable" />
+            </o>
+            <v>Rules</v>
+            <o>
+              <v n="Name">"Rules"</v>
+              <d n="SubKeys" t="Hashtable" />
+              <d n="Values" t="Hashtable" />
+            </o>
+          </d>
+          <d n="Values" t="Hashtable" />
+        </o>
+        <v>{40450F57-0AA3-4216-96F3-5444ECB29763}</v>
+        <o>
+          <v n="Name">"{40450F57-0AA3-4216-96F3-5444ECB29763}"</v>
+          <d n="SubKeys" t="Hashtable" />
+          <d n="Values" t="Hashtable" />
+        </o>
+        <v>{8A0FB252-96EB-4DCC-A5B4-B4804D05E2D6}</v>
+        <o>
+          <v n="Name">"{8A0FB252-96EB-4DCC-A5B4-B4804D05E2D6}"</v>
+          <d n="SubKeys" t="Hashtable" />
+          <d n="Values" t="Hashtable" ckt="String" cvt="Boolean">
+            <v>WriteLineIDs</v>
+            <v>False</v>
+          </d>
+        </o>
+        <v>{8F99A816-E488-41E4-9FA3-846536012284}</v>
+        <o>
+          <v n="Name">"{8F99A816-E488-41E4-9FA3-846536012284}"</v>
+          <d n="SubKeys" t="Hashtable" />
+          <d n="Values" t="Hashtable" ckt="String" cvt="String">
+            <v>DisabledWarningIds</v>
+            <v>410,5410</v>
+          </d>
+        </o>
+        <v>{A3BBA713-63D7-4de6-BEC2-E3BAAD8789F8}</v>
+        <o>
+          <v n="Name">"{A3BBA713-63D7-4de6-BEC2-E3BAAD8789F8}"</v>
+          <d n="SubKeys" t="Hashtable" />
+          <d n="Values" t="Hashtable" />
+        </o>
+        <v>{C70B7845-2722-4a9b-A0EA-88C877A4B36F}</v>
+        <o>
+          <v n="Name">"{C70B7845-2722-4a9b-A0EA-88C877A4B36F}"</v>
+          <d n="SubKeys" t="Hashtable" />
+          <d n="Values" t="Hashtable" ckt="String">
+            <v>EnableMaxAuthenticationTrials</v>
+            <v>true</v>
+            <v>EnableMaxTimeOfInactivity</v>
+            <v>true</v>
+            <v>EnableNewHashFormat</v>
+            <v>false</v>
+            <v>GroupList</v>
+            <o t="GroupList">
+              <a n="Groups" cet="Group">
+                <o>
+                  <v n="Id">{a0ad27e6-3623-4190-9fa4-d0465f63fff9}</v>
+                  <v n="Name">"Everyone"</v>
+                  <v n="Description">""</v>
+                  <v n="IsEveryoneGroup">true</v>
+                  <v n="IsOwnerGroup">false</v>
+                  <l n="UserMembers" t="ArrayList" cet="Guid">
+                    <v>0ad0534a-6ec8-402a-b78c-14e59112019c</v>
+                  </l>
+                  <l n="GroupMembers" t="ArrayList" />
+                </o>
+                <o>
+                  <v n="Id">{5a093c38-a577-45a3-9751-11907292550c}</v>
+                  <v n="Name">"Owner"</v>
+                  <v n="Description">""</v>
+                  <v n="IsEveryoneGroup">false</v>
+                  <v n="IsOwnerGroup">true</v>
+                  <l n="UserMembers" t="ArrayList" cet="Guid">
+                    <v>0ad0534a-6ec8-402a-b78c-14e59112019c</v>
+                  </l>
+                  <l n="GroupMembers" t="ArrayList" />
+                </o>
+              </a>
+            </o>
+            <v>MaxAuthenticationTrials</v>
+            <v>3</v>
+            <v>MaxTimeOfInactivity</v>
+            <v>10</v>
+            <v>UserAuthentication</v>
+            <o t="UserAuthentication">
+              <d n="UserToPasswordHash" t="Hashtable" ckt="Guid" cvt="String">
+                <v>0ad0534a-6ec8-402a-b78c-14e59112019c</v>
+                <v>d41d8cd98f00b204e9800998ecf8427e</v>
+              </d>
+            </o>
+            <v>UserList</v>
+            <o t="UserList">
+              <a n="Users" cet="User">
+                <o>
+                  <v n="Id">{0ad0534a-6ec8-402a-b78c-14e59112019c}</v>
+                  <v n="Name">"Owner"</v>
+                  <v n="FullName">""</v>
+                  <v n="Description">""</v>
+                  <v n="Active">true</v>
+                </o>
+              </a>
+            </o>
+          </d>
+        </o>
+        <v>{eeeeeeee-3909-4298-8022-501ac3238667}</v>
+        <o>
+          <v n="Name">"{eeeeeeee-3909-4298-8022-501ac3238667}"</v>
+          <d n="SubKeys" t="Hashtable" />
+          <d n="Values" t="Hashtable" />
+        </o>
+        <v>{F66C7017-BDD8-4114-926C-81D6D687E35F}</v>
+        <o>
+          <v n="Name">"{F66C7017-BDD8-4114-926C-81D6D687E35F}"</v>
+          <d n="SubKeys" t="Hashtable" />
+          <d n="Values" t="Hashtable" ckt="String" cvt="Boolean">
+            <v>CalcActiveTransOnly</v>
+            <v>True</v>
+          </d>
+        </o>
+        <v>{FE9F63D4-9E34-43ce-9322-D46747A00F33}</v>
+        <o>
+          <v n="Name">"{FE9F63D4-9E34-43ce-9322-D46747A00F33}"</v>
+          <d n="SubKeys" t="Hashtable" />
+          <d n="Values" t="Hashtable" ckt="String">
+            <v>SourceDownloadContent</v>
+            <v>1</v>
+            <v>SourceDownloadContent2</v>
+            <a cet="Guid">
+              <v>b0b53f83-af78-49aa-8133-0063f476bd7c</v>
+            </a>
+          </d>
+        </o>
+      </d>
+      <d n="Values" t="Hashtable" />
+    </o>
+  </Data>
+  <TypeList>
+    <Type n="ArrayList">System.Collections.ArrayList</Type>
+    <Type n="Boolean">System.Boolean</Type>
+    <Type n="Group">{daecd4be-1e2b-4335-a125-4a1ac83ea49f}</Type>
+    <Type n="GroupList">{bf4dffda-f055-446d-9d7a-5f126720896b}</Type>
+    <Type n="Guid">System.Guid</Type>
+    <Type n="Guid[]">System.Guid[]</Type>
+    <Type n="Hashtable">System.Collections.Hashtable</Type>
+    <Type n="Int32">System.Int32</Type>
+    <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
+    <Type n="String">System.String</Type>
+    <Type n="User">{cd83029e-13b0-491e-9e4b-921adda0d86b}</Type>
+    <Type n="UserAuthentication">{3635a671-97f5-41bb-9e29-0ebb9795975c}</Type>
+    <Type n="UserList">{9fe6b547-6bc8-4f11-b589-b517860c5891}</Type>
+  </TypeList>
+</XmlArchive>
+    </PlcProjectOptions>
+  </ProjectExtensions>
+</Project>

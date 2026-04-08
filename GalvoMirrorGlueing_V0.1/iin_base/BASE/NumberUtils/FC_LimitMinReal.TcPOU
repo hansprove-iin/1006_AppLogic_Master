@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_LimitMinReal" Id="{0bad8ad8-4773-4985-8ba0-8d7c44224980}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_LimitMinReal : bool
+VAR_INPUT
+	iMaster:	REAL;
+END_VAR
+VAR_IN_OUT
+	ioSlave:		REAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF (ioSlave < iMaster) THEN
+	ioSlave := iMaster;
+END_IF
+]]></ST>
+    </Implementation>
+    <LineIds Name="FC_LimitMinReal">
+      <LineId Id="2" Count="3" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

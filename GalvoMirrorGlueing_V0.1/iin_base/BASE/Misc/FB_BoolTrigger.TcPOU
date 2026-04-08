@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_BoolTrigger" Id="{b74a10c5-4bda-4e78-bcf7-dc9161fe573f}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_BoolTrigger EXTENDS FB_Base		// Detects rising and falling edges on the input
+VAR_INPUT
+	iIn:			BOOL;
+END_VAR
+VAR_OUTPUT
+	oRtrig:			BOOL;
+	oFtrig:			BOOL;
+	oChanged:		BOOL;
+END_VAR
+VAR
+	rTrig:			R_TRIG;
+	fTrig:			F_TRIG;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[rTrig(CLK := iIn, Q => oRtrig);
+fTrig(CLK := iIn, Q => oFtrig);
+
+oChanged := oRtrig OR oFtrig;]]></ST>
+    </Implementation>
+    <LineIds Name="FB_BoolTrigger">
+      <LineId Id="2" Count="3" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

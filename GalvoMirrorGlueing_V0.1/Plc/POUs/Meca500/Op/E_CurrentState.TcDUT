@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="E_CurrentState" Id="{9732b89e-9199-44b0-a0ce-f51206418553}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_CurrentState :
+(
+	Init,
+	GalvoHandling,
+	MirrorAdj,
+	FinishedProduct
+
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

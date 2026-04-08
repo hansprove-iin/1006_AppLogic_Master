@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_DateAndTimeToDt" Id="{3d55a41b-faac-4700-9d38-aeb577318512}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_DateAndTimeToDt : DT		// Converts a Date/time string to 'DT', this is usefull for doing calculations on time
+VAR_INPUT
+	iDateAndTime:			T_SHORT_STR;	// Date and time as string
+END_VAR
+VAR
+	timeStamp:				T_SHORT_STR;
+	systemTime:				TIMESTRUCT;
+	dateTime:				DT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[timeStamp := iDateAndTime;
+
+timeStamp := FC_CharReplace(iString := timeStamp, iOrigChar := ',', iReplaceChar := '.');
+timeStamp := FC_CharReplace(iString := timeStamp, iOrigChar := ' ', iReplaceChar := '-');
+
+systemTime := STRING_TO_SYSTEMTIME(timeStamp);
+FC_DateAndTimeToDt := SYSTEMTIME_TO_DT(systemTime);]]></ST>
+    </Implementation>
+    <LineIds Name="FC_DateAndTimeToDt">
+      <LineId Id="2" Count="6" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

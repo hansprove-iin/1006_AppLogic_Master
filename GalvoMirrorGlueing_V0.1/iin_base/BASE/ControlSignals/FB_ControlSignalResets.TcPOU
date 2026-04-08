@@ -1,0 +1,74 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_ControlSignalResets" Id="{12a9e2d1-dbb9-4762-991c-33f91006d8b0}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ControlSignalResets
+VAR_INPUT
+	iReset:						BOOL;	// Manually pressed the reset button
+	iExternalReset:				BOOL;	// Reset came through FB input, eg. hard wired button/banner reset
+	iHardreset:					BOOL;	
+	iAutoReset:					BOOL;	// Reset came through FB input due to some automated process (eg. SA doors closed)
+	
+	iPos:						E_POS;
+	iMiscArea:						T_SHORT_STR;	// Misc area in case iPos does not fit well.  Must be from TM_Devices.E_SAFETY_AREA or TM_Base.E_MISC_AREAS. 
+END_VAR
+VAR_OUTPUT
+	oResetPulse:				BOOL;
+	oHardResetPulse: 			BOOL;
+	
+	oExtendedResetPulse:		BOOL;	// Extended reset pulse for external systems
+	oExtendedHardResetPulse:	BOOL;	// Extended reset pulse for external systems
+END_VAR
+VAR_IN_OUT
+	ioStaticSettings:					ST_CONTROL_SIGNALS_STATIC_SETTINGS;
+END_VAR
+VAR
+	resetDelay:						TON;
+	externalResetDelay:				TON;
+	hardResetDelay:					TON;
+
+	resetPulse:						R_TRIG;
+	autoResetPulse:					R_TRIG;
+	externalResetPulse:				R_TRIG;
+
+	hardResetPulse:					R_TRIG;
+	extendedResetPulseDelay:		TOF;
+	extendedHardResetPulseDelay:	TOF;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[resetDelay(IN := iReset, PT := ioStaticSettings.resetTime);
+externalResetDelay(IN := iExternalReset, PT := ioStaticSettings.resetTime);
+hardResetDelay(IN := iHardReset, PT := ioStaticSettings.hardResetTime);
+
+resetPulse(CLK := resetDelay.Q);
+autoResetPulse(CLK := iAutoReset);
+externalResetPulse(CLK := externalResetDelay.Q);
+
+
+oResetPulse := resetPulse.Q OR autoResetPulse.Q OR externalResetPulse.Q;
+
+hardResetPulse(CLK := hardResetDelay.Q, Q => oHardResetPulse);
+
+extendedResetPulseDelay(IN := oResetPulse, PT := ioStaticSettings.extendedResetPulseDuration, Q => oExtendedResetPulse);
+extendedHardResetPulseDelay(IN := oHardResetPulse, PT := ioStaticSettings.extendedResetPulseDuration, Q => oExtendedHardResetPulse);
+
+IF (resetPulse.Q) THEN
+	FC_GetDataReporter().ic_resetDone(iPos, iMiscArea, E_RESET_ORIGIN.CONTROL_AREA_MANUAL, IING.STRING_BLANK);
+END_IF;
+
+IF (autoResetPulse.Q) THEN
+	FC_GetDataReporter().ic_resetDone(iPos, iMiscArea, E_RESET_ORIGIN.CONTROL_AREA_AUTO, IING.STRING_BLANK);
+END_IF
+
+IF (externalResetPulse.Q) THEN
+	FC_GetDataReporter().ic_resetDone(iPos, iMiscArea, E_RESET_ORIGIN.EXTERNAL, IING.STRING_BLANK);
+END_IF;
+
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_ControlSignalResets">
+      <LineId Id="2" Count="29" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

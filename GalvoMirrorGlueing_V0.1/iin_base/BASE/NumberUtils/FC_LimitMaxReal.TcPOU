@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_LimitMaxReal" Id="{3e0e7137-2360-4404-8715-11fd187bde79}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_LimitMaxReal : bool
+VAR_INPUT
+	iMaster:		REAL;
+END_VAR
+VAR_IN_OUT
+	ioSlave:		REAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF (ioSlave > iMaster) THEN
+	ioSlave := iMaster;
+END_IF
+]]></ST>
+    </Implementation>
+    <LineIds Name="FC_LimitMaxReal">
+      <LineId Id="2" Count="3" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

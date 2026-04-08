@@ -1,0 +1,840 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_PosImgSts" Id="{610d78e7-c428-4260-8f99-31feeba05a81}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_PosImgSts
+VAR_INPUT
+	bTrigLightTestImage	: BOOL;
+	bTrigLaserTestImage	: BOOL;
+	bTrigCouplerImage		: BOOL;
+	stPosData	: REFERENCE TO ST_Vis_Mirror;
+	stAssemblyType : REFERENCE TO ST_Recipes;
+	nX		: UDINT;
+	nY		: UDINT;
+	iStationId	: INT;
+	stModuleHmi	: REFERENCE TO ST_ModuleHmi;
+END_VAR
+VAR_OUTPUT
+	bImageReceived : BOOL;
+	bPartDetectFailed : BOOL;
+	iErrorId			: INT;
+	bDone : BOOL;
+END_VAR
+VAR
+	hr									: HRESULT;
+	eVisionState						: ETcVnCameraState;
+	fbCamera          					: FB_VN_GevCameraControl;
+	ImageRawDisp						: ITcVnDisplayableImage;
+	nNewImageCounter 					: UINT;
+	ImageRaw							: Tc3_Vision.ITcVnImage;
+	ipImageProsessed					: Tc3_Vision.ITcVnImage;
+	ipImageProsessedDisp				: Tc3_Vision.ITcVnDisplayableImage;
+	ipImageTest							: ITcVnImage;
+	ipImageTestDisp						: ITcVnDisplayableImage;
+
+	aStartPointCoupler1 				: TcVnPoint2_REAL;
+	aEndPointCoupler1					: TcVnPoint2_REAL;
+	
+	ipEdgePointsCoupler1   				: ITcVnContainer;
+	ipEdgePointsCoupler2				: ITcVnContainer;
+	ipEdgePointsCoupler3				: ITcVnContainer;
+	
+	aStartPointCoupler2 				: TcVnPoint2_REAL;
+	aEndPointCoupler2					: TcVnPoint2_REAL;
+	aStartPointCoupler3 				: TcVnPoint2_REAL;
+	aEndPointCoupler3					: TcVnPoint2_REAL;
+	
+	aStartPointMirror1 					: TcVnPoint2_REAL;
+	aEndPointMirror1					: TcVnPoint2_REAL;
+	aStartPointMirror2 					: TcVnPoint2_REAL;
+	aEndPointMirror2					: TcVnPoint2_REAL;
+	ipEdgePointsMirror1   				: ITcVnContainer;
+	ipEdgePointsMirror2   				: ITcVnContainer;
+	aElementMirror1						: TcVnPoint2_REAL;
+	aElementMirror2						: TcVnPoint2_REAL;
+	
+	aMirrorEdgeCalc			: TcVnPoint2_REAL;
+	aMirrorEdgeReal			: TcVnPoint2_REAL;
+	
+
+	
+	rThreshold			: LREAL := 45;
+	rMaxvalue			: LREAL := 255;
+
+	stDetectionAreaLed						: TcVnRectangle_UDINT;
+	stDetectionAreaLaser					: TcVnRectangle_UDINT;
+	aAverageLed  							: TcVnVector4_LREAL;
+	aAverageLaser  							: TcVnVector4_LREAL;
+	aElementCoupler1 						: TcVnPoint2_REAL; 
+	aElementCoupler2						: ARRAY [0..5] OF TcVnPoint2_REAL;
+	aElementCoupler3						: ARRAY [0..5] OF TcVnPoint2_REAL;
+	aCouplerAverage2						: TcVnPoint2_REAL;
+	aCouplerAverage3						: TcVnPoint2_REAL;
+	aCouplerCenterpoint						: TcVnPoint2_REAL;
+	rWorldDistance							: LREAL;
+	fbEventlogger							: FB_EventLogger;
+	bInitTrig 								: BOOL;
+	TrigCheckTmr							: TON;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbEventlogger(stModuleHmi:=stModuleHmi);
+eVisionState := fbCamera.GetState();
+
+stDetectionAreaLed.nHeight := 200;
+stDetectionAreaLed.nWidth := 200;
+stDetectionAreaLed.nX := 1800;
+stDetectionAreaLed.nY := 900;
+
+stDetectionAreaLaser.nHeight := 20;
+stDetectionAreaLaser.nWidth := 20;
+stDetectionAreaLaser.nX := nX;
+stDetectionAreaLaser.nY := nY;
+
+bDone := FALSE;
+bImageReceived := FALSE;
+hr := 0;
+TrigCheckTmr(PT := T#1S);
+
+
+IF eVisionState = TCVN_CS_ERROR THEN
+	hr := fbCamera.Reset();
+ELSIF eVisionState = TCVN_CS_TRIGGERING THEN
+	hr := fbCamera.TriggerImage();
+ELSIF eVisionState < TCVN_CS_ACQUIRING THEN
+    hr := fbCamera.StartAcquisition();
+ELSIF eVisionState = TCVN_CS_ACQUIRING THEN
+	hr := fbCamera.GetCurrentImageUndistorted(ImageRaw); 
+	IF SUCCEEDED(hr) AND ImageRaw <> 0 THEN
+		bPartDetectFailed := FALSE;
+		bImageReceived := TRUE;
+		nNewImageCounter := nNewImageCounter +1;
+// 		hr := F_VN_CopyImage(ImageRaw, ipImageProsessed, hr);
+// 		hr := F_VN_CopyIntoDisplayableImage (ImageRaw, ImageRawDisp, hr);
+		bInitTrig := FALSE;
+		TrigCheckTmr.IN := FALSE;
+		hr := F_VN_ConvertColorSpace(ipSrcImage:= ImageRaw , ipDestImage:= ipImageProsessed ,
+			eTransform:= ETcVnColorSpaceTransform.TCVN_CST_GRAY_TO_RGB, hrPrev:= hr);
+		IF bTrigLightTestImage THEN
+			hr := F_VN_CopyImage(ImageRaw, ipImageTest, hrPrev := hr);
+			hr := F_VN_SetRoi_TcVnRectangle_UDINT(stRoi:= stDetectionAreaLed, ipDestImage:= ipImageTest, hrPrev:= hr);
+			hr := F_VN_ImageAverage(ipSrcImage:= ipImageTest, aAverage:= aAverageLed, hrPrev:= hr);
+			hr := F_VN_ResetRoi(ipImage:= ipImageTest, hrPrev:= hr);
+			hr:= F_VN_ConvertColorSpace(ipSrcImage:= ipImageTest , ipDestImage:= ipImageTest ,
+				eTransform:= ETcVnColorSpaceTransform.TCVN_CST_GRAY_TO_RGB, hrPrev:= hr);
+			hr := F_VN_DrawRectangle_TcVnRectangle_UDINT(
+				stRectangle:= stDetectionAreaLed,
+				ipDestImage:= ipImageTest,
+				aColor:= Color.Green,
+				nThickness:= 1,
+				hrPrev:= hr);
+			hr := F_VN_CopyIntoDisplayableImage (ipImageTest, ipImageTestDisp, hr);	
+			IF aAverageLed[0] > 230 THEN
+				stPosData.bLightTestOk := TRUE;
+				stPosData.bDetectionFailed := FALSE;
+			ELSE
+				stPosData.bLightTestOk := FALSE;
+				stPosData.bDetectionFailed := TRUE;
+			END_IF
+			bTrigLightTestImage := FALSE;
+		ELSIF bTrigLaserTestImage THEN
+			hr := F_VN_CopyImage(ImageRaw, ipImageTest, hrPrev := hr);
+			hr := F_VN_SetRoi_TcVnRectangle_UDINT(stRoi:= stDetectionAreaLaser, ipDestImage:= ipImageTest, hrPrev:= hr);
+			hr := F_VN_ImageAverage(ipSrcImage:= ipImageTest, aAverage:= aAverageLaser, hrPrev:= hr);
+			hr := F_VN_ResetRoi(ipImage:= ipImageTest, hrPrev:= hr);
+			hr:= F_VN_ConvertColorSpace(ipSrcImage:= ipImageTest , ipDestImage:= ipImageTest ,
+				eTransform:= ETcVnColorSpaceTransform.TCVN_CST_GRAY_TO_RGB, hrPrev:= hr);
+			hr := F_VN_DrawRectangle_TcVnRectangle_UDINT(
+				stRectangle:= stDetectionAreaLaser,
+				ipDestImage:= ipImageTest,
+				aColor:= Color.Green,
+				nThickness:= 1,
+				hrPrev:= hr);
+			hr := F_VN_CopyIntoDisplayableImage (ipImageTest, ipImageTestDisp, hr);	
+			IF aAverageLaser[0] > 230 THEN
+				stPosData.bLaserTestOk := TRUE;
+				stPosData.bDetectionFailed := FALSE;
+			ELSE
+				stPosData.bLaserTestOk := FALSE;
+				stPosData.bDetectionFailed := TRUE;
+			END_IF
+			bTrigLaserTestImage := FALSE;
+		ELSIF bTrigCouplerImage THEN	
+			CouplerDetect();			
+			bTrigCouplerImage := FALSE;
+			stPosData.bImagingDone := TRUE;		
+		ELSE
+ 			MirrorDetect();
+			stPosData.bImagingDone := TRUE;	
+		END_IF
+	ELSIF bInitTrig AND TrigCheckTmr.Q THEN
+		iErrorId := 304;
+		fbEventlogger.bRaiseAlarm[11]:=TRUE;
+		fbEventlogger.sErrorCode:= CONCAT(CONCAT('3', INT_TO_STRING(iStationId)), '4');
+		bInitTrig := FALSE;
+		TrigCheckTmr.IN := FALSE;
+	END_IF
+END_IF
+			]]></ST>
+    </Implementation>
+    <Method Name="CheckType" Id="{fadba1b2-c425-435e-9084-8f9efdd12b33}">
+      <Declaration><![CDATA[METHOD CheckType : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// CASE iStationId OF
+// 	1..5: 
+// 		IF stAssemblyType.Station1To5.sAssemblyType = 'AL-86068' THEN
+// 			aStartPointCoupler1[0] := 750;
+// 			aStartPointCoupler1[1] := 800;
+// 			aEndPointCoupler1[0] := 750;
+// 			aEndPointCoupler1[1] := 900;
+// 			
+// 			aStartPointCoupler2[0] := 750;
+// 			aStartPointCoupler2[1] := 1170;
+// 			aEndPointCoupler2[0] := 750;
+// 			aEndPointCoupler2[1] := 1090;
+// 		
+// 			aStartPointMirror1[0] := 0;
+// 			aStartPointMirror1[1] := 0;
+// 			aEndPointMirror1[0] := 0;
+// 			aEndPointMirror1[1] := 0;
+// 			
+// 			aStartPointMirror2[0] := 0;
+// 			aStartPointMirror2[1] := 0;
+// 			aEndPointMirror2[0] := 0;
+// 			aEndPointMirror2[1] := 0;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-79710' THEN
+// 			aStartPointCoupler1[0] := 770;
+// 			aStartPointCoupler1[1] := 840;
+// 			aEndPointCoupler1[0] := 770;
+// 			aEndPointCoupler1[1] := 920;
+// 			
+// 			aStartPointCoupler2[0] := 770;
+// 			aStartPointCoupler2[1] := 1150;
+// 			aEndPointCoupler2[0] := 770;
+// 			aEndPointCoupler2[1] := 1050;
+// 		
+// 			aStartPointMirror1[0] := 0;
+// 			aStartPointMirror1[1] := 0;
+// 			aEndPointMirror1[0] := 0;
+// 			aEndPointMirror1[1] := 0;
+// 			
+// 			aStartPointMirror2[0] := 0;
+// 			aStartPointMirror2[1] := 0;
+// 			aEndPointMirror2[0] := 0;
+// 			aEndPointMirror2[1] := 0;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-82028' THEN
+// 			
+// 			aStartPointCoupler1[0] := 750;
+// 			aStartPointCoupler1[1] := 800;
+// 			aEndPointCoupler1[0] := 750;
+// 			aEndPointCoupler1[1] := 900;
+// 			
+// 			aStartPointCoupler2[0] := 750;
+// 			aStartPointCoupler2[1] := 1170;
+// 			aEndPointCoupler2[0] := 750;
+// 			aEndPointCoupler2[1] := 1090;
+// 		
+// 			aStartPointMirror1[0] := 0;
+// 			aStartPointMirror1[1] := 0;
+// 			aEndPointMirror1[0] := 0;
+// 			aEndPointMirror1[1] := 0;
+// 			
+// 			aStartPointMirror2[0] := 0;
+// 			aStartPointMirror2[1] := 0;
+// 			aEndPointMirror2[0] := 0;
+// 			aEndPointMirror2[1] := 0;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-82026' THEN
+// 			aStartPointCoupler[0] := ;
+// 			aStartPointCoupler[1] := ;
+// 			aEndPointCoupler[0] := ;
+// 			aEndPointCoupler[1] := ;
+// 		
+// 			aStartPointMirror[0] := ;
+// 			aStartPointMirror[1] := ;
+// 			aEndPointMirror[0] := ;
+// 			aEndPointMirror[1] := ;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-69219' THEN
+// 			aStartPointCoupler1[0] := 793;
+// 			aStartPointCoupler1[1] := 680;
+// 			aEndPointCoupler1[0] := 793;
+// 			aEndPointCoupler1[1] := 780;
+// 			
+// 			aStartPointCoupler2[0] := 793;
+// 			aStartPointCoupler2[1] := 1330;
+// 			aEndPointCoupler2[0] := 793;
+// 			aEndPointCoupler2[1] := 1200;
+// 		
+// 			aStartPointMirror1[0] := 0;
+// 			aStartPointMirror1[1] := 0;
+// 			aEndPointMirror1[0] := 0;
+// 			aEndPointMirror1[1] := 0;
+// 			
+// 			aStartPointMirror2[0] := 0;
+// 			aStartPointMirror2[1] := 0;
+// 			aEndPointMirror2[0] := 0;
+// 			aEndPointMirror2[1] := 0;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-71449' THEN
+// 			aStartPointCoupler[0] := ;
+// 			aStartPointCoupler[1] := ;
+// 			aEndPointCoupler[0] := ;
+// 			aEndPointCoupler[1] := ;
+// 		
+// 			aStartPointMirror[0] := ;
+// 			aStartPointMirror[1] := ;
+// 			aEndPointMirror[0] := ;
+// 			aEndPointMirror[1] := ;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-70918' THEN
+// 			aStartPointCoupler[0] := ;
+// 			aStartPointCoupler[1] := ;
+// 			aEndPointCoupler[0] := ;
+// 			aEndPointCoupler[1] := ;
+// 		
+// 			aStartPointMirror[0] := ;
+// 			aStartPointMirror[1] := ;
+// 			aEndPointMirror[0] := ;
+// 			aEndPointMirror[1] := ;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-200617' THEN
+// 			aStartPointCoupler1[0] := 770;
+// 			aStartPointCoupler1[1] := 840;
+// 			aEndPointCoupler1[0] := 770;
+// 			aEndPointCoupler1[1] := 920;
+// 			
+// 			aStartPointCoupler2[0] := 770;
+// 			aStartPointCoupler2[1] := 1150;
+// 			aEndPointCoupler2[0] := 770;
+// 			aEndPointCoupler2[1] := 1050;
+// 		
+// 			aStartPointMirror1[0] := 0;
+// 			aStartPointMirror1[1] := 0;
+// 			aEndPointMirror1[0] := 0;
+// 			aEndPointMirror1[1] := 0;
+// 			
+// 			aStartPointMirror2[0] := 0;
+// 			aStartPointMirror2[1] := 0;
+// 			aEndPointMirror2[0] := 0;
+// 			aEndPointMirror2[1] := 0;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-200613' THEN
+// 			aStartPointCoupler1[0] := 793;
+// 			aStartPointCoupler1[1] := 680;
+// 			aEndPointCoupler1[0] := 793;
+// 			aEndPointCoupler1[1] := 780;
+// 			
+// 			aStartPointCoupler2[0] := 793;
+// 			aStartPointCoupler2[1] := 1330;
+// 			aEndPointCoupler2[0] := 793;
+// 			aEndPointCoupler2[1] := 1200;
+// 		
+// 			aStartPointMirror1[0] := 0;
+// 			aStartPointMirror1[1] := 0;
+// 			aEndPointMirror1[0] := 0;
+// 			aEndPointMirror1[1] := 0;
+// 			
+// 			aStartPointMirror2[0] := 0;
+// 			aStartPointMirror2[1] := 0;
+// 			aEndPointMirror2[0] := 0;
+// 			aEndPointMirror2[1] := 0;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-88450' THEN
+// 			aStartPointCoupler[0] := ;
+// 			aStartPointCoupler[1] := ;
+// 			aEndPointCoupler[0] := ;
+// 			aEndPointCoupler[1] := ;
+// 		
+// 			aStartPointMirror[0] := ;
+// 			aStartPointMirror[1] := ;
+// 			aEndPointMirror[0] := ;
+// 			aEndPointMirror[1] := ;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-200665' THEN
+// 			aStartPointCoupler1[0] := 644;
+// 			aStartPointCoupler1[1] := 780;
+// 			aEndPointCoupler1[0] := 644;
+// 			aEndPointCoupler1[1] := 780;
+// 			
+// 			aStartPointCoupler2[0] := 644;
+// 			aStartPointCoupler2[1] := 1210;
+// 			aEndPointCoupler2[0] := 644;
+// 			aEndPointCoupler2[1] := 1100;
+// 		
+// 			aStartPointMirror1[0] := 0;
+// 			aStartPointMirror1[1] := 0;
+// 			aEndPointMirror1[0] := 0;
+// 			aEndPointMirror1[1] := 0;
+// 			
+// 			aStartPointMirror2[0] := 0;
+// 			aStartPointMirror2[1] := 0;
+// 			aEndPointMirror2[0] := 0;
+// 			aEndPointMirror2[1] := 0;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-200663' THEN
+// 			aStartPointCoupler1[0] := 644;
+// 			aStartPointCoupler1[1] := 780;
+// 			aEndPointCoupler1[0] := 644;
+// 			aEndPointCoupler1[1] := 780;
+// 			
+// 			aStartPointCoupler2[0] := 644;
+// 			aStartPointCoupler2[1] := 1210;
+// 			aEndPointCoupler2[0] := 644;
+// 			aEndPointCoupler2[1] := 1100;
+// 		
+// 			aStartPointMirror1[0] := 0;
+// 			aStartPointMirror1[1] := 0;
+// 			aEndPointMirror1[0] := 0;
+// 			aEndPointMirror1[1] := 0;
+// 			
+// 			aStartPointMirror2[0] := 0;
+// 			aStartPointMirror2[1] := 0;
+// 			aEndPointMirror2[0] := 0;
+// 			aEndPointMirror2[1] := 0;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-82029' THEN
+// 			aStartPointCoupler1[0] := 750;
+// 			aStartPointCoupler1[1] := 800;
+// 			aEndPointCoupler1[0] := 750;
+// 			aEndPointCoupler1[1] := 900;
+// 			
+// 			aStartPointCoupler2[0] := 750;
+// 			aStartPointCoupler2[1] := 1170;
+// 			aEndPointCoupler2[0] := 750;
+// 			aEndPointCoupler2[1] := 1090;
+// 		
+// 			aStartPointMirror1[0] := 0;
+// 			aStartPointMirror1[1] := 0;
+// 			aEndPointMirror1[0] := 0;
+// 			aEndPointMirror1[1] := 0;
+// 			
+// 			aStartPointMirror2[0] := 0;
+// 			aStartPointMirror2[1] := 0;
+// 			aEndPointMirror2[0] := 0;
+// 			aEndPointMirror2[1] := 0;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-86069' THEN
+// 			aStartPointCoupler1[0] := 750;
+// 			aStartPointCoupler1[1] := 800;
+// 			aEndPointCoupler1[0] := 750;
+// 			aEndPointCoupler1[1] := 900;
+// 			
+// 			aStartPointCoupler2[0] := 750;
+// 			aStartPointCoupler2[1] := 1170;
+// 			aEndPointCoupler2[0] := 750;
+// 			aEndPointCoupler2[1] := 1090;
+// 		
+// 			aStartPointMirror1[0] := 0;
+// 			aStartPointMirror1[1] := 0;
+// 			aEndPointMirror1[0] := 0;
+// 			aEndPointMirror1[1] := 0;
+// 			
+// 			aStartPointMirror2[0] := 0;
+// 			aStartPointMirror2[1] := 0;
+// 			aEndPointMirror2[0] := 0;
+// 			aEndPointMirror2[1] := 0;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-79420' THEN
+// 			aStartPointCoupler1[0] := 770;
+// 			aStartPointCoupler1[1] := 840;
+// 			aEndPointCoupler1[0] := 770;
+// 			aEndPointCoupler1[1] := 920;
+// 			
+// 			aStartPointCoupler2[0] := 770;
+// 			aStartPointCoupler2[1] := 1150;
+// 			aEndPointCoupler2[0] := 770;
+// 			aEndPointCoupler2[1] := 1050;
+// 		
+// 			aStartPointMirror1[0] := 0;
+// 			aStartPointMirror1[1] := 0;
+// 			aEndPointMirror1[0] := 0;
+// 			aEndPointMirror1[1] := 0;
+// 			
+// 			aStartPointMirror2[0] := 0;
+// 			aStartPointMirror2[1] := 0;
+// 			aEndPointMirror2[0] := 0;
+// 			aEndPointMirror2[1] := 0;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-82027' THEN
+// 			aStartPointCoupler[0] := ;
+// 			aStartPointCoupler[1] := ;
+// 			aEndPointCoupler[0] := ;
+// 			aEndPointCoupler[1] := ;
+// 		
+// 			aStartPointMirror[0] := ;
+// 			aStartPointMirror[1] := ;
+// 			aEndPointMirror[0] := ;
+// 			aEndPointMirror[1] := ;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-69220' THEN
+// 			aStartPointCoupler1[0] := 793;
+// 			aStartPointCoupler1[1] := 680;
+// 			aEndPointCoupler1[0] := 793;
+// 			aEndPointCoupler1[1] := 780;
+// 			
+// 			aStartPointCoupler2[0] := 793;
+// 			aStartPointCoupler2[1] := 1330;
+// 			aEndPointCoupler2[0] := 793;
+// 			aEndPointCoupler2[1] := 1200;
+// 		
+// 			aStartPointMirror1[0] := 0;
+// 			aStartPointMirror1[1] := 0;
+// 			aEndPointMirror1[0] := 0;
+// 			aEndPointMirror1[1] := 0;
+// 			
+// 			aStartPointMirror2[0] := 0;
+// 			aStartPointMirror2[1] := 0;
+// 			aEndPointMirror2[0] := 0;
+// 			aEndPointMirror2[1] := 0;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-71450' THEN
+// 			aStartPointCoupler[0] := ;
+// 			aStartPointCoupler[1] := ;
+// 			aEndPointCoupler[0] := ;
+// 			aEndPointCoupler[1] := ;
+// 		
+// 			aStartPointMirror[0] := ;
+// 			aStartPointMirror[1] := ;
+// 			aEndPointMirror[0] := ;
+// 			aEndPointMirror[1] := ;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-70916' THEN
+// 			aStartPointCoupler[0] := ;
+// 			aStartPointCoupler[1] := ;
+// 			aEndPointCoupler[0] := ;
+// 			aEndPointCoupler[1] := ;
+// 		
+// 			aStartPointMirror[0] := ;
+// 			aStartPointMirror[1] := ;
+// 			aEndPointMirror[0] := ;
+// 			aEndPointMirror[1] := ;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-200618' THEN
+// 			aStartPointCoupler1[0] := 770;
+// 			aStartPointCoupler1[1] := 840;
+// 			aEndPointCoupler1[0] := 770;
+// 			aEndPointCoupler1[1] := 920;
+// 			
+// 			aStartPointCoupler2[0] := 770;
+// 			aStartPointCoupler2[1] := 1150;
+// 			aEndPointCoupler2[0] := 770;
+// 			aEndPointCoupler2[1] := 1050;
+// 		
+// 			aStartPointMirror1[0] := 0;
+// 			aStartPointMirror1[1] := 0;
+// 			aEndPointMirror1[0] := 0;
+// 			aEndPointMirror1[1] := 0;
+// 			
+// 			aStartPointMirror2[0] := 0;
+// 			aStartPointMirror2[1] := 0;
+// 			aEndPointMirror2[0] := 0;
+// 			aEndPointMirror2[1] := 0;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-200614' THEN
+// 			aStartPointCoupler1[0] := 793;
+// 			aStartPointCoupler1[1] := 680;
+// 			aEndPointCoupler1[0] := 793;
+// 			aEndPointCoupler1[1] := 780;
+// 			
+// 			aStartPointCoupler2[0] := 793;
+// 			aStartPointCoupler2[1] := 1330;
+// 			aEndPointCoupler2[0] := 793;
+// 			aEndPointCoupler2[1] := 1200;
+// 		
+// 			aStartPointMirror1[0] := 0;
+// 			aStartPointMirror1[1] := 0;
+// 			aEndPointMirror1[0] := 0;
+// 			aEndPointMirror1[1] := 0;
+// 			
+// 			aStartPointMirror2[0] := 0;
+// 			aStartPointMirror2[1] := 0;
+// 			aEndPointMirror2[0] := 0;
+// 			aEndPointMirror2[1] := 0;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-88470' THEN
+// 			aStartPointCoupler[0] := ;
+// 			aStartPointCoupler[1] := ;
+// 			aEndPointCoupler[0] := ;
+// 			aEndPointCoupler[1] := ;
+// 		
+// 			aStartPointMirror[0] := ;
+// 			aStartPointMirror[1] := ;
+// 			aEndPointMirror[0] := ;
+// 			aEndPointMirror[1] := ;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-200662' THEN
+// 			aStartPointCoupler1[0] := 644;
+// 			aStartPointCoupler1[1] := 780;
+// 			aEndPointCoupler1[0] := 644;
+// 			aEndPointCoupler1[1] := 780;
+// 			
+// 			aStartPointCoupler2[0] := 644;
+// 			aStartPointCoupler2[1] := 1210;
+// 			aEndPointCoupler2[0] := 644;
+// 			aEndPointCoupler2[1] := 1100;
+// 		
+// 			aStartPointMirror1[0] := 0;
+// 			aStartPointMirror1[1] := 0;
+// 			aEndPointMirror1[0] := 0;
+// 			aEndPointMirror1[1] := 0;
+// 			
+// 			aStartPointMirror2[0] := 0;
+// 			aStartPointMirror2[1] := 0;
+// 			aEndPointMirror2[0] := 0;
+// 			aEndPointMirror2[1] := 0;
+// 		
+// 		ELSIF stAssemblyType.Station1To5.sAssemblyType = 'AL-200664' THEN
+// 			aStartPointCoupler1[0] := 644;
+// 			aStartPointCoupler1[1] := 780;
+// 			aEndPointCoupler1[0] := 644;
+// 			aEndPointCoupler1[1] := 780;
+// 			
+// 			aStartPointCoupler2[0] := 644;
+// 			aStartPointCoupler2[1] := 1210;
+// 			aEndPointCoupler2[0] := 644;
+// 			aEndPointCoupler2[1] := 1100;
+// 		
+// 			aStartPointMirror1[0] := 0;
+// 			aStartPointMirror1[1] := 0;
+// 			aEndPointMirror1[0] := 0;
+// 			aEndPointMirror1[1] := 0;
+// 			
+// 			aStartPointMirror2[0] := 0;
+// 			aStartPointMirror2[1] := 0;
+// 			aEndPointMirror2[0] := 0;
+// 			aEndPointMirror2[1] := 0;
+// 		
+// 		END_IF;
+// 
+// END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CouplerDetect" Id="{fc7df348-da54-49d9-a2a6-bc95a43bb5a3}">
+      <Declaration><![CDATA[METHOD CouplerDetect : BOOL
+
+VAR
+	bCheckOnce 					: BOOL := TRUE;
+	hrEdgeT						: HRESULT;
+	nIndex						: ULINT;
+	
+END_VAR
+
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[hrEdgeT := 0;
+
+aStartPointCoupler1[0] := 1000;
+aStartPointCoupler1[1] := 1000;
+aEndPointCoupler1[0] := 550;
+aEndPointCoupler1[1] := 1000;
+
+		
+hrEdgeT := F_VN_LocateEdge(
+	ipSrcImage:= ImageRaw, 
+	ipEdgePoints:= ipEdgePointsCoupler1, 
+	aStartPoint:= aStartPointCoupler1, 
+	aEndPoint:= aEndPointCoupler1, 
+	eEdgeDirection:= ETcVnEdgeDirection.TCVN_ED_Light_TO_Dark, 
+	fMinStrength:= 45, 
+	nSearchLines:= 5, 
+	hrPrev:= hr, 
+	fAvgStrength=> );
+	
+hrEdgeT := F_VN_GetAt_TcVnVector2_REAL(ipContainer:= ipEdgePointsCoupler1, aElement:= aElementCoupler1, nIndex:= 0, hrPrev:= hrEdgeT);
+	
+aStartPointCoupler2[0] := aElementCoupler1[0]-40;
+aStartPointCoupler2[1] := 600;
+aEndPointCoupler2[0] := aElementCoupler1[0]-40;
+aEndPointCoupler2[1] := 1000;	
+
+aStartPointCoupler3[0] := aElementCoupler1[0]-40;
+aStartPointCoupler3[1] := 1400;
+aEndPointCoupler3[0] := aElementCoupler1[0]-40;
+aEndPointCoupler3[1] := 1000;	
+
+hrEdgeT := F_VN_LocateEdge(
+	ipSrcImage:= ImageRaw, 
+	ipEdgePoints:= ipEdgePointsCoupler2, 
+	aStartPoint:= aStartPointCoupler2, 
+	aEndPoint:= aEndPointCoupler2, 
+	eEdgeDirection:= ETcVnEdgeDirection.TCVN_ED_Light_TO_Dark, 
+	fMinStrength:= 45, 
+	nSearchLines:= 4, 
+	hrPrev:= hr, 
+	fAvgStrength=> );
+hrEdgeT := F_VN_LocateEdge(
+	ipSrcImage:= ImageRaw, 
+	ipEdgePoints:= ipEdgePointsCoupler3, 
+	aStartPoint:= aStartPointCoupler3, 
+	aEndPoint:= aEndPointCoupler3, 
+	eEdgeDirection:= ETcVnEdgeDirection.TCVN_ED_Light_TO_Dark, 
+	fMinStrength:= 45, 
+	nSearchLines:= 4, 
+	hrPrev:= hr, 
+	fAvgStrength=> );
+IF SUCCEEDED(hrEdgeT) THEN
+	hrEdgeT := F_VN_DrawPoints(
+		ipPoints:= ipEdgePointsCoupler1, 
+		ipDestImage:= ipImageProsessed, 
+		eShape:= ETcVnDrawShape.TCVN_DS_X, 
+		aColor:= Color.Lime, 
+		hrPrev:= hr);
+
+	hrEdgeT := F_VN_DrawPoints(
+		ipPoints:= ipEdgePointsCoupler2, 
+		ipDestImage:= ipImageProsessed, 
+		eShape:= ETcVnDrawShape.TCVN_DS_X, 
+		aColor:= Color.Lime, 
+		hrPrev:= hr);
+		
+	hrEdgeT := F_VN_DrawPoints(
+		ipPoints:= ipEdgePointsCoupler3, 
+		ipDestImage:= ipImageProsessed, 
+		eShape:= ETcVnDrawShape.TCVN_DS_X, 
+		aColor:= Color.Lime, 
+		hrPrev:= hr);
+	FOR nIndex := 0 TO 4 DO
+		hrEdgeT := F_VN_GetAt_TcVnVector2_REAL(ipContainer:= ipEdgePointsCoupler2, aElement:= aElementCoupler2[nIndex], nIndex:= nIndex, hrPrev:= hrEdgeT);
+		hrEdgeT := F_VN_GetAt_TcVnVector2_REAL(ipContainer:= ipEdgePointsCoupler3, aElement:= aElementCoupler3[nIndex], nIndex:= nIndex, hrPrev:= hrEdgeT);
+	END_FOR
+	aCouplerAverage2[0] := REAL_TO_ULINT((aElementCoupler2[0][0] + aElementCoupler2[1][0] + aElementCoupler2[2][0] + aElementCoupler2[3][0]+ aElementCoupler2[4][0] )/ 5);
+	aCouplerAverage2[1] := REAL_TO_ULINT((aElementCoupler2[0][1] + aElementCoupler2[1][1] + aElementCoupler2[2][1] + aElementCoupler2[3][1]+ aElementCoupler2[4][1] )/ 5);
+	aCouplerAverage3[0] := REAL_TO_ULINT((aElementCoupler3[0][0] + aElementCoupler3[1][0] + aElementCoupler3[2][0] + aElementCoupler3[3][0]+ aElementCoupler3[4][0] )/ 5);
+	aCouplerAverage3[1] := REAL_TO_ULINT((aElementCoupler3[0][1] + aElementCoupler3[1][1] + aElementCoupler3[2][1] + aElementCoupler3[3][1]+ aElementCoupler3[4][1] )/ 5);
+	aCouplerCenterpoint[0] := (aCouplerAverage2[0] + aCouplerAverage3[0])/2;
+	aCouplerCenterpoint[1] := (aCouplerAverage2[1] + aCouplerAverage3[1])/2;
+	hr := F_VN_CopyIntoDisplayableImage (ipImageProsessed, ipImageProsessedDisp, hr);
+	
+	
+ELSE
+	IF bCheckOnce THEN
+		ADSLOGSTR(msgCtrlMask := ADSLOG_MSGTYPE_ERROR, msgFmtStr := 'Error1', strArg:= ' ');
+		bCheckOnce := FALSE;
+	END_IF
+END_IF
+	
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MirrorDetect" Id="{95c7a0cd-7528-4c61-b73c-84f071c64dbc}">
+      <Declaration><![CDATA[METHOD MirrorDetect : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	aPoint1 : TcVnPoint2_REAL := [0,0];
+	aPoint2 : TcVnPoint2_REAL := [0,1];	
+	
+  	aCameraMatrix           : TcVnMatrix3x3_LREAL;
+    aDistortionCoefficients : TcVnArray8_LREAL;
+    aRotationMatrix         : TcVnMatrix3x3_LREAL;
+    aTranslationVector      : TcVnVector3_LREAL;
+	
+
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbCamera.GetCameraMatrix(aCameraMatrix := aCameraMatrix);
+fbCamera.GetDistortionCoefficients(aDistortionCoefficients := aDistortionCoefficients);
+fbCamera.GetRotationMatrix(aRotationMatrix := aRotationMatrix);
+fbCamera.GetTranslationVector(aTranslationVector := aTranslationVector);
+
+hr := F_VN_ImagePointsWorldDistance( 
+	aImagePoint1 := aPoint1,
+	aImagePoint2 := aPoint2,
+	fWorldDistance := rWorldDistance,
+	aCameraMatrix := aCameraMatrix,
+	aDistortionCoefficients := aDistortionCoefficients,
+	aRotationMatrix := aRotationMatrix,
+	aTranslationVector := aTranslationVector,
+	fZ := 0,
+	hrPrev := hr);
+	
+
+CASE iStationId OF
+ 	1..5:
+	aMirrorEdgeCalc[1] := stAssemblyType.Station1To5.rMirrorCenterOffsetToWeightCenterY/rWorldDistance; // calculates the distance in px of the mirror centerpoint to weight centerpoint. Is used to determine currect positioning of the mirror 
+	
+	// Detection from center to upper edge
+	aStartPointMirror1[0] := aCouplerCenterpoint[0] - ((stAssemblyType.Station1To5.rCouplerGroveDepth)/rWorldDistance) + (stAssemblyType.Station1To5.rMirrorGripPointOffsetToEdgeX/rWorldDistance) ;
+	aStartPointMirror1[1] := aCouplerCenterpoint[1]; // Coupler centerpoint based Y Startpoint
+	aEndPointMirror1[0] := aStartPointMirror1[0];
+	aEndPointMirror1[1] := aCouplerCenterpoint[1] - (((stAssemblyType.Station1To5.rMirrorDimensions[1]/2) - stAssemblyType.Station1To5.rMirrorCenterOffsetToWeightCenterY)/rWorldDistance)-100; // endpoint based on coupler centerpoint - mirror weight centerpoint to edge width + some extra
+	// detection from center to lower edge
+	aStartPointMirror2[0] := aCouplerCenterpoint[0] - ((stAssemblyType.Station1To5.rCouplerGroveDepth)/rWorldDistance) + (stAssemblyType.Station1To5.rMirrorGripPointOffsetToEdgeX/rWorldDistance);
+	aStartPointMirror2[1] := aCouplerCenterpoint[1];
+	aEndPointMirror2[0] := aStartPointMirror2[0];
+	aEndPointMirror2[1] := aCouplerCenterpoint[1] + (((stAssemblyType.Station1To5.rMirrorDimensions[1]/2) - stAssemblyType.Station1To5.rMirrorCenterOffsetToWeightCenterY)/rWorldDistance)+100;
+	
+	6..10:
+	aStartPointMirror1[0] := 0;
+	aStartPointMirror1[1] := 0;
+	aEndPointMirror1[0] := 0;
+	aEndPointMirror1[1] := 0;
+			
+	aStartPointMirror2[0] := 0;
+	aStartPointMirror2[1] := 0;
+	aEndPointMirror2[0] := 0;
+	aEndPointMirror2[1] := 0;
+END_CASE
+
+hr := F_VN_LocateEdge(
+	ipSrcImage:= ImageRaw, 
+	ipEdgePoints:= ipEdgePointsMirror1, 
+	aStartPoint:= aStartPointMirror1, 
+	aEndPoint:= aEndPointMirror1, 
+	eEdgeDirection:= ETcVnEdgeDirection.TCVN_ED_DARK_TO_LIGHT, 
+	fMinStrength:= 45, 
+	nSearchLines:= 1, 
+	hrPrev:= hr, 
+	fAvgStrength=> );
+hr := F_VN_LocateEdge(
+	ipSrcImage:= ImageRaw, 
+	ipEdgePoints:= ipEdgePointsMirror2, 
+	aStartPoint:= aStartPointMirror2, 
+	aEndPoint:= aEndPointMirror2, 
+	eEdgeDirection:= ETcVnEdgeDirection.TCVN_ED_DARK_TO_LIGHT, 
+	fMinStrength:= 45, 
+	nSearchLines:= 1, 
+	hrPrev:= hr, 
+	fAvgStrength=> );
+	IF SUCCEEDED(hr) THEN
+		hr := F_VN_GetAt_TcVnVector2_REAL(ipContainer:= ipEdgePointsMirror1, aElement:= aElementMirror1, nIndex:= 0, hrPrev:= hr);
+		hr := F_VN_GetAt_TcVnVector2_REAL(ipContainer:= ipEdgePointsMirror2, aElement:= aElementMirror2, nIndex:= 0, hrPrev:= hr);
+		hr := F_VN_DrawPoints(
+			ipPoints:= ipEdgePointsMirror1, 
+			ipDestImage:= ipImageProsessed, 
+			eShape:= ETcVnDrawShape.TCVN_DS_X, 
+			aColor:= Color.Lime, 
+			hrPrev:= hr);
+		hr := F_VN_DrawPoints(
+			ipPoints:= ipEdgePointsMirror2, 
+			ipDestImage:= ipImageProsessed, 
+			eShape:= ETcVnDrawShape.TCVN_DS_X, 
+			aColor:= Color.Lime, 
+			hrPrev:= hr);
+		stPosData.rMirrorOffsetToCalPoints[1] := (( aCouplerCenterpoint[1]) - ((aElementMirror1[1] + aElementMirror2[1])/2) - aMirrorEdgeCalc[1])*rWorldDistance;
+		hr := F_VN_CopyIntoDisplayableImage (ipImageProsessed, ipImageProsessedDisp, hr);
+	END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TrigImage" Id="{593084b8-639d-4f92-864e-9807bab846e2}">
+      <Declaration><![CDATA[METHOD TrigImage : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbCamera.TriggerImage();
+bInitTrig := TRUE;
+TrigCheckTmr.IN := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

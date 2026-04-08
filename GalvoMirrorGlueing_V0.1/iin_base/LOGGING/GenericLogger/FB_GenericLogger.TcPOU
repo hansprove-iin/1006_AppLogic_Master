@@ -1,0 +1,216 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_GenericLogger" Id="{6b7afa9a-3ef0-4064-9aa6-df93e70cdadd}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_GenericLogger EXTENDS FB_GenericObserver IMPLEMENTS I_Logger		// Logger where real implementations can subscribe too
+																					// This logger by itself does nothing
+VAR
+	// These VARs cannot be locally inside the METHODs since Twincat does not like that (will crash)
+	helperPtr:					POINTER TO BYTE;	// Helper pointer to get the address of the interface
+	helperIf:					I_Logger;	// Helper interface for casting back from POINTER TO BOOL to this interface
+END_VAR
+VAR PERSISTENT
+	initCalled: 	INT;
+	reInitCalled:	INT;
+	exitCalled:		INT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="debug" Id="{8c2b2095-4d21-428f-a8e3-a18f878ff344}">
+      <Declaration><![CDATA[METHOD PUBLIC debug : BOOL	// Logs the data with log level 'DEBUG'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+END_VAR
+VAR
+	i:				INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getObservers();
+FOR i := 0 TO validObservers.cnt -1 BY 1 DO
+	MEMCPY(ADR(helperIf), ADR(validObservers.observers[i].observer), 16);
+	helperIf.debug(iData);
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="deregister" Id="{12e6bb0c-b52c-41f8-9013-d668763275b8}">
+      <Declaration><![CDATA[METHOD PUBLIC deregister : BOOL
+VAR_INPUT
+	iWho:				T_SHORT_STR;
+END_VAR
+
+	]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[deregisterObserver(iWho);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="doLog" Id="{76917e7c-d997-414e-a2cc-1bbec756b113}">
+      <Declaration><![CDATA[METHOD PUBLIC doLog : BOOL	// Logs the data with log level 'WARN'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+	iLevel:		E_LOG_LEVEL := E_LOG_LEVEL.ERROR;	// Log level
+END_VAR
+VAR
+	i:				INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getObservers();
+FOR i := 0 TO validObservers.cnt -1 BY 1 DO
+	MEMCPY(ADR(helperIf), ADR(validObservers.observers[i].observer), 16);
+	helperIf.doLog(iData, iLevel);
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="error" Id="{9372b437-fd20-4858-a1e7-3c5de82cdadb}">
+      <Declaration><![CDATA[METHOD PUBLIC error : BOOL	// Logs the data with log level 'ERROR'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+END_VAR
+VAR
+	i:				INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getObservers();
+FOR i := 0 TO validObservers.cnt -1 BY 1 DO
+	MEMCPY(ADR(helperIf), ADR(validObservers.observers[i].observer), 16);
+	helperIf.error(iData);
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_exit" Id="{fabba264-0aec-4c1f-9efa-4ea5f945b072}">
+      <Declaration><![CDATA[METHOD FB_exit : BOOL
+VAR_INPUT
+	bInCopyCode : BOOL; // if TRUE, the exit method is called for exiting an instance that is copied afterwards (online change).
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IncInt(exitCalled);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{0f959e5c-f8e8-4694-a02f-8883e4af8964}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IncInt(initCalled);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_reinit" Id="{1d1c27b1-2f56-44ca-a823-44c8362c8104}">
+      <Declaration><![CDATA[METHOD FB_reinit : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IncInt(reInitCalled);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="info" Id="{1827ca1c-1baf-45da-a80a-61f73a6cfda8}">
+      <Declaration><![CDATA[METHOD PUBLIC info : BOOL	// Logs the data with log level 'INFO'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+END_VAR
+VAR
+	i:				INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getObservers();
+FOR i := 0 TO validObservers.cnt -1 BY 1 DO
+	MEMCPY(ADR(helperIf), ADR(validObservers.observers[i].observer), 16);
+	helperIf.info(iData);
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="register" Id="{9f7a42cd-fcad-4024-ab3b-8224601a2510}">
+      <Declaration><![CDATA[METHOD PUBLIC register : BOOL
+VAR_INPUT
+	iWho:		T_SHORT_STR;
+	iObserver:	I_Logger;
+END_VAR
+VAR
+	pointerSize:	UINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Get the pointer value from the observer Interface
+
+pointerSize := SIZEOF(helperPtr);
+MEMCPY(ADR(helperPtr), ADR(iObserver), pointerSize);
+
+registerObserver(iWho, helperPtr);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="trace" Id="{613cae8c-5b42-4c04-afb9-cea7ddde6b2b}">
+      <Declaration><![CDATA[METHOD PUBLIC trace : BOOL	// Logs the data with log level 'TRACE'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+END_VAR
+VAR
+	i:				INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getObservers();
+FOR i := 0 TO validObservers.cnt -1 BY 1 DO
+	MEMCPY(ADR(helperIf), ADR(validObservers.observers[i].observer), 16);
+	helperIf.trace(iData);
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="warn" Id="{0a544c5c-2701-4121-abe0-731ebcbf45fa}">
+      <Declaration><![CDATA[METHOD PUBLIC warn : BOOL	// Logs the data with log level 'WARN'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+END_VAR
+VAR
+	i:				INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getObservers();
+FOR i := 0 TO validObservers.cnt -1 BY 1 DO
+	MEMCPY(ADR(helperIf), ADR(validObservers.observers[i].observer), 16);
+	helperIf.warn(iData);
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_GenericLogger">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_GenericLogger.debug">
+      <LineId Id="2" Count="4" />
+    </LineIds>
+    <LineIds Name="FB_GenericLogger.deregister">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_GenericLogger.doLog">
+      <LineId Id="2" Count="4" />
+    </LineIds>
+    <LineIds Name="FB_GenericLogger.error">
+      <LineId Id="2" Count="4" />
+    </LineIds>
+    <LineIds Name="FB_GenericLogger.FB_exit">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_GenericLogger.FB_init">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_GenericLogger.FB_reinit">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_GenericLogger.info">
+      <LineId Id="2" Count="4" />
+    </LineIds>
+    <LineIds Name="FB_GenericLogger.register">
+      <LineId Id="2" Count="6" />
+    </LineIds>
+    <LineIds Name="FB_GenericLogger.trace">
+      <LineId Id="2" Count="4" />
+    </LineIds>
+    <LineIds Name="FB_GenericLogger.warn">
+      <LineId Id="2" Count="4" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_WithinRange" Id="{3901acfa-0a9d-40e4-a9dd-0c971f87a8ab}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_WithinRange : BOOL		// Checks if the specified value is within the target range, returns TRUE if within range, FALSE otherwise
+VAR_INPUT
+	iValue:			LREAL;		// Value to be checked
+	iTarget:		LREAL;		// Target value
+	iRange:			LREAL;		// This value is allowed below and above
+END_VAR
+VAR
+	minValue:	LREAL;
+	maxValue:	LREAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[minValue := iTarget - iRange;
+maxValue := iTarget + iRange;
+FC_WithinRange := (iValue >= minValue) AND (iValue <= maxValue);
+]]></ST>
+    </Implementation>
+    <LineIds Name="FC_WithinRange">
+      <LineId Id="2" Count="3" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

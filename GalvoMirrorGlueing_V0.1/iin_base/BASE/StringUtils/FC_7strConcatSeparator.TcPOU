@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_7strConcatSeparator" Id="{a9ec3cb1-8d11-4752-91d3-3edfa29c2943}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_7strConcatSeparator : T_DEFAULT_STR
+VAR_INPUT
+	iSeparator:		STRING := IING.STRING_UNDERSCORE;
+	iStr1:			T_DEFAULT_STR;
+	iStr2:			T_DEFAULT_STR;
+	iStr3:			T_DEFAULT_STR;
+	iStr4:			T_DEFAULT_STR;
+	iStr5:			T_DEFAULT_STR;
+	iStr6:			T_DEFAULT_STR;
+	iStr7:			T_DEFAULT_STR;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_7strConcatSeparator := FC_2strConcatSeparator(iSeparator, FC_6strConcatSeparator(iSeparator, iStr1, iStr2, iStr3, iStr4, iStr5, iStr6), iStr7);
+	]]></ST>
+    </Implementation>
+    <LineIds Name="FC_7strConcatSeparator">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

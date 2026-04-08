@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_StringEmpty" Id="{90f009ca-815e-4255-852c-b02dd648c8b6}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_StringEmpty : BOOL	// Returns TRUE if the specified string length is more or equal to 1 
+VAR_INPUT
+	iString:	T_DEFAULT_STR;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_StringEmpty := LEN(iString) = 0;]]></ST>
+    </Implementation>
+    <LineIds Name="FC_StringEmpty">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

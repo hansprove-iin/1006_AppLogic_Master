@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <GVL Name="Trig" Id="{171765cd-b3e1-44a6-b6ea-efc245c6aa1f}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL	
+	bMidStationCam	: BOOL;
+	bInfeedCam		: BOOL;
+	bOutfeedCam		: BOOL;
+	bRejectCam		: BOOL;
+	
+	
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

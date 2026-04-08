@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_GluingPoses" Id="{b3489ca1-dc50-43c3-b2da-83f905d668d7}">
+    <Declaration><![CDATA[TYPE ST_GluingPoses :
+STRUCT
+	AL200662: AL200662;
+	AL82027: AL82027;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

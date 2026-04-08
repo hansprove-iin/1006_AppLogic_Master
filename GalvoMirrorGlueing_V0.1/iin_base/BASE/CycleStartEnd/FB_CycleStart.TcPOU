@@ -1,0 +1,102 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_CycleStart" Id="{d4e22ee1-b080-4922-928d-3e02b28e9a6d}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_CycleStart		// Must always be the 1st call in PLC MAIN, ensures other functions/globals are available 
+VAR_INPUT
+	iRegioSelection:		E_REGIO_SELECTION := E_REGIO_SELECTION.USA;		// Regio selection, will affect to date/time formatting
+	iLogger:				I_Logger := NullLogger();
+END_VAR
+VAR_OUTPUT
+	
+	oPersistencyHmi:		ST_PERSISTENCY_HMI;
+END_VAR
+VAR
+	getHostName: 			FB_GetHostName;
+	getAmsNetId:			FB_GetLocalAmsNetId;
+	
+	getLocalTime: 			FB_GetLocalTimeAndDate;
+	
+	blinkers:				FB_Blinkers;
+	pulsers:				FB_Pulsers;
+	
+	
+	persistency:			FB_Persistency;
+	
+	taskIndex:				DINT;		// The task index of the task in which we are called.
+	
+	pointerToByte:			POINTER TO BYTE;
+END_VAR
+VAR PERSISTENT
+	numberOfPlcStarts:		UDINT;	// How often the PLC has been started
+	timeOfPreviousCycle:	ULINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Read epoch time
+FC_CallAtStart_EpochTime();
+
+// Read local system time as string
+getLocalTime(iRegioSelection := iRegioSelection);
+
+// Was used earlier to determine the cycleStart flag
+IING.cycleTime := FC_GetEpochTime() - timeOfPreviousCycle;
+
+// The famous cycle start flag, earlier done by checking the cycle time, TTECH-4497
+taskIndex := GETCURTASKINDEXEX();	// -1 = The function is called from the Windows context.
+									// 0 = The function is called from the real-time context, but not from a cyclic PLC task. This is the case, for example, with the automatic call of FB_init methods during initialization.
+									// 1 to n = The function is called from a cyclic PLC task. The return value is the task index.
+IF (taskIndex > 0) THEN
+	IING.cycleStart :=  TwinCAT_SystemInfoVarList._TaskInfo[taskIndex].FirstCycle;
+	IING.cycleCounter := TwinCAT_SystemInfoVarList._TaskInfo[taskIndex].CycleCount;
+	IING.adsPort := TwinCAT_SystemInfoVarList._TaskInfo[taskIndex].AdsPort;
+ELSE
+	IING.cycleStart := FALSE;
+	IING.cycleCounter := 0;
+END_IF
+
+IF (IING.cycleStart) THEN
+	IncUDINT(numberOfPlcStarts);
+	
+	IING.pointerSize := SIZEOF(pointerToByte);
+END_IF
+timeOfPreviousCycle := FC_GetEpochTime();
+
+// Read host name and AMS net id
+getHostName(bExecute := IING.cycleStart, tTimeout := DEFAULT_ADS_TIMEOUT, sHostName => IING.localHostName);
+getAmsNetId(bExecute := IING.cycleStart, tTimeOut := DEFAULT_ADS_TIMEOUT, AddrString => IING.localAmsNetId);
+
+
+// Create blinking outputs
+blinkers(oBlink100MS => IING.blink100MS, oBlink500MS => IING.blink500MS, oBlink1S => IING.blink1S, oBlink2S => IING.blink2S, oBlink5S => IING.blink5S,
+	oBlink10S => IING.blink10S);
+	
+// Inverted blinks (good to make animations)
+IING.invertedBlink100Ms := NOT IING.blink100MS;
+IING.invertedBlink500Ms := NOT IING.blink500MS;
+IING.invertedBlink1S := NOT IING.blink1S;
+IING.invertedBlink2S := NOT IING.blink2S;
+IING.invertedBlink5S := NOT IING.blink5S;
+IING.invertedBlink10S := NOT IING.blink10S;
+	
+// Create periodic pulses
+pulsers(oPulse100Ms => IING.pulse100Ms, oPulse500Ms => IING.pulse500Ms, oPulse1S => IING.pulse1S, oPulse2S => IING.pulse2S, oPulse10S => IING.pulse10S,
+	oPulse30S => IING.pulse30S, oPulse1M => IING.pulse1M, oPulse1H => IING.pulse1H);
+
+
+
+
+
+LOGGER.defaultLogger := iLogger;
+
+{ IF defined(simulator) }
+	IING.simulatorActive := TRUE;
+{ ELSE }
+	IING.simulatorActive := FALSE;
+{ END_IF }
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_CycleStart">
+      <LineId Id="2" Count="61" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="ST_ALARM_BASE" Id="{a192d7a6-86e4-08f5-3463-61ecf2820082}">
+    <Declaration><![CDATA[TYPE ST_ALARM_BASE :
+STRUCT
+	alarmType:			E_ALARM_TYPE := E_ALARM_TYPE.UNDEFINED;
+	deviceType:			E_DEVICE_TYPE := E_DEVICE_TYPE.UNDEFINED;
+
+	pos:				E_POS := E_POS.UNDEFINED;
+	deviceId:			T_DEVICE_ID := IING.STRING_BLANK;
+	
+	// Unique ID generated when the alarm gets raised
+	uniqueId:			ULINT;
+	
+	priority:			E_PRIORITY;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

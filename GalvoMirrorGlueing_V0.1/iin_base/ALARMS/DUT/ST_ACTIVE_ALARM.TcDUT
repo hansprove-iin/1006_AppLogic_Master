@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="ST_ACTIVE_ALARM" Id="{d884b9b2-ff99-00b0-0464-8b2d483d523c}">
+    <Declaration><![CDATA[TYPE ST_ACTIVE_ALARM EXTENDS ST_RAISE_ALARM:
+STRUCT
+	timestamp:				T_SHORT_STR;						// Timestamp when this occured
+	epochTime:				ULINT;								// Needed for sorting purposes
+	active:					BOOL;								// TRUE = currently active
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_GetLocalDateString" Id="{8d8d06ed-18dc-4819-a042-8be070caa6a3}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_GetLocalDateString : T_SHORT_STR;		// Returns the local date string, eg. '27:5:2019'. Use E_REGIO_SELECTION at FB_CycleStart for a different format.
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_GetLocalDateString := IING.localDateString;]]></ST>
+    </Implementation>
+    <LineIds Name="FC_GetLocalDateString">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

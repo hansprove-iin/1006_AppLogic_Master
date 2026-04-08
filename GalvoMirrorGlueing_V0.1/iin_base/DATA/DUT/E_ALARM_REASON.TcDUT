@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="E_ALARM_REASON" Id="{6d294515-22aa-0f47-1f8c-aeb1c952beae}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+
+{attribute 'to_string'}
+TYPE E_ALARM_REASON :
+(
+	UNDEFINED,
+	
+	NO_COOLING,
+	
+	OVERLOAD,
+	
+	WRONG_ITEM,
+	
+	WRONG_DIMENSION,
+	
+	WRONG_ORIENTATION,
+	
+	STUCK,
+	
+	NO_PRESSURE,
+	
+	OTHER,	
+	
+	MUST_BE_LAST	// ALWAYS KEEP THIS LAST!!!
+	
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

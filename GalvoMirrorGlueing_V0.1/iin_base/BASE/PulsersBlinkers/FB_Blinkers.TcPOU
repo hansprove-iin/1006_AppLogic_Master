@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_Blinkers" Id="{c84cac2d-3516-4124-bfe6-c00c62f420e5}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Blinkers		// Called from FB_Cyclestart, DO NOT call from your application
+								// Collection of blinkers
+VAR_OUTPUT
+	oBlink100Ms: 	BOOL;
+	oBlink500Ms: 	BOOL;
+	oBlink1S: 		BOOL;
+	oBlink2S:		BOOL;
+	oBlink5S:		BOOL;
+	oBlink10S: 		BOOL;
+END_VAR
+VAR
+	blink100Ms:		FB_Blink;
+	blink500Ms: 	FB_Blink;
+	blink1S:		FB_Blink;
+	blink2S:		FB_Blink;
+	blink5S:		FB_Blink;
+	blink10S:		FB_Blink;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[blink100Ms(iTime := T#100MS, oBlink => oBlink100Ms);
+blink500Ms(iTime := T#500MS, oBlink => oBlink500Ms);
+blink1S(iTime := T#1S, oBlink => oBlink1S);
+blink2S(iTime := T#2S, oBlink => oBlink2S);
+blink5S(iTime := T#5S, oBlink => oBlink5S);
+blink10S(iTime := T#10S, oBlink => oBlink10S);
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_Blinkers">
+      <LineId Id="2" Count="6" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

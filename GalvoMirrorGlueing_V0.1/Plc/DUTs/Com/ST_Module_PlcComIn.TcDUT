@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_Module_PlcComIn" Id="{36c769ba-f2d0-448b-9b9b-5eeaa152a340}">
+    <Declaration><![CDATA[TYPE ST_Module_PlcComIn :
+STRUCT
+	bEstopOk	: BOOL;
+	bSafetyOk  : BOOL;
+	bUpsStatusOk	: BOOL;	
+	bLinearAxisHomingSensor : BOOL;
+	bRobotGripperSensor : BOOL;
+	bRobotPower	: BOOL;
+	
+	bGlueDoorUpperLockOpen		: BOOL;
+	bGlueDoorUpperLockClosed	: BOOL;
+	bGlueDoorLowerLockOpen		: BOOL;
+	bGlueDoorLowerLockClosed	: BOOL;
+	
+	bMainDoorLockOpen			: BOOL;
+	bMainDoorLockClosed			: BOOL;
+	bPassLockOpen				: BOOL;
+	bPassLockClosed				: BOOL;
+	bInfeedLockOpen				: BOOL;
+	bInfeedLockClosed			: BOOL;
+	bRejectLockOpen				: BOOL;
+	bRejectLockClosed			: BOOL;
+	
+	bUpsAlarm					: BOOL;
+	bAcOk						: BOOL;
+	iModuleTemp					: INT;
+	bGlueStopHome				: BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

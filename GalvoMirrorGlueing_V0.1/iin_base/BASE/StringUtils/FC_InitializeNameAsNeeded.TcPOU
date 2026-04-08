@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_InitializeNameAsNeeded" Id="{a8071e54-1644-4f0f-99f9-dc4e1f04b3b7}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_InitializeNameAsNeeded	// Can be used to initialize the given name of a component
+VAR_INPUT
+	iInit:	T_SHORT_STR;		// Initial value
+END_VAR
+VAR_IN_OUT
+	ioMonitor:	T_SHORT_STR;	// String to be monitored
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF (NOT FC_IsBaseNameDefined(ioMonitor)) THEN
+	ioMonitor := iInit;
+END_IF
+]]></ST>
+    </Implementation>
+    <LineIds Name="FC_InitializeNameAsNeeded">
+      <LineId Id="2" Count="3" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

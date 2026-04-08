@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_UintFormatter" Id="{5a1aaa75-95d3-4366-a346-935dd079db00}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_UintFormatter : T_SHORT_STR	// UINT formatter (characters will be padded until desired string length is achieved)
+VAR_INPUT
+	iUint:			UINT;			// UINT to be formatted
+	iLen:			UINT;			// Resulting formatted string length
+	iCharToPad:		T_SHORT_STR;	// Character to be padded at the front
+END_VAR
+VAR
+	uintStr:		T_SHORT_STR;
+	strLen: 		UINT;
+	charsToPad:		UINT;
+	i:				UINT;	// for loop
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[uintStr := UINT_TO_STRING(iUint);
+strLen := INT_TO_UINT(LEN(uintStr));
+
+FC_UintFormatter := '';
+
+charsToPad := iLen - strLen;
+
+IF (charsToPad > 0) THEN
+	FOR i := 0 TO (charsToPad - 1) DO
+    	FC_UintFormatter := CONCAT(STR1 := FC_UintFormatter, STR2 := iCharToPad);
+	END_FOR;
+	FC_UintFormatter := CONCAT(STR1 := FC_UintFormatter, STR2 := uintStr);
+ELSE
+	FC_UintFormatter := uintStr;
+END_IF;
+]]></ST>
+    </Implementation>
+    <LineIds Name="FC_UintFormatter">
+      <LineId Id="2" Count="15" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

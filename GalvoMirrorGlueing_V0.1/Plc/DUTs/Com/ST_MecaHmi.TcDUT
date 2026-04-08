@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_MecaHmi" Id="{b077c661-92a7-4241-b213-4bf4e4b8e6f8}">
+    <Declaration><![CDATA[TYPE ST_MecaHmi :
+STRUCT
+	
+	bJogToPose			: BOOL;
+	aPoseDirect			: ARRAY [1..6] OF REAL;
+	bHomeAxis			: BOOL;
+	bSetGripperWidth	: BOOL;
+	rGripperWidth		: REAL;
+
+// Direct control buttons to robot
+	bActivate			: BOOL;
+	bDeactivate			: BOOL;
+	bErrorReset			: BOOL;
+	bManualJog			: BOOL;
+	bClearMove			: BOOL;
+	bPauseMotion		: BOOL;
+	bResumeMotion		: BOOL;
+	bDisableEtherCat	: BOOL;
+	bToggleGripper		: BOOL;
+	bRecoveryMode		: BOOL;
+
+	bJogXPositive		: BOOL;
+	bJogXNegative		: BOOL;
+	bJogYPositive		: BOOL;
+	bJogYNegative		: BOOL;
+	bJogZPositive		: BOOL;
+	bJogZNegative		: BOOL;
+	bJogRxPositive		: BOOL;
+	bJogRxNegative		: BOOL;
+	bJogRyPositive		: BOOL;
+	bJogRyNegative		: BOOL;
+	bJogRzPositive		: BOOL;
+	bJogRzNegative		: BOOL;
+	rJogSpeed			: REAL := 10;
+	aCurrentPose		: ARRAY [1..6] OF REAL;
+	bJogLinearPositive	: BOOL;
+	bJogLinearNegative	: BOOL;
+	bLinearJogScreenActive	: BOOL;
+	bManualAbsMove : BOOL;
+	rManualTargetPos	: REAL;
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="E_RESET_ORIGIN" Id="{7580b49d-68bd-4586-ad6f-a0e71e28c011}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_RESET_ORIGIN :
+(
+	UNDEFINED := 0,
+	
+	CONTROL_AREA_MANUAL,	// Operator presses reset on the control signal
+	
+	CONTROL_AREA_AUTO,		// Automatic (external) reset, eg. doors were closed and a reset was triggered
+
+	EXTERNAL,				// Through FB input, eg. hard wired button or banner reset
+	
+	ALARM_SPECIFIC			// Specific device/alarm reset 
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

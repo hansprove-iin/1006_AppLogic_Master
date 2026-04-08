@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="ST_FILE_LOGGER_SETTINGS" Id="{92849374-fcbb-0a19-21ab-696663766ddb}">
+    <Declaration><![CDATA[TYPE ST_FILE_LOGGER_SETTINGS EXTENDS ST_BASE_SETTINGS:
+STRUCT
+	logLevel:				E_LOG_LEVEL := E_LOG_LEVEL.ERROR;	// The current log level
+	maxFileSizeMB:			DINT := 10;							// File size (MB) after which, the log file will be rolled over
+	enableMaxTracingTime:	BOOL := FALSE;						// When TRUE, TRACING can be switched off automatically
+	maxTracingTime:			TIME := T#1H;						// Max amount of time TRACING will be active, after this DEBUG becomes activeEND_STRUCT
+	enableAutoReset:		BOOL := TRUE;						// When TRUE, write errors will be reset automatically
+	autoResetTime:			TIME := T#1H;						// After this amount of time, an error reset will be done
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

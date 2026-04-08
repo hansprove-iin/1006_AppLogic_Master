@@ -1,0 +1,265 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Datalogger2" Id="{e25cb429-b23d-48f9-ab12-a9e126fe95db}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Datalogger2
+VAR_INPUT
+    iScaledTemp            : INT;
+    stMirrorData         : REFERENCE TO ST_Vis_Mirror;
+	stLaserData			: REFERENCE TO ST_Vis_Laser;
+    bEnable             : BOOL;        // Rising edge = add one log entry
+    bSave               : BOOL;        // Rising edge = write CSV
+
+    Stepperpos          : LREAL;
+    SensorVal           : INT;
+    StepperHomed        : BOOL;
+    Var4                : BOOL;
+    Var5                : LREAL;
+    Var6                : INT;
+    Var7                : LREAL;
+    Var8                : BOOL;
+    Var9                : BOOL;
+    Error               : BOOL;
+
+END_VAR
+
+VAR_OUTPUT
+    bBusy               : BOOL;
+    bDone               : BOOL;
+    bError              : BOOL;
+	bArrayWriteDone		: BOOL;
+END_VAR
+
+VAR
+    // Ring buffer
+    aLog        : ARRAY[0..999] OF ST_LogEntry;
+    WriteIndex  : UINT := 0;
+    Count       : UINT := 0;
+    ReadIndex   : UINT := 0;
+
+    // Edge detectors
+    rEnable     : R_TRIG;
+    rSave       : R_TRIG;
+
+    // File handling
+    fbOpen      : FB_FileOpen;
+    fbWrite     : FB_FileWrite;
+    fbClose     : FB_FileClose;
+
+    hFile       : UINT;
+    sLine       : STRING(255);
+    sFile       : STRING(255) := 'C:\ProgramData\Beckhoff\TwinCAT\3.1\Boot\datalog2.csv';
+    sCRLF       : STRING(2) := '$R$L';
+
+    bHeaderWritten : BOOL := FALSE;
+    index          : UINT;
+
+    // State machine
+    eState     : INT := 0;
+
+    // Time stamp
+    fbSysTime  : FB_LocalSystemTime;
+// 					sNetID :='192.168.1.11.1.1',
+// 					bEnable := TRUE);
+    CurrentDT  : DT;
+	
+	WriteDoneTof		: TOF;
+	DoneTof				: TOF;
+	bDoneStatus	: BOOL;
+	bWriteDone	: BOOL;
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[WriteDoneTof( IN := bWriteDone	, PT := T#0.2S, Q => bArrayWriteDone);
+DoneTof(IN := bDoneStatus, PT := T#0.2S, Q => bDone);
+bWriteDone := FALSE;
+bDoneStatus := FALSE;
+
+//  GET SYSTEM TIMESTAMP
+
+fbSysTime(sNetID :='192.168.1.11.1.1',
+					bEnable := TRUE);
+//CurrentDT :=  (fbSysTime.systemTime);
+
+
+//  RISING EDGE OF bEnable 
+
+rEnable(CLK := bEnable);
+
+IF rEnable.Q AND NOT bBusy THEN
+
+    aLog[WriteIndex].tStamp := fbSysTime.systemTime;
+    aLog[WriteIndex].Var1   := stMirrorData.rMirrorOffsetToCalPoints[1];
+    aLog[WriteIndex].Var2   := stLaserData.rLaserOffsetToSetPoint[0];
+    aLog[WriteIndex].Var3   := iScaledTemp;
+
+    // Advance write pointer
+    WriteIndex := WriteIndex + 1;
+	bWriteDone := TRUE;
+    IF WriteIndex > 999 THEN WriteIndex := 0; END_IF
+
+    // Increment count up to 1000
+    IF Count < 1000 THEN Count := Count + 1; END_IF
+END_IF
+
+
+//    RISING EDGE OF bSave, START FILE WRITE SEQUENCE
+
+rSave(CLK := bSave);
+
+IF rSave.Q AND (Count > 0) AND (NOT bBusy) THEN
+    bBusy  := TRUE;
+    bError := FALSE;
+    eState := 10;
+END_IF
+
+
+
+CASE eState OF
+
+
+// Idle
+
+0:
+    // do nothing bdone:=false????????
+
+
+//  OPEN FILE (APPEND MODE)
+
+10:
+    fbOpen(
+        sPathName := sFile,
+        nMode     := FOPEN_MODEAPPEND,
+        ePath     := PATH_GENERIC,
+        bExecute  := TRUE
+    );
+    eState := 20;
+
+
+// WAIT OPEN
+
+20:
+    fbOpen(bExecute := FALSE);
+
+    IF NOT fbOpen.bBusy AND NOT fbOpen.bError THEN
+        hFile := fbOpen.hFile;
+        eState := 30;
+
+    ELSIF fbOpen.bError THEN
+        bError := TRUE;
+        eState := 100;
+    END_IF
+
+
+// WRITE HEADER (FIRST-TIME ONLY)
+
+30:
+    IF NOT bHeaderWritten THEN
+        
+        sLine := 'Time,MirrorOffset,LaserOffset';
+        sLine := CONCAT(sLine, sCRLF);
+
+        fbWrite(
+            hFile      := hFile,
+            pWriteBuff := ADR(sLine),
+            cbWriteLen := LEN(sLine),
+            bExecute   := TRUE
+        );
+
+        bHeaderWritten := TRUE;
+        eState := 31;
+
+    ELSE
+        ReadIndex := 0;
+        eState := 40;
+    END_IF
+
+
+// WAIT HEADER WRITE
+
+31:
+    fbWrite(bExecute := FALSE);
+
+    IF NOT fbWrite.bBusy AND NOT fbWrite.bError THEN
+        ReadIndex := 0;
+        eState := 40;
+    END_IF
+
+
+// WRITE LOG ENTRIES
+
+40:
+    fbWrite(bExecute := FALSE);
+
+    IF ReadIndex < Count THEN
+        
+        index := (WriteIndex + 1000 - Count + ReadIndex) MOD 1000;
+
+        // Build CSV row
+        sLine := SYSTEMTIME_TO_STRING(aLog[index].tStamp);
+        sLine := CONCAT(sLine, ',');
+        sLine := CONCAT(sLine, LREAL_TO_STRING(aLog[index].Var1));
+        sLine := CONCAT(sLine, ',');
+        sLine := CONCAT(sLine, LREAL_TO_STRING(aLog[index].Var2));
+        sLine := CONCAT(sLine, ',');
+        sLine := CONCAT(sLine, INT_TO_STRING(aLog[index].Var3));
+        sLine := CONCAT(sLine, sCRLF);
+
+        fbWrite(
+            hFile      := hFile,
+            pWriteBuff := ADR(sLine),
+            cbWriteLen := LEN(sLine),
+            bExecute   := TRUE
+        );
+
+        eState := 41;
+
+    ELSE
+        eState := 50;
+    END_IF
+
+
+// WAIT LINE WRITE
+
+41:
+    fbWrite(bExecute := FALSE);
+
+    IF NOT fbWrite.bBusy AND NOT fbWrite.bError THEN
+        ReadIndex := ReadIndex + 1;
+        eState := 40;   // Continue writing next entry
+    END_IF
+
+
+// CLOSE FILE
+
+50:
+    fbClose(hFile := hFile, bExecute := TRUE);
+    eState := 60;
+
+
+//WAIT CLOSE AND FINISH
+
+60:
+    fbClose(bExecute := FALSE);
+
+    Count := 0;
+    WriteIndex := 0;
+
+    bBusy := FALSE;
+    bDoneStatus := TRUE;
+
+    eState := 0;
+
+
+// ERROR
+
+100:
+    bBusy := FALSE;
+    bError := TRUE;
+    eState := 0;
+
+END_CASE
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

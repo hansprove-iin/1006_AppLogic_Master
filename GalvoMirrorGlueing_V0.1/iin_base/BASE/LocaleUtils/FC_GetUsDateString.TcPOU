@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_GetUsDateString" Id="{ee2d7c63-2d2d-4b7d-b38f-a7b29f9738f3}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_GetUsDateString : T_SHORT_STR;		// Returns the US date string, especially usefull for naming log files
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_GetUsDateString := IING.usDateString;]]></ST>
+    </Implementation>
+    <LineIds Name="FC_GetUsDateString">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

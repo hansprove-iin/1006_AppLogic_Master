@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="E_MecaStatus" Id="{2344b3fc-81b8-4d85-9746-99e82dd48b90}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_MecaStatus :
+(
+	Offline,
+	Conf,
+	Idle,
+	Operating,
+	Home,
+	HmiManual,
+	GluingpPos
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

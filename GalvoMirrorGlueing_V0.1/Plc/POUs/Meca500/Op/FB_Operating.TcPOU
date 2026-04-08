@@ -1,0 +1,3023 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Operating" Id="{cb20d2d7-f855-4aae-b705-a3965881f189}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Operating
+VAR_IN_OUT
+	bRobotHomed : BOOL;
+END_VAR
+VAR_INPUT
+	rJogSpeed : REFERENCE TO REAL;
+	stStation	: REFERENCE TO ST_Stations;
+	stAssemblyData : REFERENCE TO ST_Recipes;
+	stModuleHmi : REFERENCE TO ST_ModuleHmi;
+	bExecutePlacing : BOOL;
+	stTipOffsets	: REFERENCE TO ST_GluetipCoordinates;
+	stPlcCom	: REFERENCE TO ST_Module_PlcCom;
+	fbLinearAxis : REFERENCE TO FB_linearAxisFunctions;
+	aOffsetsToGlueTip : ARRAY [0..1] OF REAL;
+	stCouplerData : REFERENCE TO ST_CouplerImagingData;
+	bNewPlacingActive : REFERENCE TO BOOL;
+END_VAR
+VAR_OUTPUT
+	bThicknessTestFailed : BOOL;
+	bError : BOOL;
+	iWorkingStation	: INT;
+	bOperatingActive : BOOL;
+	bDismountingActive : BOOL;
+END_VAR
+VAR
+	Sent				: BOOL;
+	Buffered			: BOOL;
+	Error				: BOOL;
+	
+	Delay				:Meca500_Delay;
+	Gripper				:Meca500_Gripper;
+	MoveGripper			:Meca500_MoveGripper;
+	MoveJoints			:Meca500_MoveJoints;
+	MoveJointsRel		:Meca500_MoveJointsRel;
+	MovejointsVel		:Meca500_MoveJointsVel;
+	MoveLin				:Meca500_MoveLin;
+	MoveLinRelTrf		:Meca500_MoveLinRelTrf;
+	MoveLinRelWrf		:Meca500_MoveLinRelWrf;
+	MoveLinVelTrf		:Meca500_MoveLinVelTrf;
+	MoveLinVelWrf		:Meca500_MoveLinVelWrf;
+	MovePose			:Meca500_MovePose;
+	SetAutoConf			:Meca500_SetAutoConf;
+	SetAutoConfTurn		:Meca500_SetAutoConfTurn;
+	SetBlending			:Meca500_SetBlending;
+	SetCartAcc			:Meca500_SetCartAcc;
+	SetCartAngVel		:Meca500_SetCartAngVel;
+	SetCartLinVel		:Meca500_SetCartLinVel;
+	SetCheckpoint		:Meca500_SetCheckpoint;
+	SetConf				:Meca500_SetConf;
+	SetConfTurn			:Meca500_SetConfTurn;
+	SetGripperForce		:Meca500_SetGripperForce;
+	SetGripperRange		:Meca500_SetGripperRange;
+	SetGripperVel		:Meca500_SetGripperVel;
+	SetJointAcc			:Meca500_SetJointAcc;
+	SetJointVel			:Meca500_SetJointVel;
+	SetTorqueLimitCfg	:Meca500_SetTorqueLimitCfg;
+	SetTorqueLimits		:Meca500_SetTorqueLimits;
+	SetTrf				:Meca500_SetTrf;
+	SetValveState		:Meca500_SetValveState;
+	SetVelTimeout		:Meca500_SetVelTimeout;
+	SetWrf				:Meca500_SetWrf;
+	StartProgram		:Meca500_StartProgram;
+	SetJointVelLimit	:Meca500_SetJointVelLimit;
+	SetTimeScaling		:Meca500_SetTimeScaling;
+	GetEOAT 			:Meca500_GetEOAT;
+	EOAT				: ARRAY [0..5] OF REAL; // Values: [holding part, desired fingers opening reached, gripper closed, gripper open, gripper force, fingers opening].
+	stStationPoses		: ST_Sts_PoseData;
+	iOperatingStep 		: INT;
+	iMirrorStep			: INT;
+	iFinishedStep		: INT;
+	OperatingState		: E_OperatingState;
+	
+	PoseTRFMirror		: ARRAY [1..6] OF REAL := [0,0,106.6,0,0,0];
+	PoseTRFMotor		: ARRAY [1..6] OF REAL := [0,0,98.6,0,0,0];
+	PoseHome			: ARRAY [1..6] OF REAL := [-90,0,0,0,90,0];
+	PoseHome1			: ARRAY [1..6] OF REAL := [-90,0,0,0,90,0];
+	PoseHome2			: ARRAY [1..6] OF REAL := [90,0,0,0,90,0];
+	PoseImagingGalvo14mm		: ARRAY [1..6] OF REAL := [-174.4306, 132.6053 , 214, 180, -90 , 0]; // Initial Pose before motor type based correct imaging pose
+	PoseImagingGalvo10mm		: ARRAY [1..6] OF REAL := [-174.4306, 132.6053 , 226.5, 180, -90 , 0]; // Final pose related to motor and coupler type
+	
+	PoseSafeInOutGlueSt1	:  ARRAY [1..6] OF REAL := [-134 , 100 ,  177.9, -180 , -70 , 0 ]; // '
+	PoseSafeInOutGlueSt2	:  ARRAY [1..6] OF REAL := [162.3 , 4.2 , 36 , 88 ,  -43.5, -57]; // JOINT VALUES '
+	PoseSafeInOutGlueSt3	:  ARRAY [1..6] OF REAL := [-185, 154 , 73 , -155, -10, 70]; //'
+	PoseAfterGluingSt1		:  ARRAY [1..6] OF REAL := [120 , 0 , 0, 0 ,  90, 0]; // JOINT VALUES'
+	PoseGluingSt1		:  ARRAY [1..6] OF REAL := [-170.1, 134 ,165.7  , -167.5 , -4.7 , 72.5]; // 
+	PoseGluingSt2 		:  ARRAY [1..6] OF REAL := [-175, 166 ,177.87  , -163.5 , -7.2 , 73.2]; // 
+	PoseGluingSt3 		:  ARRAY [1..6] OF REAL := [-175, 166 ,160.27  , -163.5 , -7.2 , 73.2]; // 
+	PoseGluingSt4 		:  ARRAY [1..6] OF REAL := [-157.9, 103.5 ,160.5  , -163.5 , -7.2 , 73.2]; // 
+	PoseGluingSt5		:  ARRAY [1..6] OF REAL := [ -173.55, 132.8, 103 , -123.6 , -17 , 90];  // 
+	
+	PoseGluingSt6 		:  ARRAY [1..6] OF REAL := [ -169.673813, 134.421356, 118.048595 , -123.6 , -17 , 90]; // 
+	PoseGluingSt7 		:  ARRAY [1..6] OF REAL := [ -173.192612,132.9314, 118.355591 , -123.600 , -17 , 90];  //
+	PoseGluingSt8		:  ARRAY [1..6] OF REAL := [ -174.150, 132.583 , 83.690 , -106.182 , -17 , 90];   //
+	PoseGluingSt9		:  ARRAY [1..6] OF REAL := [ -169.879,134.182,83.645,-106.182,-17,90];  //
+	PoseGluingSt10		:  ARRAY [1..6] OF REAL := [ -169.879,134.697,77,-106.182,-17,90];  //
+	
+	PoseMotorPickupSt1	: ARRAY [1..6] OF REAL := [-107.6,-150.45 , 110.5 , 0, -90 ,0]; // POSE BEFORE ACTUAL GRIP POSITION
+	PoseMotorPickupSt2	: ARRAY [1..6] OF REAL := [-127.65,-150.45 , 110.5 , 0, -90 ,0];// ACTUAL GRIP POSITION
+	PoseMotorPickupSt3	: ARRAY [1..6] OF REAL := [-127.65,-150.45 , 200.5 , 0, -90 ,0];// MOTOR LIFT FROM PALLET
+	
+	PoseMotorPlaceSt1	: ARRAY [1..6] OF REAL := [-73.5605, 110 ,165.6645  , -180 , 0 , 90]; // POSE BEFORE ACTULA LEAVING POSITION
+	PoseMotorPlaceSt2	: ARRAY [1..6] OF REAL := [-73.5605, 140 ,165.6645  , -180 , 0 , 90]; // ACTUAL POSITION FOR LEAVING MOTOR AT CURING STATION
+	PoseMotorPlaceSt3	: ARRAY [1..6] OF REAL := [-73.5605, 140 ,200  , -180 , 0 , 90]; // POSE AFTER LEAVING MOTOR AT CURING STATION
+	
+	PoseMirrorPickupSt1	: ARRAY [1..6] OF REAL := [-158.5,-91.5 , 200 ,180, 0 ,0]; // POSE BEFORE ACTUAL GRIP POSITION
+	PoseMirrorPickupSt2	: ARRAY [1..6] OF REAL := [-158.5,-91.5 , 187.1757 ,180, 0 ,0];// ACTUAL GRIP POSITION
+	
+	PoseMirrorAdjust	: ARRAY [1..6] OF REAL := [-71.6, 192.8 ,200.3  , -180 , 0 , 90]; // POSE BEFORE INSERTIN MIRROR IN STATION
+	PoseMirrorAdjustPrev : ARRAY [1..6] OF REAL := [-71.6, 192.8 ,200.3  , -180 , 0 , 90]; // POSE LAST ADJUSTMENT POSE
+	PoseMirrorAdjustPrevSts1 : ARRAY [1..6] OF REAL := [-71.6, 192.8 ,200.3  , -180 , 0 , 90];
+	PoseMirrorAdjustPrevSts2 : ARRAY [1..6] OF REAL := [-71.6, 192.8 ,200.3  , -180 , 0 , 90];
+	PoseMirrorAdjustPrevSts3 : ARRAY [1..6] OF REAL := [-71.6, 192.8 ,200.3  , -180 , 0 , 90];
+	PoseMirrorAdjustPrevSts4 : ARRAY [1..6] OF REAL := [-71.6, 192.8 ,200.3  , -180 , 0 , 90];
+	PoseMirrorAdjustPrevSts5 : ARRAY [1..6] OF REAL := [-71.6, 192.8 ,200.3  , -180 , 0 , 90];
+	PoseMirrorAdjustPrevSts6 : ARRAY [1..6] OF REAL := [-71.6, 192.8 ,200.3  , -180 , 0 , 90];
+	PoseMirrorAdjustPrevSts7 : ARRAY [1..6] OF REAL := [-71.6, 192.8 ,200.3  , -180 , 0 , 90];
+	PoseMirrorAdjustPrevSts8 : ARRAY [1..6] OF REAL := [-71.6, 192.8 ,200.3  , -180 , 0 , 90];
+	PoseMirrorAdjustPrevSts9 : ARRAY [1..6] OF REAL := [-71.6, 192.8 ,200.3  , -180 , 0 , 90];
+	PoseMirrorAdjustPrevSts10 : ARRAY [1..6] OF REAL := [-71.6, 192.8 ,200.3  , -180 , 0 , 90];
+	PoseMotorPickupTemp : ARRAY [1..6] OF REAL := [-73.2067 , 21.8881 , 23.8300 , -105.4797 , 75.4102 , -42.2884]; // JOINT VALUES
+	PoseToGluing			: ARRAY [1..6] OF REAL := [173 , 6 , 35 , 95 ,  -50, -57]; // JOINT VALUES
+	PoseToMirrorPickupSt1 : ARRAY [1..6] OF REAL := [154 , 0 , 0 , 0 ,  90, 0]; // JOINT VALUES
+	
+	GluingTmr1			: TON;
+	GluingTmr2			: TON;
+	GluingStartTmr		: TON;
+	GluingOffTmr		: TON;
+	GluingStartTmr2		: TON;
+	StationGripperTmr	: TON;
+	ReleaseTmr			: TON;
+	bLinearAxisDone		: BOOL;
+	iStationSelect		: INT;
+	iGluingPoses		: INT;
+	iGluingStep			: INT;
+	bMotorType 			: BOOL; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+	bBypassState		: BOOL; // Used to skip if function that controls operatingstep
+	iGluingTimeLine		: UDINT;
+	iGluingTimeDot		: UDINT;
+	stGluingPoses		: ST_GluingPoses;
+	rAngleErrHeight		: REAL;
+	rAngleErrPos		: REAL;
+	rCouplerOffset 		: REAL;
+	eCurrentState		: E_CurrentState;
+	bProductPassed		: BOOL;
+	bHolderSensor		: BOOL;
+	bSliderSensor		: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[GluingTmr1(PT := UDINT_TO_TIME (iGluingTimeDot * 1000)); // GLUING ON TIMER FOR DOT
+GluingTmr2(PT := UDINT_TO_TIME (iGluingTimeLine * 1000)); // GLUING ON TIMER FOR LINE
+GluingOffTmr(PT := T#7S); // Timer for wait time after gluing.
+GluingStartTmr2(PT := T#5S); // Timer for wait before line gluing movement start
+StationGripperTmr(PT := T#1S); // Timer for wait for gripper movement
+
+
+CASE OperatingState OF
+	E_OperatingState.Init:
+		Initialize();	
+		IF bExecutePlacing THEN
+			OperatingState := E_OperatingState.SetPoses;
+		END_IF
+	E_OperatingState.SetPoses:
+		eCurrentState := E_CurrentState.Init;
+		bOperatingActive := FALSE;
+		CASE iStationSelect OF
+			0: iStationSelect := 1; // NO STATION SELECTED
+			1: IF stStation.fbSts1.bInHoldForRobot THEN
+					CheckType();
+					WritePoses(iStationId := 1); // Write robot ready for station
+					iWorkingStation := 1;
+					stStation.fbSts1.bRobotReadyForStation := TRUE;
+					bExecutePlacing := TRUE;
+					IF NOT stStation.fbSts1.MotorInStation THEN
+						iOperatingStep := 0;
+						IF NOT bMotorType THEN	
+							OperatingState := E_OperatingState.OperatingGalvo14mm;
+						ELSE
+							OperatingState := E_OperatingState.OperatingGalvo10mm;
+						END_IF
+					ELSIF stStation.fbSts1.AllPartsInStation AND NOT stStation.fbSts1.AssemblyDone THEN
+						iMirrorStep := 0;
+						OperatingState := E_OperatingState.MirrorAdjustment;
+					ELSIF stStation.fbSts1.AssemblyDone AND NOT bNewPlacingActive THEN
+						iOperatingStep := 0;
+						IF NOT bMotorType THEN	
+							OperatingState := E_OperatingState.FinishedHandling14mm;
+						ELSE
+							OperatingState := E_OperatingState.FinishedHandling10mm;
+						END_IF
+					ELSIF NOT stStation.fbSts1.bHoldRobotForAdj THEN
+						iStationSelect := 2;
+					END_IF
+ 				ELSIF stStation.fbSts1.bHoldRobotForAdj THEN
+ 					stStation.fbSts1.bRobotReadyForStation := FALSE;
+				ELSE
+					stStation.fbSts1.bRobotReadyForStation := FALSE;
+					iStationSelect := 2;
+				END_IF
+			2: IF stStation.fbSts2.bInHoldForRobot THEN
+					CheckType();
+					WritePoses(iStationId := 2); // Write robot ready for station
+					iWorkingStation := 2;
+					stStation.fbSts2.bRobotReadyForStation := TRUE;
+					bExecutePlacing := TRUE;
+					IF NOT stStation.fbSts2.MotorInStation THEN
+						iOperatingStep := 0;
+						IF NOT bMotorType THEN	
+							OperatingState := E_OperatingState.OperatingGalvo14mm;
+						ELSE
+							OperatingState := E_OperatingState.OperatingGalvo10mm;
+						END_IF
+					ELSIF stStation.fbSts2.AllPartsInStation AND NOT stStation.fbSts2.AssemblyDone THEN
+						iMirrorStep := 0;
+						OperatingState := E_OperatingState.MirrorAdjustment;
+					ELSIF stStation.fbSts2.AssemblyDone AND NOT bNewPlacingActive THEN
+						iOperatingStep := 0;
+						IF NOT bMotorType THEN	
+							OperatingState := E_OperatingState.FinishedHandling14mm;
+						ELSE
+							OperatingState := E_OperatingState.FinishedHandling10mm;
+						END_IF
+					ELSE
+						iStationSelect := 0;
+					END_IF
+ 				ELSIF stStation.fbSts2.bHoldRobotForAdj THEN
+ 					stStation.fbSts2.bRobotReadyForStation := FALSE;
+				ELSE
+					stStation.fbSts2.bRobotReadyForStation := FALSE;
+					iStationSelect := 0;
+				END_IF
+		END_CASE
+	
+		
+	E_OperatingState.MoveLinAxis:
+		bOperatingActive := TRUE;
+		IF NOT fbLinearAxis.LinearAxisBusy THEN
+			fbLinearAxis.ExecuteMovement := TRUE;
+		END_IF
+		IF fbLinearAxis.bMovementDone THEN
+			fbLinearAxis.ExecuteMovement := FALSE;
+			bLinearAxisDone := TRUE;
+			IF eCurrentState = E_CurrentState.GalvoHandling THEN
+				IF bMotorType THEN
+					OperatingState := E_OperatingState.OperatingGalvo10mm;
+				ELSE
+					OperatingState := E_OperatingState.OperatingGalvo14mm;
+				END_IF
+			ELSIF  eCurrentState = E_CurrentState.MirrorAdj THEN
+				OperatingState := E_OperatingState.MirrorAdjustment;
+			ELSIF  eCurrentState = E_CurrentState.FinishedProduct THEN
+				IF bMotorType THEN
+					OperatingState := E_OperatingState.FinishedHandling10mm;
+				ELSE
+					OperatingState := E_OperatingState.FinishedHandling14mm;
+				END_IF
+			END_IF
+			
+		END_IF
+		
+	E_OperatingState.OperatingGalvo14mm:  // LISÄÄ KOHTA JOKA PITÄÄ HUOLEN ETTÄ JOS ANTURI TUNNISTAA VÄÄRÄSSÄ PAIKKAA ROBOTIN ON PYSÄHDYTTÄVÄ
+ 		Galvo14mm();
+	
+	E_OperatingState.OperatingGalvo10mm: ; // MUISTA PIENEN PEILIN KORJAUKSESSA SLIDERIN SIJAINTI
+		
+		
+	E_OperatingState.MirrorAdjustment:
+ 		MirrorAdj();
+		
+	E_OperatingState.FinishedHandling14mm:
+		bDismountingActive := TRUE;
+		Finished14mm();
+		
+	E_OperatingState.FinishedHandling10mm:
+		bDismountingActive := TRUE;
+	
+END_CASE
+
+
+GetEOAT(
+	Status => EOAT,
+	Robot := Meca500.GVL.Meca500);]]></ST>
+    </Implementation>
+    <Folder Name="Act" Id="{fbbec362-08eb-40d4-b222-e2740caef989}" />
+    <Folder Name="Mth" Id="{417f24a5-3b5e-420c-a919-64423eab2c88}" />
+    <Method Name="AdjDone" Id="{ccf00eb9-e52d-4e13-9f7e-5744fa517659}" FolderPath="Mth\">
+      <Declaration><![CDATA[METHOD AdjDone : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE iWorkingStation OF
+	0:
+	1: PoseMirrorAdjustPrevSts1 :=PoseMirrorAdjust;
+	stStation.fbSts1.bAdjDone := TRUE;
+	2:  PoseMirrorAdjustPrevSts2 :=PoseMirrorAdjust;
+	stStation.fbSts2.bAdjDone := TRUE;
+	3:  PoseMirrorAdjustPrevSts3 :=PoseMirrorAdjust;
+	stStation.fbSts3.bAdjDone := TRUE;
+	4:  PoseMirrorAdjustPrevSts4 :=PoseMirrorAdjust;
+	stStation.fbSts4.bAdjDone := TRUE;
+	5:  PoseMirrorAdjustPrevSts5 :=PoseMirrorAdjust;
+	stStation.fbSts5.bAdjDone := TRUE;
+	6:  PoseMirrorAdjustPrevSts6 :=PoseMirrorAdjust;
+	stStation.fbSts6.bAdjDone := TRUE;
+	7:  PoseMirrorAdjustPrevSts7 :=PoseMirrorAdjust;
+	stStation.fbSts7.bAdjDone := TRUE;
+	8:  PoseMirrorAdjustPrevSts8 :=PoseMirrorAdjust;
+	stStation.fbSts8.bAdjDone := TRUE;
+	9:  PoseMirrorAdjustPrevSts9 :=PoseMirrorAdjust;
+	stStation.fbSts9.bAdjDone := TRUE;
+	10:  PoseMirrorAdjustPrevSts10 :=PoseMirrorAdjust;
+	stStation.fbSts10.bAdjDone := TRUE;
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CheckProduct" Id="{04076697-36a3-4c55-b410-5e8547b43894}" FolderPath="Mth\">
+      <Declaration><![CDATA[METHOD CheckProduct : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE iWorkingStation OF
+	0:
+	1:IF stStation.fbSts1.bAssemblyFailed THEN
+			bProductPassed := FALSE;
+		ELSE
+			bProductPassed := TRUE;
+		END_IF
+	2:IF stStation.fbSts2.bAssemblyFailed THEN
+			bProductPassed := FALSE;
+		ELSE
+			bProductPassed := TRUE;
+		END_IF
+	3:IF stStation.fbSts3.bAssemblyFailed THEN
+			bProductPassed := FALSE;
+		ELSE
+			bProductPassed := TRUE;
+		END_IF
+	4:IF stStation.fbSts4.bAssemblyFailed THEN
+			bProductPassed := FALSE;
+		ELSE
+			bProductPassed := TRUE;
+		END_IF
+	5:IF stStation.fbSts5.bAssemblyFailed THEN
+			bProductPassed := FALSE;
+		ELSE
+			bProductPassed := TRUE;
+		END_IF
+	6:IF stStation.fbSts6.bAssemblyFailed THEN
+			bProductPassed := FALSE;
+		ELSE
+			bProductPassed := TRUE;
+		END_IF
+	7:IF stStation.fbSts7.bAssemblyFailed THEN
+			bProductPassed := FALSE;
+		ELSE
+			bProductPassed := TRUE;
+		END_IF
+	8:IF stStation.fbSts8.bAssemblyFailed THEN
+			bProductPassed := FALSE;
+		ELSE
+			bProductPassed := TRUE;
+		END_IF
+	9:IF stStation.fbSts9.bAssemblyFailed THEN
+			bProductPassed := FALSE;
+		ELSE
+			bProductPassed := TRUE;
+		END_IF
+	10:IF stStation.fbSts10.bAssemblyFailed THEN
+			bProductPassed := FALSE;
+		ELSE
+			bProductPassed := TRUE;
+		END_IF
+	
+	
+	
+	
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CheckType" Id="{8d7e3152-2bba-40d1-9708-3b600a5e1cec}" FolderPath="Mth\">
+      <Declaration><![CDATA[METHOD CheckType : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE iWorkingStation OF
+	1..5: 
+		IF stAssemblyData.Station1To5.sAssemblyType = 'AL-86068' THEN
+			bMotorType := TRUE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-79710' THEN
+			bMotorType := TRUE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+		
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-82028' THEN
+			bMotorType := TRUE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+			
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-82026' THEN
+			bMotorType :=FALSE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+			rCouplerOffset := 0;										// Coupler offset means how deep mirror placement needs to go related to coupler depth 12.6 other is 10.2
+			rAngleErrHeight := ((6/2)*SIN(stCouplerData.rCouplerAngleRad))+(0.89)*(COS(stCouplerData.rCouplerAngleRad)-0.89); // Calculates te coupler angles inpact on gluing position (CouplerThickness/2)...(CouplerGluing surface offset from center)
+			rAngleErrPos := (3-((6/2)*COS(stCouplerData.rCouplerAngleRad))-((0.89)*SIN(stCouplerData.rCouplerAngleRad)));
+			PoseGluingSt1 := stGluingPoses.AL82027.PoseGluingSt1;
+			PoseGluingSt2 := stGluingPoses.AL82027.PoseGluingSt2;
+			PoseGluingSt3 := stGluingPoses.AL82027.PoseGluingSt3;
+			PoseGluingSt4 := stGluingPoses.AL82027.PoseGluingSt4;
+			
+			PoseGluingSt2[1] := PoseGluingSt2[1] - stTipOffsets.X;
+			PoseGluingSt2[2] := PoseGluingSt2[2] - stTipOffsets.Y;
+			
+			PoseGluingSt3[1] := PoseGluingSt3[1] - stTipOffsets.X;
+			PoseGluingSt3[2] := PoseGluingSt3[2] - stTipOffsets.Y;
+			
+			PoseGluingSt4[1] := PoseGluingSt4[1] - stTipOffsets.X;
+			PoseGluingSt4[2] := PoseGluingSt4[2] - stTipOffsets.Y;
+			
+			PoseGluingSt5[1] := PoseGluingSt5[1] - stTipOffsets.X;
+			PoseGluingSt5[2] := PoseGluingSt5[2] - stTipOffsets.Y;
+			
+ 			iGluingTimeLine := stGluingPoses.AL82027.iGluingTimeLine;
+ 			iGluingTimeDot := stGluingPoses.AL82027.iGluingTimeDot;
+			
+			IF stCouplerData.rCouplerAngleDeg > 0 THEN
+				PoseGluingSt2[3] := PoseGluingSt2[3] - stTipOffsets.Z - rAngleErrHeight;
+				PoseGluingSt3[3] := PoseGluingSt3[3] - stTipOffsets.Z - rAngleErrHeight;
+				PoseGluingSt4[3] := PoseGluingSt4[3] - stTipOffsets.Z + rAngleErrHeight;
+			ELSE
+				PoseGluingSt2[3] := PoseGluingSt2[3] - stTipOffsets.Z + rAngleErrHeight;
+				PoseGluingSt3[3] := PoseGluingSt3[3] - stTipOffsets.Z + rAngleErrHeight;
+				PoseGluingSt4[3] := PoseGluingSt4[3] - stTipOffsets.Z - rAngleErrHeight;
+			END_IF
+			iGluingPoses := stGluingPoses.AL82027.iPoseAmount;
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-69219' THEN
+			bMotorType :=FALSE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm	
+	
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-70918' THEN
+			bMotorType :=FALSE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+		
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-200617' THEN
+			bMotorType := TRUE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+		
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-200613' THEN
+			bMotorType :=FALSE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+		
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-88450' THEN
+			bMotorType :=FALSE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+		
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-200665' THEN
+			bMotorType :=FALSE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+		
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-200663' THEN
+			bMotorType :=FALSE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+		
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-82029' THEN
+			bMotorType := TRUE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+		
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-86069' THEN
+			bMotorType := TRUE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+		
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-79420' THEN
+			bMotorType := TRUE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+		
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-82027' THEN
+			rCouplerOffset := 0;										// Coupler offset means how deep mirror placement needs to go related to coupler height 12.6
+			bMotorType :=FALSE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+			rAngleErrHeight := ((6/2)*SIN(stCouplerData.rCouplerAngleRad))+(0.89)*(COS(stCouplerData.rCouplerAngleRad)-0.89); // Calculates te coupler angles inpact on gluing position (CouplerThickness/2)...(CouplerGluing surface offset from center)
+			PoseGluingSt1 := stGluingPoses.AL82027.PoseGluingSt1;
+			PoseGluingSt2 := stGluingPoses.AL82027.PoseGluingSt2;
+			PoseGluingSt3 := stGluingPoses.AL82027.PoseGluingSt3;
+			PoseGluingSt4 := stGluingPoses.AL82027.PoseGluingSt4;
+			
+			PoseGluingSt2[1] := PoseGluingSt2[1] - stTipOffsets.X;
+			PoseGluingSt2[2] := PoseGluingSt2[2] - stTipOffsets.Y;
+			
+			PoseGluingSt3[1] := PoseGluingSt3[1] - stTipOffsets.X;
+			PoseGluingSt3[2] := PoseGluingSt3[2] - stTipOffsets.Y;
+			
+			PoseGluingSt4[1] := PoseGluingSt4[1] - stTipOffsets.X;
+			PoseGluingSt4[2] := PoseGluingSt4[2] - stTipOffsets.Y;
+			
+			PoseGluingSt5[1] := PoseGluingSt5[1] - stTipOffsets.X;
+			PoseGluingSt5[2] := PoseGluingSt5[2] - stTipOffsets.Y;
+			
+			iGluingTimeLine := stGluingPoses.AL82027.iGluingTimeLine;
+			iGluingTimeDot := stGluingPoses.AL82027.iGluingTimeDot;
+			IF stCouplerData.rCouplerAngleDeg > 0 THEN
+				PoseGluingSt2[3] := PoseGluingSt2[3] - stTipOffsets.Z - rAngleErrHeight;
+				PoseGluingSt3[3] := PoseGluingSt3[3] - stTipOffsets.Z - rAngleErrHeight;
+				PoseGluingSt4[3] := PoseGluingSt4[3] - stTipOffsets.Z + rAngleErrHeight;
+			ELSE
+				PoseGluingSt2[3] := PoseGluingSt2[3] - stTipOffsets.Z + rAngleErrHeight;
+				PoseGluingSt3[3] := PoseGluingSt3[3] - stTipOffsets.Z + rAngleErrHeight;
+				PoseGluingSt4[3] := PoseGluingSt4[3] - stTipOffsets.Z - rAngleErrHeight;
+			END_IF
+			iGluingPoses := stGluingPoses.AL82027.iPoseAmount;
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-69220' THEN
+			bMotorType :=FALSE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+		
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-70916' THEN
+			bMotorType :=FALSE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+		
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-200618' THEN
+			bMotorType := TRUE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+		
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-200614' THEN
+			bMotorType :=FALSE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+		
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-88470' THEN
+			bMotorType :=FALSE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+		
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-200662' THEN
+			bMotorType :=FALSE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+			rCouplerOffset := 2.4;
+			rAngleErrHeight := ((6/2)*SIN(stCouplerData.rCouplerAngleRad))+(0.89)*(COS(stCouplerData.rCouplerAngleRad)-0.89); // Calculates te coupler angles inpact on gluing position (CouplerThickness/2)...(CouplerGluing surface offset from center)
+			PoseGluingSt1 := stGluingPoses.AL200662.PoseGluingSt1;
+			PoseGluingSt2 := stGluingPoses.AL200662.PoseGluingSt2;
+			PoseGluingSt3 := stGluingPoses.AL200662.PoseGluingSt3;
+			PoseGluingSt4 := stGluingPoses.AL200662.PoseGluingSt4;
+			PoseGluingSt5 := stGluingPoses.AL200662.PoseGluingSt5;
+			
+			PoseGluingSt2[1] := PoseGluingSt2[1] - stTipOffsets.X;
+			PoseGluingSt2[2] := PoseGluingSt2[2] - stTipOffsets.Y;
+			
+			PoseGluingSt3[1] := PoseGluingSt3[1] - stTipOffsets.X;
+			PoseGluingSt3[2] := PoseGluingSt3[2] - stTipOffsets.Y;
+			
+			PoseGluingSt4[1] := PoseGluingSt4[1] - stTipOffsets.X;
+			PoseGluingSt4[2] := PoseGluingSt4[2] - stTipOffsets.Y;
+			
+			PoseGluingSt5[1] := PoseGluingSt5[1] - stTipOffsets.X;
+			PoseGluingSt5[2] := PoseGluingSt5[2] - stTipOffsets.Y;
+			
+			IF stCouplerData.rCouplerAngleDeg > 0 THEN
+				PoseGluingSt2[3] := PoseGluingSt2[3] - stTipOffsets.Z - rAngleErrHeight;
+				PoseGluingSt3[3] := PoseGluingSt3[3] - stTipOffsets.Z - rAngleErrHeight;
+				PoseGluingSt4[3] := PoseGluingSt4[3] - stTipOffsets.Z + rAngleErrHeight;
+				PoseGluingSt5[3] := PoseGluingSt5[3] - stTipOffsets.Z + rAngleErrHeight;
+			ELSE
+				PoseGluingSt2[3] := PoseGluingSt2[3] - stTipOffsets.Z + rAngleErrHeight;
+				PoseGluingSt3[3] := PoseGluingSt3[3] - stTipOffsets.Z + rAngleErrHeight;
+				PoseGluingSt4[3] := PoseGluingSt4[3] - stTipOffsets.Z - rAngleErrHeight;
+				PoseGluingSt5[3] := PoseGluingSt5[3] - stTipOffsets.Z - rAngleErrHeight;
+			END_IF
+			iGluingPoses := 5;
+			
+		ELSIF stAssemblyData.Station1To5.sAssemblyType = 'AL-200664' THEN
+			bMotorType :=FALSE; // IF TRUE THEN MOTOR TYPE IS 10mm, FALSE IS 14mm
+			PoseGluingSt1 := stGluingPoses.AL200662.PoseGluingSt1;
+			PoseGluingSt2 := stGluingPoses.AL200662.PoseGluingSt2;
+			PoseGluingSt3 := stGluingPoses.AL200662.PoseGluingSt3;
+			PoseGluingSt4 := stGluingPoses.AL200662.PoseGluingSt4;
+			PoseGluingSt5 := stGluingPoses.AL200662.PoseGluingSt5;
+			iGluingPoses := 5;
+		END_IF;
+
+// 	5..10: 
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="DisableSetStation" Id="{1df013af-16bc-43b7-90ef-e92dda3557f5}" FolderPath="Mth\">
+      <Declaration><![CDATA[METHOD DisableSetStation : BOOL
+VAR_INPUT
+	iStationId	: INT;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE iStationId OF
+	0:
+	1:  stModuleHmi.Stations.bActivateStation1:= FALSE;
+		iStationId := 0;
+	2:  stModuleHmi.Stations.bActivateStation2 := FALSE;
+		iStationId := 0;
+	3:  stModuleHmi.Stations.bActivateStation3 := FALSE;
+		iStationId := 0;
+	4:  stModuleHmi.Stations.bActivateStation4 := FALSE;
+		iStationId := 0;
+	5:  stModuleHmi.Stations.bActivateStation5 := FALSE;
+		iStationId := 0;
+	6:  stModuleHmi.Stations.bActivateStation6 := FALSE;
+		iStationId := 0;
+	7:  stModuleHmi.Stations.bActivateStation7 := FALSE;
+		iStationId := 0;
+	8:  stModuleHmi.Stations.bActivateStation8 := FALSE;
+		iStationId := 0;
+	9:  stModuleHmi.Stations.bActivateStation9 := FALSE;
+		iStationId := 0;
+	10: stModuleHmi.Stations.bActivateStation10 := FALSE;	
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="DismountingDone" Id="{a39cabe4-9e85-4206-a432-3eb78aadc624}" FolderPath="Mth\">
+      <Declaration><![CDATA[METHOD DismountingDone : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE iWorkingStation OF
+	0: 
+	1: stStation.fbSts1.bDismountingDone := TRUE;
+	2: stStation.fbSts2.bDismountingDone := TRUE;
+	3: stStation.fbSts3.bDismountingDone := TRUE;
+	4: stStation.fbSts4.bDismountingDone := TRUE;
+	5: stStation.fbSts5.bDismountingDone := TRUE;
+	6: stStation.fbSts6.bDismountingDone := TRUE;
+	7: stStation.fbSts7.bDismountingDone := TRUE;
+	8: stStation.fbSts8.bDismountingDone := TRUE;
+	9: stStation.fbSts9.bDismountingDone := TRUE;
+	10: stStation.fbSts10.bDismountingDone := TRUE;
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="EngageHolder" Id="{2124621f-833e-4b2e-bd6d-347e3d6cfabe}" FolderPath="Mth\">
+      <Declaration><![CDATA[METHOD EngageHolder : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE iWorkingStation OF
+	0: 
+	1: stStation.fbSts1.bEngageHolder := TRUE;
+		IF NOT stStation.fbSts1.bHolderSensor THEN
+			bHolderSensor := TRUE;
+		ELSE
+			bHolderSensor := FALSE;
+		END_IF
+	2: stStation.fbSts2.bEngageHolder := TRUE;
+		IF NOT stStation.fbSts2.bHolderSensor THEN
+			bHolderSensor := TRUE;
+		ELSE
+			bHolderSensor := FALSE;
+		END_IF
+	3: stStation.fbSts3.bEngageHolder := TRUE;
+		IF NOT stStation.fbSts3.bHolderSensor THEN
+			bHolderSensor := TRUE;
+		ELSE
+			bHolderSensor := FALSE;
+		END_IF
+	4: stStation.fbSts4.bEngageHolder := TRUE;
+		IF NOT stStation.fbSts4.bHolderSensor THEN
+			bHolderSensor := TRUE;
+		ELSE
+			bHolderSensor := FALSE;
+		END_IF
+	5: stStation.fbSts5.bEngageHolder := TRUE;
+		IF NOT stStation.fbSts5.bHolderSensor THEN
+			bHolderSensor := TRUE;
+		ELSE
+			bHolderSensor := FALSE;
+		END_IF
+	6: stStation.fbSts6.bEngageHolder := TRUE;
+		IF NOT stStation.fbSts6.bHolderSensor THEN
+			bHolderSensor := TRUE;
+		ELSE
+			bHolderSensor := FALSE;
+		END_IF
+	7: stStation.fbSts7.bEngageHolder := TRUE;
+		IF NOT stStation.fbSts7.bHolderSensor THEN
+			bHolderSensor := TRUE;
+		ELSE
+			bHolderSensor := FALSE;
+		END_IF
+	8: stStation.fbSts8.bEngageHolder := TRUE;
+		IF NOT stStation.fbSts8.bHolderSensor THEN
+			bHolderSensor := TRUE;
+		ELSE
+			bHolderSensor := FALSE;
+		END_IF
+	9: stStation.fbSts9.bEngageHolder := TRUE;
+		IF NOT stStation.fbSts9.bHolderSensor THEN
+			bHolderSensor := TRUE;
+		ELSE
+			bHolderSensor := FALSE;
+		END_IF
+	10: stStation.fbSts10.bEngageHolder := TRUE;
+		IF NOT stStation.fbSts10.bHolderSensor THEN
+			bHolderSensor := TRUE;
+		ELSE
+			bHolderSensor := FALSE;
+		END_IF
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="EngageSlider" Id="{8e1fe543-8a53-46fd-8dd7-5f5324a72a63}" FolderPath="Mth\">
+      <Declaration><![CDATA[METHOD EngageSlider : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE iWorkingStation OF
+	0: 
+	1: stStation.fbSts1.bEngageSlider := TRUE;
+		IF stStation.fbSts1.bSliderSensor THEN
+			bSliderSensor := FALSE;
+		ELSE
+			bSliderSensor := TRUE;
+		END_IF
+	2: stStation.fbSts2.bEngageSlider := TRUE;
+		IF stStation.fbSts2.bSliderSensor THEN
+			bSliderSensor := FALSE;
+		ELSE
+			bSliderSensor := TRUE;
+		END_IF
+	3: stStation.fbSts3.bEngageSlider := TRUE;
+		IF stStation.fbSts3.bSliderSensor THEN
+			bSliderSensor := FALSE;
+		ELSE
+			bSliderSensor := TRUE;
+		END_IF
+	4: stStation.fbSts4.bEngageSlider := TRUE;
+		IF stStation.fbSts4.bSliderSensor THEN
+			bSliderSensor := FALSE;
+		ELSE
+			bSliderSensor := TRUE;
+		END_IF
+	5: stStation.fbSts5.bEngageSlider := TRUE;
+		IF stStation.fbSts5.bSliderSensor THEN
+			bSliderSensor := FALSE;
+		ELSE
+			bSliderSensor := TRUE;
+		END_IF
+	6: stStation.fbSts6.bEngageSlider := TRUE;
+		IF stStation.fbSts6.bSliderSensor THEN
+			bSliderSensor := FALSE;
+		ELSE
+			bSliderSensor := TRUE;
+		END_IF
+	7: stStation.fbSts7.bEngageSlider := TRUE;
+		IF stStation.fbSts7.bSliderSensor THEN
+			bSliderSensor := FALSE;
+		ELSE
+			bSliderSensor := TRUE;
+		END_IF
+	8: stStation.fbSts8.bEngageSlider := TRUE;
+		IF stStation.fbSts8.bSliderSensor THEN
+			bSliderSensor := FALSE;
+		ELSE
+			bSliderSensor := TRUE;
+		END_IF
+	9: stStation.fbSts9.bEngageSlider := TRUE;
+		IF stStation.fbSts9.bSliderSensor THEN
+			bSliderSensor := FALSE;
+		ELSE
+			bSliderSensor := TRUE;
+		END_IF
+	10: stStation.fbSts10.bEngageSlider := TRUE;
+		IF stStation.fbSts10.bSliderSensor THEN
+			bSliderSensor := FALSE;
+		ELSE
+			bSliderSensor := TRUE;
+		END_IF
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Action Name="Finished14mm" Id="{90d4519f-ee19-45e8-93b6-61a6b2f8595a}" FolderPath="Act\">
+      <Implementation>
+        <ST><![CDATA[eCurrentState := E_CurrentState.FinishedProduct;
+bOperatingActive := TRUE;
+CASE iFinishedStep OF
+	0: iFinishedStep := 1;
+		
+ 	1:	MoveGripper(mm := 24,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	2: SetTrf(
+			Pose := PoseTRFMotor,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	3: SetGripperForce(
+			Force := 60,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	4: fbLinearAxis.AxisTargetPos := stStationPoses.rLinPosPlace;
+		OperatingState := E_OperatingState.MoveLinAxis;
+		iFinishedStep := 5;
+	5: IF EOAT[1] = 1 AND EOAT[0] = 0 THEN
+			IF iWorkingStation < 5 THEN
+				iFinishedStep := 6;
+			ELSE
+				iFinishedStep := 7;
+			END_IF
+		END_IF
+	6: MoveJoints(Joint_Angle := PoseHome2,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	7: iFinishedStep := 9;
+	8: MoveJoints(Joint_Angle := PoseHome1,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	9: SetCheckpoint(CheckpointID := 20,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	10: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 20 THEN
+			iFinishedStep := 11;
+		END_IF
+	11: MovePose(Pose := stStationPoses.aPoseLargeMotorPlaceSt3,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	12: MoveLin(Pose := stStationPoses.aPoseLargeMotorPlaceSt2,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);	
+	13: MoveGripper(mm := 0,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	14: SetCheckpoint(CheckpointID := 104,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	
+	15: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 104 AND EOAT[0] = 1 THEN
+			ReleaseHolder();
+			ReleaseSlider();
+			CheckProduct();
+			ReleaseTmr.IN := TRUE;
+			IF ReleaseTmr.Q AND NOT bHolderSensor AND bSliderSensor THEN
+				ReleaseTmr.IN := FALSE;
+				iFinishedStep := 16;
+			END_IF
+		END_IF
+	16: MoveLin(Pose := stStationPoses.aPoseLargeMotorPlaceSt1,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	17: SetCheckpoint(CheckpointID := 204,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	18: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 204 THEN // LISÄÄ TARKISTUS TUOTTEEN LAADUSTA
+			IF bProductPassed THEN
+				fbLinearAxis.AxisTargetPos := stStationPoses.rLinPosPalletPass;
+				OperatingState := E_OperatingState.MoveLinAxis;
+				iFinishedStep := 19;
+			ELSE
+				fbLinearAxis.AxisTargetPos := stStationPoses.rLinPosPalletReject;
+				OperatingState := E_OperatingState.MoveLinAxis;
+				iFinishedStep := 100;
+			END_IF
+		END_IF
+	19: IF iWorkingStation < 5 THEN
+			iFinishedStep := 20;
+		ELSE
+			iFinishedStep := 22;
+		END_IF
+	20: MoveJoints(Joint_Angle := PoseHome2,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	21: iFinishedStep := 23;
+	22: MoveJoints(Joint_Angle := PoseHome1,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	23: MovePose(Pose := stStationPoses.aPosePassedLargeSt1,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	24: MoveLin(Pose := stStationPoses.aPosePassedLargeSt2,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	25:  MoveLin(Pose := stStationPoses.aPosePassedLargeSt3,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	26:  SetCheckpoint(CheckpointID := 304,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	27: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 304 THEN 
+			iFinishedStep := 28;
+		END_IF
+	28: MoveGripper(mm := 20,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	29: IF EOAT[1] = 1 AND EOAT[0] = 0 THEN
+			iFinishedStep := 31;
+		END_IF
+	31: MoveLin(Pose := stStationPoses.aPosePassedLargeSt2,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	32: MovePose(Pose := stStationPoses.aPosePassedLargeSt1,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	33: IF iWorkingStation < 5 THEN
+			iFinishedStep := 34;
+		ELSE
+			iFinishedStep := 36;
+		END_IF
+	34: MoveJoints(Joint_Angle := PoseHome2,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	35: iFinishedStep := 37;
+	36: MoveJoints(Joint_Angle := PoseHome1,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	37: SetCheckpoint(CheckpointID := 124,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	38: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 124 THEN 
+			OperatingState := E_OperatingState.SetPoses;
+			DismountingDone();
+			iFinishedStep := 0;
+		END_IF
+		
+END_CASE
+ReleaseTmr( PT := T#1S);
+IF Sent AND Buffered THEN
+	iFinishedStep := iFinishedStep +1;
+	Sent := FALSE;
+	Buffered := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="Galvo10mm" Id="{28526a0e-eb6d-4d21-9b51-86ca0eddfaa9}" FolderPath="Act\">
+      <Implementation>
+        <ST><![CDATA[bOperatingActive := TRUE;
+	eCurrentState := E_CurrentState.GalvoHandling;
+	CASE iOperatingStep OF
+		0: IF bExecutePlacing THEN
+				iOperatingStep := 1;
+				bExecutePlacing := FALSE;
+			END_IF
+		1: MoveGripper(mm := 24,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		2: IF EOAT[5] = 24 THEN	
+			SetGripperForce(
+				Force := 60,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);	
+			END_IF
+		3: SetTrf(
+				Pose := PoseTRFMotor,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+			
+		4: fbLinearAxis.AxisTargetPos := stStationPoses.rLinPosMotorPickup;
+			OperatingState := E_OperatingState.MoveLinAxis;
+			iOperatingStep := 5;
+		5: MovePose(Pose := stStationPoses.aPoseSmallMotorPickupSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		6: MoveLin(Pose := stStationPoses.aPoseSmallMotorPickupSt2,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);	
+		7: SetCheckpoint(CheckpointID := 120,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		8: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 120 THEN
+				IF NOT stPlcCom.stPlcComIn.bRobotGripperSensor THEN
+					iOperatingStep := 12;
+				ELSE
+					IF iWorkingStation <= 5 THEN
+						PoseHome := PoseHome1;
+					ELSE
+						PoseHome := PoseHome2;
+					END_IF
+					iOperatingStep := 9;
+				END_IF
+			END_IF
+		9:  MoveLin(Pose := stStationPoses.aPoseSmallMotorPickupSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		10:  MoveJoints(Joint_Angle := PoseHome,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);		
+		11: DisableSetStation(iStationId := iWorkingStation);
+			OperatingState := E_OperatingState.SetPoses;
+			iOperatingStep := 0;
+		12: MoveGripper(mm := 2,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		13: SetCheckpoint(CheckpointID := 101,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		14: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 101 AND EOAT[0] = 1 THEN
+				IF EOAT[5] > 6.5 AND EOAT[5] < 7 AND NOT bMotorType THEN		
+					iOperatingStep := 17;
+				ELSE
+					iOperatingStep := 15;
+					bThicknessTestFailed := TRUE;
+				END_IF
+			END_IF
+		15: MoveGripper(mm := 19,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		16: iOperatingStep := 9;
+		17: MoveLin(Pose := stStationPoses.aPoseSmallMotorPickupSt3,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		18: MoveLin(Pose := stStationPoses.aPoseSmallMotorPickupSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		19: SetCheckpoint(CheckpointID := 132,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		20: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 132 THEN
+				iOperatingStep := 25;
+			END_IF
+		25: MovePose(Pose := PoseImagingGalvo10mm,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);	
+		26: fbLinearAxis.AxisTargetPos := 40;
+			OperatingState := E_OperatingState.MoveLinAxis;
+			iOperatingStep := 27;
+		27: SetCheckpoint(CheckpointID := 124,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		28: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 124 THEN
+				iOperatingStep := 29;
+			END_IF 
+		29: stPlcCom.stPlcComOut.bRingLightGlue := TRUE;
+			Trig.bMidStationCam := TRUE;
+			iOperatingStep := 25;
+		30: IF stCouplerData.bImagingDone THEN
+				stPlcCom.stPlcComOut.bRingLightGlue := FALSE;
+				Trig.bMidStationCam := FALSE;
+				IF stCouplerData.bPartDetectSucceeded THEN
+					iOperatingStep := 31;
+				ELSIF stCouplerData.bPartDetectFailed THEN
+					DisableSetStation(iStationId := iWorkingStation);					// LUO REJECT KÄYTÄNTÖ
+					OperatingState := E_OperatingState.FinishedHandling10mm;
+					iOperatingStep := 0;
+					
+				END_IF
+			END_IF
+		31:	fbLinearAxis.AxisTargetPos := 0;
+			OperatingState := E_OperatingState.MoveLinAxis;
+			iOperatingStep := 32;
+		32: MovePose(Pose := PoseSafeInOutGlueSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);	
+		33: MoveJoints(Joint_Angle := PoseSafeInOutGlueSt2,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);	
+		34: MoveLin(Pose := PoseSafeInOutGlueSt3,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		35: CheckType();
+			iOperatingStep := 36;
+		36: bBypassState := TRUE;
+			 CASE iGluingStep OF
+				0: stPlcCom.stPlcComOut.bGlueStopValve := TRUE;
+					IF NOT stPlcCom.stPlcComIn.bGlueStopHome THEN
+						MoveLin(Pose := PoseGluingSt1, // Pose To gluing
+							ExternalStatecontrol := 0,
+							ExternalMove_ID := 0,
+							Robot:= Meca500.GVL.Meca500, 
+							Error=> Error, 
+							Sent:= Sent, 
+							Buffered:= Buffered);				// LISÄÄ AJASTIN JOKA TARKISTAA ETTÄ VENTTIILI ON AUKI
+					END_IF
+				1: IF iGluingPoses = 5 THEN
+						iGluingStep := 29;
+					ELSE
+						iGluingStep := 2;
+					END_IF
+				2:  MoveLin(Pose := PoseGluingSt2,  // NOTE!! LINEAR MOVEMENT Pose where gluing always has to start
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				3: SetCartLinVel(
+						Velocity_Limit := 0.4,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				4: SetCheckpoint(CheckpointID := 102,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				5: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 102 THEN
+						//stPlcCom.stPlcComOut.bTriggerGluing1 := TRUE;
+						GluingStartTmr2.IN := TRUE;
+						iGluingStep := 6;
+					END_IF
+				6: IF GluingStartTmr2.Q THEN
+						GluingTmr2.IN := TRUE;
+						GluingStartTmr2.IN := FALSE;
+						iGluingStep := 7;
+					END_IF
+				7:  MoveLin(Pose := PoseGluingSt3,  // NOTE!! LINEAR MOVEMENT
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				8: IF GluingTmr2.Q THEN
+						stPlcCom.stPlcComOut.bTriggerGluing1 := FALSE;
+						GluingTmr2.IN := FALSE;
+						iGluingStep := 9;
+					END_IF
+				9: SetCheckpoint(CheckpointID := 104,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				10: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 104 THEN
+						stPlcCom.stPlcComOut.bTriggerGluing1 := FALSE;
+						IF iGluingPoses = 4 THEN
+							iGluingStep := 11;
+						ELSIF iGluingPoses = 3 THEN
+							iGluingStep := 17;
+						END_IF
+					END_IF
+				11: SetCartLinVel(
+						Velocity_Limit := 10*rJogSpeed,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				12: MoveLin(Pose := PoseGluingSt1,  // NOTE!! LINEAR MOVEMENT
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				13: MoveLin(Pose := PoseGluingSt4,  // NOTE!! LINEAR MOVEMENT
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				14: SetCheckpoint(CheckpointID := 105,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				15: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 105 THEN
+						//stPlcCom.stPlcComOut.bTriggerGluing1 := TRUE;
+						GluingTmr1.IN := TRUE;
+						iGluingStep := 16;
+					END_IF
+				16: IF GluingTmr1.Q THEN
+						GluingTmr1.IN := FALSE;
+						iGluingStep := 17;
+						stPlcCom.stPlcComOut.bTriggerGluing1 := FALSE;
+					END_IF
+				17:  SetCartLinVel(
+						Velocity_Limit := 10*rJogSpeed,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				18:  MoveLin(Pose := PoseGluingSt1,  // NOTE!! LINEAR MOVEMENT
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				19: SetCheckpoint(CheckpointID := 106,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				
+				20: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 106 THEN
+						stPlcCom.stPlcComOut.bTriggerGluing1 := FALSE;
+						GluingTmr1.IN := FALSE;
+						iGluingStep := 41;
+					END_IF
+				29:  SetCartLinVel(
+						Velocity_Limit := 0.4,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				30: MoveLin(Pose := PoseGluingSt2,  // NOTE!! LINEAR MOVEMENT Pose where gluing always has to start
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				31: SetCheckpoint(CheckpointID := 102,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				32: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 102 THEN
+						//stPlcCom.stPlcComOut.bTriggerGluing1 := TRUE;
+						iGluingStep := 33;
+					END_IF
+				33:  MoveLin(Pose := PoseGluingSt3,  // NOTE!! LINEAR MOVEMENT Pose where gluing always has to start
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				34: MoveLin(Pose := PoseGluingSt4,  // NOTE!! LINEAR MOVEMENT Pose where gluing always has to start
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				35: MoveLin(Pose := PoseGluingSt5,  // NOTE!! LINEAR MOVEMENT Pose where gluing always has to start
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				36: SetCheckpoint(CheckpointID := 109,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				37: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 109 THEN
+						stPlcCom.stPlcComOut.bTriggerGluing1 := FALSE;
+						iGluingStep := 38;
+					END_IF
+				38: MoveLin(Pose := PoseGluingSt1,  // NOTE!! LINEAR MOVEMENT Pose where gluing always has to start
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);	
+				39: SetCartLinVel(
+						Velocity_Limit := 10*rJogSpeed,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+						
+				40: SetCheckpoint(CheckpointID := 106,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				41: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 106 THEN
+						stPlcCom.stPlcComOut.bTriggerGluing1 := FALSE;
+						stPlcCom.stPlcComOut.bGlueStopValve := FALSE;
+						bBypassState := FALSE;
+						iOperatingStep := 37;
+						iGluingStep := 0;
+					END_IF
+			END_CASE
+			IF Sent AND Buffered AND bBypassState THEN
+				iGluingStep := iGluingStep +1;
+				Sent := FALSE;
+				Buffered := FALSE;
+			END_IF
+
+		37:  MoveLin(Pose := PoseSafeInOutGlueSt3,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		38: MoveJoints(Joint_Angle := PoseSafeInOutGlueSt2,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		39: MovePose(Pose := PoseSafeInOutGlueSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		40: MoveJoints(Joint_Angle := PoseAfterGluingSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		41:  fbLinearAxis.AxisTargetPos := stStationPoses.rLinPosPlace;
+			OperatingState := E_OperatingState.MoveLinAxis;
+			iOperatingStep := 42;
+			stStationPoses.aPoseSmallMotorPlaceSt2[5] := stStationPoses.aPoseSmallMotorPlaceSt2[5] - (stCouplerData.rCouplerAngleDeg);
+		42: MovePose(Pose := stStationPoses.aPoseSmallMotorPlaceSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		43: MoveLin(Pose := stStationPoses.aPoseSmallMotorPlaceSt2,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);	
+		44: SetCheckpoint(CheckpointID := 104,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		
+		45: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 104 THEN
+				EngageHolder();
+				StationGripperTmr.IN := TRUE;
+				IF StationGripperTmr.Q AND bHolderSensor THEN
+					StationGripperTmr.IN := FALSE;
+					stStationPoses.aPoseSmallMotorPlaceSt2[5] := 0;
+					iOperatingStep := 46;
+				END_IF
+			END_IF
+		46: MoveGripper(mm := 20,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		47: IF EOAT[1] = 1 AND EOAT[0] = 0 THEN
+				MoveLin(Pose := stStationPoses.aPoseSmallMotorPlaceSt2,
+					ExternalStatecontrol := 0,
+					ExternalMove_ID := 0,
+					Robot:= Meca500.GVL.Meca500, 
+					Error=> Error, 
+					Sent:= Sent, 
+					Buffered:= Buffered);
+			END_IF
+		48: MovePose(Pose := stStationPoses.aPoseSmallMotorPlaceSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		49: SetTrf(
+				Pose := PoseTRFMirror,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		50: MoveJoints(Joint_Angle := PoseToMirrorPickupSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		51: fbLinearAxis.AxisTargetPos := stStationPoses.rLinPosMirrorPickup;
+			OperatingState := E_OperatingState.MoveLinAxis;
+			iOperatingStep := 52;
+		52: MoveGripper(mm := 21,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		53: SetGripperForce(
+				Force := 5,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		54: MovePose(Pose := stStationPoses.aPoseMirrorPickupSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		55: MovePose(Pose := stStationPoses.aPoseMirrorPickupSt2,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		56: MoveGripper(mm := 8,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		57: IF EOAT[0] = 1 THEN
+				iOperatingStep := 59;
+			END_IF
+		59: MovePose(Pose := stStationPoses.aPoseMirrorPickupSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		60: SetCheckpoint(CheckpointID := 109,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		61: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 109 THEN
+				iOperatingStep := 62;
+			END_IF
+		62: fbLinearAxis.AxisTargetPos := stStationPoses.rLinPosPlace;
+			OperatingState := E_OperatingState.MoveLinAxis;
+			iOperatingStep := 63;
+		63: MovePose(Pose := stStationPoses.aPoseMirrorPlaceSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		64: MoveLin(Pose := stStationPoses.aPoseMirrorPlaceSt2,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		65: SetCartLinVel(
+				Velocity_Limit := 1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		66: MoveLin(Pose := stStationPoses.aPoseMirrorPlaceSt3,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		67: SetCheckpoint(CheckpointID := 107,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		
+		68: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 107 THEN
+				EngageSlider();
+				stStationPoses.aPoseMirrorPlaceSt1[1] := stStationPoses.aPoseMirrorPlaceSt3[1];
+				stStationPoses.aPoseMirrorPlaceSt1[2] := stStationPoses.aPoseMirrorPlaceSt3[2];
+				StationGripperTmr.IN := TRUE;
+				IF StationGripperTmr.Q AND NOT bSliderSensor THEN
+					StationGripperTmr.IN := FALSE;
+					iOperatingStep := 69;
+				END_IF
+			END_IF
+		69: MoveGripper(mm := 21,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		70: SetCartLinVel(
+				Velocity_Limit := 10*rJogSpeed,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		71: MovePose(Pose := stStationPoses.aPoseMirrorPlaceSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		72: MoveJoints(Joint_Angle := PoseHome2,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		73: OperatingState := E_OperatingState.SetPoses;
+// 
+		100:  MoveLin(Pose := stStationPoses.aPoseSmallMotorPickupSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		101: MovePose(Pose := PoseHome,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		102: MoveGripper(mm := 24,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		103: SetCheckpoint(CheckpointID := 1000,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		104: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 1000 THEN
+				bRobotHomed := TRUE;
+				iOperatingStep := 0;
+			END_IF
+END_CASE
+IF Sent AND Buffered AND NOT bBypassState THEN
+	iOperatingStep := iOperatingStep +1;
+	Sent := FALSE;
+	Buffered := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="Galvo14mm" Id="{6b89f09a-61d6-4595-b012-fc055ca97ffe}" FolderPath="Act\">
+      <Implementation>
+        <ST><![CDATA[bOperatingActive := TRUE;
+	eCurrentState := E_CurrentState.GalvoHandling;
+	CASE iOperatingStep OF
+		0: IF bExecutePlacing THEN
+				iOperatingStep := 1;
+				bExecutePlacing := FALSE;
+			END_IF
+		1: MoveGripper(mm := 24,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		2: IF EOAT[5] = 24 THEN	
+			SetGripperForce(
+				Force := 60,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);	
+			END_IF
+		3: SetTrf(
+				Pose := PoseTRFMotor,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+			
+		4: fbLinearAxis.AxisTargetPos := stStationPoses.rLinPosMotorPickup;
+			OperatingState := E_OperatingState.MoveLinAxis;
+			iOperatingStep := 5;
+		5: MovePose(Pose := stStationPoses.aPoseLargeMotorPickupSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		6: MoveLin(Pose := stStationPoses.aPoseLargeMotorPickupSt2,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);	
+		7: SetCheckpoint(CheckpointID := 120,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		8: IF (stStationPoses.aPoseLargeMotorPickupSt2[1] + 20) < Meca500.GVL.Meca500.Inputs.End_Effector_Pose.SubIndex_001 THEN // If robot is closing on picking up motor but sensor is triggered, pause is flaged
+				IF NOT stPlcCom.stPlcComIn.bRobotGripperSensor THEN
+					Meca500.GVL.Meca500.Outputs.Motion_Control.Pause := TRUE;
+					Meca500.GVL.Meca500.Outputs.Motion_Control.Clear_Move := TRUE;
+					IF iWorkingStation <= 5 THEN
+						PoseHome := PoseHome1;
+					ELSE
+						PoseHome := PoseHome2;
+					END_IF
+					Meca500.GVL.Meca500.Outputs.Motion_Control.Pause := FALSE;
+					Meca500.GVL.Meca500.Outputs.Motion_Control.Clear_Move := FALSE;
+					iOperatingStep := 9;
+				END_IF
+			ELSIF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 120 THEN
+				IF NOT stPlcCom.stPlcComIn.bRobotGripperSensor THEN
+					iOperatingStep := 12;
+				ELSE
+					IF iWorkingStation <= 5 THEN
+						PoseHome := PoseHome1;
+					ELSE
+						PoseHome := PoseHome2;
+					END_IF
+					iOperatingStep := 9;
+				END_IF
+			END_IF
+		9:  MoveLin(Pose := stStationPoses.aPoseLargeMotorPickupSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		10:  MoveJoints(Joint_Angle := PoseHome,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);		
+		11: DisableSetStation(iStationId := iWorkingStation);
+			OperatingState := E_OperatingState.SetPoses;
+			iOperatingStep := 0;
+		12: MoveGripper(mm := 2,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		13: SetCheckpoint(CheckpointID := 101,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		14: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 101 AND EOAT[0] = 1 THEN
+				IF EOAT[5] > 6.5 AND EOAT[5] < 7 AND NOT bMotorType THEN		
+					iOperatingStep := 17;
+				ELSE
+					iOperatingStep := 15;
+					bThicknessTestFailed := TRUE;
+				END_IF
+			END_IF
+		15: MoveGripper(mm := 19,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		16: iOperatingStep := 9;
+		17: MoveLin(Pose := stStationPoses.aPoseLargeMotorPickupSt3,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		18: SetCheckpoint(CheckpointID := 132,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		19: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 132 THEN
+				iOperatingStep := 20;
+			END_IF
+		20: MovePose(Pose := PoseImagingGalvo14mm,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);	
+		21: fbLinearAxis.AxisTargetPos := 40;
+			OperatingState := E_OperatingState.MoveLinAxis;
+			iOperatingStep := 22;
+		22: SetCheckpoint(CheckpointID := 124,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		23: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 124 THEN
+				iOperatingStep := 24;
+			END_IF 
+		24: stPlcCom.stPlcComOut.bRingLightGlue := TRUE;
+			Trig.bMidStationCam := TRUE;
+			iOperatingStep := 25;
+		25: IF stCouplerData.bImagingDone THEN
+				stPlcCom.stPlcComOut.bRingLightGlue := FALSE;
+				Trig.bMidStationCam := FALSE;
+				IF stCouplerData.bPartDetectSucceeded THEN
+					stCouplerData.bImagingDone := FALSE;
+					iOperatingStep := 26;
+				ELSIF stCouplerData.bPartDetectFailed THEN
+					stCouplerData.bImagingDone := FALSE;
+					DisableSetStation(iStationId := iWorkingStation);					// LUO REJECT KÄYTÄNTÖ
+					OperatingState := E_OperatingState.FinishedHandling14mm;
+					iOperatingStep := 0;
+				END_IF
+			END_IF
+		26:	fbLinearAxis.AxisTargetPos := 0;
+			OperatingState := E_OperatingState.MoveLinAxis;
+			iOperatingStep := 27;
+		27: MovePose(Pose := PoseSafeInOutGlueSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);	
+		28: MoveJoints(Joint_Angle := PoseSafeInOutGlueSt2,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);	
+		29: MoveLin(Pose := PoseSafeInOutGlueSt3,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		30: CheckType();
+			iOperatingStep := 31;
+		31: bBypassState := TRUE;
+			 CASE iGluingStep OF
+				0: stPlcCom.stPlcComOut.bGlueStopValve := TRUE;
+					IF NOT stPlcCom.stPlcComIn.bGlueStopHome THEN
+						MoveLin(Pose := PoseGluingSt1, // Pose To gluing
+							ExternalStatecontrol := 0,
+							ExternalMove_ID := 0,
+							Robot:= Meca500.GVL.Meca500, 
+							Error=> Error, 
+							Sent:= Sent, 
+							Buffered:= Buffered);				// LISÄÄ AJASTIN JOKA TARKISTAA ETTÄ VENTTIILI ON AUKI
+					END_IF
+				1: IF iGluingPoses = 5 THEN
+						iGluingStep := 29;
+					ELSE
+						iGluingStep := 2;
+					END_IF
+				2:  MoveLin(Pose := PoseGluingSt2,  // NOTE!! LINEAR MOVEMENT Pose where gluing always has to start
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				3: SetCartLinVel(
+						Velocity_Limit := 0.4,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				4: SetCheckpoint(CheckpointID := 102,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				5: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 102 THEN
+						stPlcCom.stPlcComOut.bTriggerGluing1 := TRUE;
+						GluingStartTmr2.IN := TRUE;
+						iGluingStep := 6;
+					END_IF
+				6: IF GluingStartTmr2.Q THEN
+						GluingTmr2.IN := TRUE;
+						GluingStartTmr2.IN := FALSE;
+						iGluingStep := 7;
+					END_IF
+				7:  MoveLin(Pose := PoseGluingSt3,  // NOTE!! LINEAR MOVEMENT
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				8: IF GluingTmr2.Q THEN
+						stPlcCom.stPlcComOut.bTriggerGluing1 := FALSE;
+						GluingTmr2.IN := FALSE;
+						iGluingStep := 9;
+					END_IF
+				9: SetCheckpoint(CheckpointID := 104,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				10: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 104 THEN
+						stPlcCom.stPlcComOut.bTriggerGluing1 := FALSE;
+						IF iGluingPoses = 4 THEN
+							iGluingStep := 11;
+						ELSIF iGluingPoses = 3 THEN
+							iGluingStep := 17;
+						END_IF
+					END_IF
+				11: SetCartLinVel(
+						Velocity_Limit := 10*rJogSpeed,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				12: MoveLin(Pose := PoseGluingSt1,  // NOTE!! LINEAR MOVEMENT
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				13: MoveLin(Pose := PoseGluingSt4,  // NOTE!! LINEAR MOVEMENT
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				14: SetCheckpoint(CheckpointID := 105,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				15: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 105 THEN
+						stPlcCom.stPlcComOut.bTriggerGluing1 := TRUE;
+						GluingTmr1.IN := TRUE;
+						iGluingStep := 16;
+					END_IF
+				16: IF GluingTmr1.Q THEN
+						GluingTmr1.IN := FALSE;
+						iGluingStep := 17;
+						stPlcCom.stPlcComOut.bTriggerGluing1 := FALSE;
+					END_IF
+				17:  SetCartLinVel(
+						Velocity_Limit := 10*rJogSpeed,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				18:  MoveLin(Pose := PoseGluingSt1,  // NOTE!! LINEAR MOVEMENT
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				19: SetCheckpoint(CheckpointID := 106,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				
+				20: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 106 THEN
+						stPlcCom.stPlcComOut.bTriggerGluing1 := FALSE;
+						GluingTmr1.IN := FALSE;
+						iGluingStep := 41;
+					END_IF
+				29:  SetCartLinVel(
+						Velocity_Limit := 0.4,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				30: MoveLin(Pose := PoseGluingSt2,  // NOTE!! LINEAR MOVEMENT Pose where gluing always has to start
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				31: SetCheckpoint(CheckpointID := 102,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				32: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 102 THEN
+						stPlcCom.stPlcComOut.bTriggerGluing1 := TRUE;
+						iGluingStep := 33;
+					END_IF
+				33:  MoveLin(Pose := PoseGluingSt3,  // NOTE!! LINEAR MOVEMENT Pose where gluing always has to start
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				34: MoveLin(Pose := PoseGluingSt4,  // NOTE!! LINEAR MOVEMENT Pose where gluing always has to start
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				35: MoveLin(Pose := PoseGluingSt5,  // NOTE!! LINEAR MOVEMENT Pose where gluing always has to start
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				36: SetCheckpoint(CheckpointID := 109,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				37: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 109 THEN
+						stPlcCom.stPlcComOut.bTriggerGluing1 := FALSE;
+						iGluingStep := 38;
+					END_IF
+				38: MoveLin(Pose := PoseGluingSt1,  // NOTE!! LINEAR MOVEMENT Pose where gluing always has to start
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);	
+				39: SetCartLinVel(
+						Velocity_Limit := 10*rJogSpeed,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+						
+				40: SetCheckpoint(CheckpointID := 106,
+						ExternalStatecontrol := 0,
+						ExternalMove_ID := 0,
+						Robot:= Meca500.GVL.Meca500, 
+						Error=> Error, 
+						Sent:= Sent, 
+						Buffered:= Buffered);
+				41: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 106 THEN
+						stPlcCom.stPlcComOut.bTriggerGluing1 := FALSE;
+						stPlcCom.stPlcComOut.bGlueStopValve := FALSE;
+						bBypassState := FALSE;
+						iOperatingStep := 32;
+						iGluingStep := 0;
+					END_IF
+			END_CASE
+			IF Sent AND Buffered AND bBypassState THEN
+				iGluingStep := iGluingStep +1;
+				Sent := FALSE;
+				Buffered := FALSE;
+			END_IF
+
+		32:  MoveLin(Pose := PoseSafeInOutGlueSt3,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		33: MoveJoints(Joint_Angle := PoseSafeInOutGlueSt2,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		34: MovePose(Pose := PoseSafeInOutGlueSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		35: MoveJoints(Joint_Angle := PoseAfterGluingSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		36:  fbLinearAxis.AxisTargetPos := stStationPoses.rLinPosPlace;
+			OperatingState := E_OperatingState.MoveLinAxis;
+			iOperatingStep := 37;
+			stStationPoses.aPoseLargeMotorPlaceSt2[5] := stStationPoses.aPoseLargeMotorPlaceSt2[5] - (stCouplerData.rCouplerAngleDeg);
+		37: MovePose(Pose := stStationPoses.aPoseLargeMotorPlaceSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		38: MoveLin(Pose := stStationPoses.aPoseLargeMotorPlaceSt2,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);	
+		39: SetCheckpoint(CheckpointID := 104,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		
+		40: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 104 THEN
+				EngageHolder();
+				StationGripperTmr.IN := TRUE;
+				IF StationGripperTmr.Q AND bHolderSensor THEN
+					StationGripperTmr.IN := FALSE;
+					stStationPoses.aPoseLargeMotorPlaceSt2[5] := 0;
+					iOperatingStep := 41;
+				END_IF
+			END_IF
+		41: MoveGripper(mm := 20,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		42: IF EOAT[1] = 1 AND EOAT[0] = 0 THEN
+				MoveLin(Pose := stStationPoses.aPoseLargeMotorPlaceSt2,
+					ExternalStatecontrol := 0,
+					ExternalMove_ID := 0,
+					Robot:= Meca500.GVL.Meca500, 
+					Error=> Error, 
+					Sent:= Sent, 
+					Buffered:= Buffered);
+// 					iOperatingStep := 43;
+			END_IF
+		43: MovePose(Pose := stStationPoses.aPoseLargeMotorPlaceSt3,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		44: SetTrf(
+				Pose := PoseTRFMirror,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		45: MoveJoints(Joint_Angle := PoseToMirrorPickupSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		46: fbLinearAxis.AxisTargetPos := stStationPoses.rLinPosMirrorPickup;
+			OperatingState := E_OperatingState.MoveLinAxis;
+			iOperatingStep := 47;
+		47: MoveGripper(mm := 21,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		48: SetGripperForce(
+				Force := 5,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		49: MovePose(Pose := stStationPoses.aPoseMirrorPickupSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		50: MovePose(Pose := stStationPoses.aPoseMirrorPickupSt2,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		51: MoveGripper(mm := 8,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		52: IF EOAT[0] = 1 THEN
+				iOperatingStep := 53;
+			END_IF
+		53: MovePose(Pose := stStationPoses.aPoseMirrorPickupSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		54: SetCheckpoint(CheckpointID := 109,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		55: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 109 THEN
+				iOperatingStep := 56;
+			END_IF
+		56: fbLinearAxis.AxisTargetPos := stStationPoses.rLinPosPlace;
+			OperatingState := E_OperatingState.MoveLinAxis;
+			iOperatingStep := 57;
+		57: MovePose(Pose := stStationPoses.aPoseMirrorPlaceSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		58: MoveLin(Pose := stStationPoses.aPoseMirrorPlaceSt2,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		59: SetCartLinVel(
+				Velocity_Limit := 1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		60: MoveLin(Pose := stStationPoses.aPoseMirrorPlaceSt3,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		61: SetCheckpoint(CheckpointID := 107,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		
+		62: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 107 THEN
+				EngageSlider();
+				stStationPoses.aPoseMirrorPlaceSt1[1] := stStationPoses.aPoseMirrorPlaceSt3[1];
+				stStationPoses.aPoseMirrorPlaceSt1[2] := stStationPoses.aPoseMirrorPlaceSt3[2];
+				StationGripperTmr.IN := TRUE;
+				IF StationGripperTmr.Q AND NOT bSliderSensor THEN
+					StationGripperTmr.IN := FALSE;
+					iOperatingStep := 63;
+				END_IF
+			END_IF
+		63: MoveGripper(mm := 21,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		64: SetCartLinVel(
+				Velocity_Limit := 10*rJogSpeed,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		65: MovePose(Pose := stStationPoses.aPoseMirrorPlaceSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		66: MoveJoints(Joint_Angle := PoseHome2,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		67: OperatingState := E_OperatingState.SetPoses;
+			iOperatingStep := 0;
+		100:  MoveLin(Pose := stStationPoses.aPoseLargeMotorPickupSt1,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		101: MovePose(Pose := PoseHome,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		102: MoveGripper(mm := 24,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		103: SetCheckpoint(CheckpointID := 1000,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		104: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 1000 THEN
+				bRobotHomed := TRUE;
+				iOperatingStep := 0;
+			END_IF
+END_CASE
+IF Sent AND Buffered AND NOT bBypassState THEN
+	iOperatingStep := iOperatingStep +1;
+	Sent := FALSE;
+	Buffered := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="Initialize" Id="{b1d364bc-92df-4ed4-bb2e-dbdc6cd8f730}" FolderPath="Mth\">
+      <Declaration><![CDATA[METHOD Initialize : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+iOperatingStep := 0;
+Sent := FALSE;
+Buffered := FALSE;
+GluingTmr1.IN := FALSE;
+GluingTmr2.IN := FALSE;
+GluingOffTmr.IN := FALSE;
+GluingStartTmr2.IN := FALSE;
+StationGripperTmr.IN := FALSE;
+eCurrentState := E_CurrentState.Init;
+ReleaseTmr.IN := FALSE;
+StationGripperTmr.IN :=FALSE;
+iMirrorStep := 0;
+iFinishedStep := 0;
+bDismountingActive := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Action Name="MirrorAdj" Id="{d13ff194-9dff-4689-a5fd-bbb4b7d4855a}" FolderPath="Act\">
+      <Implementation>
+        <ST><![CDATA[eCurrentState := E_CurrentState.MirrorAdj;
+bOperatingActive := TRUE;
+CASE iMirrorStep OF
+	0: MoveGripper(mm := 20,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	1: IF EOAT[1] = 1 AND EOAT[0] = 0 THEN
+			IF iWorkingStation < 5 THEN
+				iMirrorStep := 2;
+			ELSE
+				iMirrorStep := 4;
+			END_IF
+			
+		END_IF
+	2: MoveJoints(Joint_Angle := PoseHome2,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	3: iMirrorStep := 5;
+	4: MoveJoints(Joint_Angle := PoseHome1,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	5: SetCheckpoint(CheckpointID := 15,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	6: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 15 THEN
+		SetAdjustmentPoses();
+			 SetTrf(
+				Pose := PoseTRFMirror,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		END_IF
+	7:  fbLinearAxis.AxisTargetPos := stStationPoses.rLinPosPlace;
+		OperatingState := E_OperatingState.MoveLinAxis;
+		iMirrorStep := 8;
+	8:	SetGripperForce(
+			Force := 5,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	9: MoveLin(Pose := stStationPoses.aPoseMirrorPlaceSt1,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	10: MoveLin(Pose := PoseMirrorAdjustPrev,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	11: MoveGripper(mm := 0,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	12:SetCartLinVel(
+			Velocity_Limit := 5,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	13: IF EOAT[0] = 1 THEN
+			iMirrorStep := 14;
+		END_IF
+	14: MoveLin(Pose := PoseMirrorAdjust,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	15: SetCheckpoint(CheckpointID := 16,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	16: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 16 THEN
+			iMirrorStep := 17;
+		END_IF
+	17: MoveGripper(mm := 20,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	18: SetCartLinVel(
+			Velocity_Limit := 10*rJogSpeed,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	19: IF EOAT[0] = 0 THEN
+			iMirrorStep := 20;
+		END_IF
+	20: MoveLin(Pose := stStationPoses.aPoseMirrorPlaceSt1,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	21: IF iWorkingStation < 5 THEN
+			iMirrorStep := 22;
+		ELSE
+			iMirrorStep := 23;
+		END_IF
+	22: MoveJoints(Joint_Angle := PoseHome2,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	23: iMirrorStep := 25;
+	24: MoveJoints(Joint_Angle := PoseHome1,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	
+	25: SetCheckpoint(CheckpointID := 17,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	26: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 17 THEN
+			AdjDone();
+			iMirrorStep := 0;
+			OperatingState := E_OperatingState.SetPoses;
+		END_IF
+END_CASE
+IF Sent AND Buffered THEN
+	iMirrorStep := iMirrorStep +1;
+	Sent := FALSE;
+	Buffered := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="MirrorOffset" Id="{f2318cd9-c83e-421e-8ac9-a9145489dd90}" FolderPath="Mth\">
+      <Declaration><![CDATA[METHOD MirrorOffset : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE iWorkingStation OF
+	1..5: stStationPoses.aPoseMirrorPlaceSt2[1] := stStationPoses.aPoseMirrorPlaceSt2[1] + stAssemblyData.Station1To5.rMirrorCenterOffsetToWeightCenterY; 
+		stStationPoses.aPoseMirrorPlaceSt3[1] := stStationPoses.aPoseMirrorPlaceSt3[1] + stAssemblyData.Station1To5.rMirrorCenterOffsetToWeightCenterY;
+	6..10: stStationPoses.aPoseMirrorPlaceSt2[1] := stStationPoses.aPoseMirrorPlaceSt2[1] + stAssemblyData.Station5To10.rMirrorCenterOffsetToWeightCenterY; 
+		stStationPoses.aPoseMirrorPlaceSt3[1] := stStationPoses.aPoseMirrorPlaceSt3[1] + stAssemblyData.Station5To10.rMirrorCenterOffsetToWeightCenterY;
+END_CASE
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ReleaseHolder" Id="{fced77fd-576b-4edd-aadf-26a3e3edd780}" FolderPath="Mth\">
+      <Declaration><![CDATA[METHOD ReleaseHolder : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE iWorkingStation OF
+	0: 
+	1: stStation.fbSts1.bEngageHolder := FALSE;
+		IF stStation.fbSts1.bHolderSensor THEN
+			bHolderSensor := TRUE;
+		ELSE
+			bHolderSensor := FALSE;
+		END_IF
+	2: stStation.fbSts2.bEngageHolder := FALSE;
+		IF stStation.fbSts2.bHolderSensor THEN
+			bHolderSensor := TRUE;
+		ELSE
+			bHolderSensor := FALSE;
+		END_IF
+	3: stStation.fbSts3.bEngageHolder := FALSE;
+		IF stStation.fbSts3.bHolderSensor THEN
+			bHolderSensor := TRUE;
+		ELSE
+			bHolderSensor := FALSE;
+		END_IF
+	4: stStation.fbSts4.bEngageHolder := FALSE;
+		IF stStation.fbSts4.bHolderSensor THEN
+			bHolderSensor := TRUE;
+		ELSE
+			bHolderSensor := FALSE;
+		END_IF
+	5: stStation.fbSts5.bEngageHolder := FALSE;
+		IF stStation.fbSts5.bHolderSensor THEN
+			bHolderSensor := TRUE;
+		ELSE
+			bHolderSensor := FALSE;
+		END_IF
+	6: stStation.fbSts6.bEngageHolder := FALSE;
+		IF stStation.fbSts6.bHolderSensor THEN
+			bHolderSensor := TRUE;
+		ELSE
+			bHolderSensor := FALSE;
+		END_IF
+	7: stStation.fbSts7.bEngageHolder := FALSE;
+		IF stStation.fbSts7.bHolderSensor THEN
+			bHolderSensor := TRUE;
+		ELSE
+			bHolderSensor := FALSE;
+		END_IF
+	8: stStation.fbSts8.bEngageHolder := FALSE;
+		IF stStation.fbSts8.bHolderSensor THEN
+			bHolderSensor := TRUE;
+		ELSE
+			bHolderSensor := FALSE;
+		END_IF
+	9: stStation.fbSts9.bEngageHolder := FALSE;
+		IF stStation.fbSts9.bHolderSensor THEN
+			bHolderSensor := TRUE;
+		ELSE
+			bHolderSensor := FALSE;
+		END_IF
+	10: stStation.fbSts10.bEngageHolder := FALSE;
+		IF stStation.fbSts10.bHolderSensor THEN
+			bHolderSensor := TRUE;
+		ELSE
+			bHolderSensor := FALSE;
+		END_IF
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ReleaseSlider" Id="{23f91438-bd72-42e7-b6f5-3d7640c0ab5c}" FolderPath="Mth\">
+      <Declaration><![CDATA[METHOD ReleaseSlider : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE iWorkingStation OF
+	0: 
+	1: stStation.fbSts1.bEngageSlider := FALSE;
+		IF stStation.fbSts1.bSliderSensor THEN
+			bSliderSensor := FALSE;
+		ELSE
+			bSliderSensor := TRUE;
+		END_IF
+	2: stStation.fbSts2.bEngageSlider := FALSE;
+		IF stStation.fbSts2.bSliderSensor THEN
+			bSliderSensor := FALSE;
+		ELSE
+			bSliderSensor := TRUE;
+		END_IF
+	3: stStation.fbSts3.bEngageSlider := FALSE;
+		IF stStation.fbSts3.bSliderSensor THEN
+			bSliderSensor := FALSE;
+		ELSE
+			bSliderSensor := TRUE;
+		END_IF
+	4: stStation.fbSts4.bEngageSlider := FALSE;
+		IF stStation.fbSts4.bSliderSensor THEN
+			bSliderSensor := FALSE;
+		ELSE
+			bSliderSensor := TRUE;
+		END_IF
+	5: stStation.fbSts5.bEngageSlider := FALSE;
+		IF stStation.fbSts5.bSliderSensor THEN
+			bSliderSensor := FALSE;
+		ELSE
+			bSliderSensor := TRUE;
+		END_IF
+	6: stStation.fbSts6.bEngageSlider := FALSE;
+		IF stStation.fbSts6.bSliderSensor THEN
+			bSliderSensor := FALSE;
+		ELSE
+			bSliderSensor := TRUE;
+		END_IF
+	7: stStation.fbSts7.bEngageSlider := FALSE;
+		IF stStation.fbSts7.bSliderSensor THEN
+			bSliderSensor := FALSE;
+		ELSE
+			bSliderSensor := TRUE;
+		END_IF
+	8: stStation.fbSts8.bEngageSlider := FALSE;
+		IF stStation.fbSts8.bSliderSensor THEN
+			bSliderSensor := FALSE;
+		ELSE
+			bSliderSensor := TRUE;
+		END_IF
+	9: stStation.fbSts9.bEngageSlider := FALSE;
+		IF stStation.fbSts9.bSliderSensor THEN
+			bSliderSensor := FALSE;
+		ELSE
+			bSliderSensor := TRUE;
+		END_IF
+	10: stStation.fbSts10.bEngageSlider := FALSE;
+		IF stStation.fbSts10.bSliderSensor THEN
+			bSliderSensor := FALSE;
+		ELSE
+			bSliderSensor := TRUE;
+		END_IF
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SetAdjustmentPoses" Id="{075017d8-2792-4614-9697-ca6eae04e726}" FolderPath="Mth\">
+      <Declaration><![CDATA[METHOD SetAdjustmentPoses : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE iWorkingStation OF
+	1: IF stStation.fbSts1.iAdjustmentCount < 1 THEN
+			PoseMirrorAdjustPrev  := stStationPoses.aPoseMirrorPlaceSt3;
+			PoseMirrorAdjust := stStationPoses.aPoseMirrorPlaceSt3;
+			PoseMirrorAdjust[1] := stStationPoses.aPoseMirrorPlaceSt3[1] + stStation.fbSts1.rRobotAdjValue;
+
+		ELSE
+			PoseMirrorAdjustPrev := PoseMirrorAdjustPrevSts1;
+			PoseMirrorAdjust := PoseMirrorAdjustPrevSts1;
+			PoseMirrorAdjust[1] := PoseMirrorAdjustPrevSts1[1] + stStation.fbSts1.rRobotAdjValue;
+		END_IF
+	2: IF stStation.fbSts2.iAdjustmentCount < 1 THEN
+			PoseMirrorAdjustPrev  := stStationPoses.aPoseMirrorPlaceSt3;
+			PoseMirrorAdjust := stStationPoses.aPoseMirrorPlaceSt3;
+			PoseMirrorAdjust[1] := stStationPoses.aPoseMirrorPlaceSt3[1] + stStation.fbSts2.rRobotAdjValue;
+		ELSE
+			PoseMirrorAdjustPrev := PoseMirrorAdjustPrevSts2;
+			PoseMirrorAdjust := PoseMirrorAdjustPrevSts2;
+			PoseMirrorAdjust[1] := PoseMirrorAdjustPrevSts2[1] + stStation.fbSts2.rRobotAdjValue;
+		END_IF
+		
+	3:  IF stStation.fbSts3.iAdjustmentCount < 1 THEN
+			PoseMirrorAdjustPrev  := stStationPoses.aPoseMirrorPlaceSt3;
+			PoseMirrorAdjust := stStationPoses.aPoseMirrorPlaceSt3;
+			PoseMirrorAdjust[2] := stStationPoses.aPoseMirrorPlaceSt3[2] + stStation.fbSts3.rRobotAdjValue;
+		ELSE
+			PoseMirrorAdjustPrev := PoseMirrorAdjustPrevSts3;
+			PoseMirrorAdjust := PoseMirrorAdjustPrevSts3;
+			PoseMirrorAdjust[2] := PoseMirrorAdjustPrevSts3[2] - stStation.fbSts3.rRobotAdjValue;
+		END_IF
+	4:  IF stStation.fbSts4.iAdjustmentCount < 1 THEN
+			PoseMirrorAdjustPrev  := stStationPoses.aPoseMirrorPlaceSt3;
+			PoseMirrorAdjust := stStationPoses.aPoseMirrorPlaceSt3;
+			PoseMirrorAdjust[2] := stStationPoses.aPoseMirrorPlaceSt3[2] + stStation.fbSts4.rRobotAdjValue;
+		ELSE
+			PoseMirrorAdjustPrev := PoseMirrorAdjustPrevSts4;
+			PoseMirrorAdjust := PoseMirrorAdjustPrevSts4;
+			PoseMirrorAdjust[2] := PoseMirrorAdjustPrevSts4[2] - stStation.fbSts4.rRobotAdjValue;
+		END_IF
+	5:  IF stStation.fbSts5.iAdjustmentCount < 1 THEN
+			PoseMirrorAdjustPrev  := stStationPoses.aPoseMirrorPlaceSt3;
+			PoseMirrorAdjust := stStationPoses.aPoseMirrorPlaceSt3;
+			PoseMirrorAdjust[2] := stStationPoses.aPoseMirrorPlaceSt3[2] + stStation.fbSts5.rRobotAdjValue;
+		ELSE
+			PoseMirrorAdjustPrev := PoseMirrorAdjustPrevSts5;
+			PoseMirrorAdjust := PoseMirrorAdjustPrevSts5;
+			PoseMirrorAdjust[2] := PoseMirrorAdjustPrevSts5[2] - stStation.fbSts5.rRobotAdjValue;
+		END_IF
+	6:  IF stStation.fbSts6.iAdjustmentCount < 1 THEN
+			PoseMirrorAdjustPrev  := stStationPoses.aPoseMirrorPlaceSt3;
+			PoseMirrorAdjust := stStationPoses.aPoseMirrorPlaceSt3;
+			PoseMirrorAdjust[2] := stStationPoses.aPoseMirrorPlaceSt3[2] + stStation.fbSts6.rRobotAdjValue;
+		ELSE
+			PoseMirrorAdjustPrev := PoseMirrorAdjustPrevSts6;
+			PoseMirrorAdjust := PoseMirrorAdjustPrevSts6;
+			PoseMirrorAdjust[2] := PoseMirrorAdjustPrevSts6[2] - stStation.fbSts6.rRobotAdjValue;
+		END_IF
+	7: IF stStation.fbSts7.iAdjustmentCount < 1 THEN
+			PoseMirrorAdjustPrev  := stStationPoses.aPoseMirrorPlaceSt3;
+			PoseMirrorAdjust := stStationPoses.aPoseMirrorPlaceSt3;
+			PoseMirrorAdjust[2] := stStationPoses.aPoseMirrorPlaceSt3[2] + stStation.fbSts7.rRobotAdjValue;
+		ELSE
+			PoseMirrorAdjustPrev := PoseMirrorAdjustPrevSts7;
+			PoseMirrorAdjust := PoseMirrorAdjustPrevSts7;
+			PoseMirrorAdjust[2] := PoseMirrorAdjustPrevSts7[2] - stStation.fbSts7.rRobotAdjValue;
+		END_IF
+	8: IF stStation.fbSts8.iAdjustmentCount < 1 THEN
+			PoseMirrorAdjustPrev  := stStationPoses.aPoseMirrorPlaceSt3;
+			PoseMirrorAdjust := stStationPoses.aPoseMirrorPlaceSt3;
+			PoseMirrorAdjust[2] := stStationPoses.aPoseMirrorPlaceSt3[2] + stStation.fbSts8.rRobotAdjValue;
+		ELSE
+			PoseMirrorAdjustPrev := PoseMirrorAdjustPrevSts8;
+			PoseMirrorAdjust := PoseMirrorAdjustPrevSts8;
+			PoseMirrorAdjust[2] := PoseMirrorAdjustPrevSts8[2] - stStation.fbSts8.rRobotAdjValue;
+		END_IF
+	9: IF stStation.fbSts9.iAdjustmentCount < 1 THEN
+			PoseMirrorAdjustPrev  := stStationPoses.aPoseMirrorPlaceSt3;
+			PoseMirrorAdjust := stStationPoses.aPoseMirrorPlaceSt3;
+			PoseMirrorAdjust[1] := stStationPoses.aPoseMirrorPlaceSt3[1] + stStation.fbSts9.rRobotAdjValue;
+		ELSE
+			PoseMirrorAdjustPrev := PoseMirrorAdjustPrevSts9;
+			PoseMirrorAdjust := PoseMirrorAdjustPrevSts9;
+			PoseMirrorAdjust[1] := PoseMirrorAdjustPrevSts9[1] - stStation.fbSts9.rRobotAdjValue;
+		END_IF
+	10: IF stStation.fbSts10.iAdjustmentCount < 1 THEN
+			PoseMirrorAdjustPrev  := stStationPoses.aPoseMirrorPlaceSt3;
+			PoseMirrorAdjust := stStationPoses.aPoseMirrorPlaceSt3;
+			PoseMirrorAdjust[1] := stStationPoses.aPoseMirrorPlaceSt3[1] + stStation.fbSts10.rRobotAdjValue;
+		ELSE
+			PoseMirrorAdjustPrev := PoseMirrorAdjustPrevSts10;
+			PoseMirrorAdjust := PoseMirrorAdjustPrevSts10;
+			PoseMirrorAdjust[1] := PoseMirrorAdjustPrevSts10[1] - stStation.fbSts10.rRobotAdjValue;
+		END_IF
+
+
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="WritePoses" Id="{6a3f8326-bb08-4c0f-baff-34c018bd39d1}" FolderPath="Mth\">
+      <Declaration><![CDATA[METHOD WritePoses : BOOL
+VAR_INPUT
+	iStationId : INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE iStationId OF // KORJAA POSE KIRJOTUS
+	1: stStationPoses.aPoseLargeMotorPickupSt1 := stStation.stSts1.aPoseLargeMotorPickupSt1;
+		stStationPoses.aPoseLargeMotorPickupSt2 := stStation.stSts1.aPoseLargeMotorPickupSt2;
+		stStationPoses.aPoseLargeMotorPickupSt3 := stStation.stSts1.aPoseLargeMotorPickupSt3;
+		stStationPoses.aPoseLargeMotorPlaceSt1 := stStation.stSts1.aPoseLargeMotorPlaceSt1;
+		stStationPoses.aPoseLargeMotorPlaceSt2 := stStation.stSts1.aPoseLargeMotorPlaceSt2;
+		stStationPoses.aPoseLargeMotorPlaceSt3 := stStation.stSts1.aPoseLargeMotorPlaceSt3;
+		stStationPoses.aPoseMirrorAdj := stStation.stSts1.aPoseMirrorAdj;
+		stStationPoses.aPoseMirrorPickupSt1 := stStation.stSts1.aPoseMirrorPickupSt1;
+		stStationPoses.aPoseMirrorPickupSt2 := stStation.stSts1.aPoseMirrorPickupSt2;
+		stStationPoses.aPoseMirrorPlaceSt1 := stStation.stSts1.aPoseG14MirrorPlaceSt1;
+		stStationPoses.aPoseMirrorPlaceSt2 := stStation.stSts1.aPoseG14MirrorPlaceSt2;
+		stStationPoses.aPoseMirrorPlaceSt3 := stStation.stSts1.aPoseG14MirrorPlaceSt3;
+		stStationPoses.aPoseMirrorPlaceSt2[2] := stStation.stSts1.aPoseG14MirrorPlaceSt2[2] - rCouplerOffset - (15.05 - stAssemblyData.Station1To5.rMirrorGripPointOffsetToEdgeX + 1.2);
+		stStationPoses.aPoseMirrorPlaceSt3[2] := stStation.stSts1.aPoseG14MirrorPlaceSt3[2] - rCouplerOffset - (15.05 - stAssemblyData.Station1To5.rMirrorGripPointOffsetToEdgeX + 0.7);
+		stStationPoses.aPoseSmallMotorPlaceSt1 := stStation.stSts1.aPoseSmallMotorPlaceSt1;
+		stStationPoses.aPoseSmallMotorPlaceSt2 := stStation.stSts1.aPoseSmallMotorPlaceSt2;
+		stStationPoses.aPoseSmallMotorPickupSt1 := stStation.stSts1.aPoseSmallMotorPickupSt1;
+		stStationPoses.aPoseSmallMotorPickupSt2 := stStation.stSts1.aPoseSmallMotorPickupSt2;
+		stStationPoses.aPoseSmallMotorPickupSt3 := stStation.stSts1.aPoseSmallMotorPickupSt3;
+		stStationPoses.aPosePassedLargeSt1 := stStation.stSts1.aPosePassedLargeSt1;
+		stStationPoses.aPosePassedLargeSt2 := stStation.stSts1.aPosePassedLargeSt2;
+		stStationPoses.aPosePassedLargeSt3 := stStation.stSts1.aPosePassedLargeSt3;
+		stStationPoses.aPosePassedSmallSt1 := stStation.stSts1.aPosePassedSmallSt1;
+		stStationPoses.aPosePassedSmallSt2 := stStation.stSts1.aPosePassedSmallSt2;
+		stStationPoses.aPosePassedSmallSt3 := stStation.stSts1.aPosePassedSmallSt3;
+		stStationPoses.rLinPosPalletPass := stStation.stSts1.rLinPosPalletPass;
+		stStationPoses.rLinPosPalletReject := stStation.stSts1.rLinPosPalletReject;
+		stStationPoses.rLinPosMotorPickup := stStation.stSts1.rLinPosMotorPickup;
+		stStationPoses.rLinPosMirrorPickup := stStation.stSts1.rLinPosMirrorPickup;
+		stStationPoses.rLinPosPlace := stStation.stSts1.rLinPosPlace;
+		
+	2: stStationPoses.aPoseLargeMotorPickupSt1 := stStation.stSts2.aPoseLargeMotorPickupSt1;
+		stStationPoses.aPoseLargeMotorPickupSt2 := stStation.stSts2.aPoseLargeMotorPickupSt2;
+		stStationPoses.aPoseLargeMotorPickupSt3 := stStation.stSts2.aPoseLargeMotorPickupSt3;
+		stStationPoses.aPoseLargeMotorPlaceSt1 := stStation.stSts2.aPoseLargeMotorPlaceSt1;
+		stStationPoses.aPoseLargeMotorPlaceSt2 := stStation.stSts2.aPoseLargeMotorPlaceSt2;
+		stStationPoses.aPoseLargeMotorPlaceSt3 := stStation.stSts2.aPoseLargeMotorPlaceSt3;
+		stStationPoses.aPoseMirrorAdj := stStation.stSts2.aPoseMirrorAdj;
+		stStationPoses.aPoseMirrorPickupSt1 := stStation.stSts2.aPoseMirrorPickupSt1;
+		stStationPoses.aPoseMirrorPickupSt2 := stStation.stSts2.aPoseMirrorPickupSt2;
+		stStationPoses.aPoseMirrorPlaceSt1 := stStation.stSts2.aPoseG14MirrorPlaceSt1;
+		stStationPoses.aPoseMirrorPlaceSt2 := stStation.stSts2.aPoseG14MirrorPlaceSt2;
+		stStationPoses.aPoseMirrorPlaceSt3 := stStation.stSts2.aPoseG14MirrorPlaceSt3;
+		stStationPoses.aPoseMirrorPlaceSt2[2] := stStation.stSts2.aPoseG14MirrorPlaceSt2[2] - rCouplerOffset - (15.05 - stAssemblyData.Station1To5.rMirrorGripPointOffsetToEdgeX + 1.2);
+		stStationPoses.aPoseMirrorPlaceSt3[2] := stStation.stSts2.aPoseG14MirrorPlaceSt3[2] - rCouplerOffset - (15.05 - stAssemblyData.Station1To5.rMirrorGripPointOffsetToEdgeX + 0.7);
+		stStationPoses.aPoseSmallMotorPlaceSt1 := stStation.stSts2.aPoseSmallMotorPlaceSt1;
+		stStationPoses.aPoseSmallMotorPlaceSt2 := stStation.stSts2.aPoseSmallMotorPlaceSt2;
+		stStationPoses.aPoseSmallMotorPickupSt1 := stStation.stSts2.aPoseSmallMotorPickupSt1;
+		stStationPoses.aPoseSmallMotorPickupSt2 := stStation.stSts2.aPoseSmallMotorPickupSt2;
+		stStationPoses.aPoseSmallMotorPickupSt3 := stStation.stSts2.aPoseSmallMotorPickupSt3;
+		stStationPoses.aPosePassedLargeSt1 := stStation.stSts2.aPosePassedLargeSt1;
+		stStationPoses.aPosePassedLargeSt2 := stStation.stSts2.aPosePassedLargeSt2;
+		stStationPoses.aPosePassedLargeSt3 := stStation.stSts2.aPosePassedLargeSt3;
+		stStationPoses.aPosePassedSmallSt1 := stStation.stSts2.aPosePassedSmallSt1;
+		stStationPoses.aPosePassedSmallSt2 := stStation.stSts2.aPosePassedSmallSt2;
+		stStationPoses.aPosePassedSmallSt3 := stStation.stSts2.aPosePassedSmallSt3;
+		stStationPoses.aPosePassedSmallSt4 := stStation.stSts2.aPosePassedSmallSt4;
+		stStationPoses.rLinPosPalletPass := stStation.stSts2.rLinPosPalletPass;
+		stStationPoses.rLinPosPalletReject := stStation.stSts2.rLinPosPalletReject;
+		stStationPoses.rLinPosMotorPickup := stStation.stSts2.rLinPosMotorPickup;
+		stStationPoses.rLinPosMirrorPickup := stStation.stSts2.rLinPosMirrorPickup;
+		stStationPoses.rLinPosPlace := stStation.stSts2.rLinPosPlace;
+		
+// 	3: stStationPoses.aPoseLargeMotorPickupSt1 := stStation.stSts3.aPoseLargeMotorPickupSt1;
+// 		stStationPoses.aPoseLargeMotorPickupSt2 := stStation.stSts3.aPoseLargeMotorPickupSt2;
+// 		stStationPoses.aPoseLargeMotorPickupSt3 := stStation.stSts3.aPoseLargeMotorPickupSt3;
+// 		stStationPoses.aPoseLargeMotorPlaceSt1 := stStation.stSts3.aPoseLargeMotorPlaceSt1;
+// 		stStationPoses.aPoseLargeMotorPlaceSt2 := stStation.stSts3.aPoseLargeMotorPlaceSt2;
+// 		stStationPoses.aPoseLargeMotorPlaceSt3 := stStation.stSts3.aPoseLargeMotorPlaceSt3;
+// 		stStationPoses.aPoseMirrorAdj := stStation.stSts3.aPoseMirrorAdj;
+// 		stStationPoses.aPoseMirrorPickupSt1 := stStation.stSts3.aPoseMirrorPickupSt1;
+// 		stStationPoses.aPoseMirrorPickupSt2 := stStation.stSts3.aPoseMirrorPickupSt2;
+// 		stStationPoses.aPoseMirrorPlaceSt1 := stStation.stSts3.aPoseMirrorPlaceSt1;
+// 		stStationPoses.aPoseMirrorPlaceSt2 := stStation.stSts3.aPoseMirrorPlaceSt2;
+// 		stStationPoses.aPoseMirrorPlaceSt3 := stStation.stSts3.aPoseMirrorPlaceSt3;
+// 		stStationPoses.aPoseSmallMotorPlaceSt1 := stStation.stSts3.aPoseSmallMotorPlaceSt1;
+// 		stStationPoses.aPoseSmallMotorPlaceSt2 := stStation.stSts3.aPoseSmallMotorPlaceSt2;
+// 		stStationPoses.aPoseSmallMotorPickupSt1 := stStation.stSts3.aPoseSmallMotorPickupSt1;
+// 		stStationPoses.aPoseSmallMotorPickupSt2 := stStation.stSts3.aPoseSmallMotorPickupSt2;
+// 		stStationPoses.aPoseSmallMotorPickupSt3 := stStation.stSts3.aPoseSmallMotorPickupSt3;
+// 		stStationPoses.aPosePassedLargeSt1 := stStation.stSts3.aPosePassedLargeSt1;
+// 		stStationPoses.aPosePassedLargeSt2 := stStation.stSts3.aPosePassedLargeSt2;
+// 		stStationPoses.aPosePassedLargeSt3 := stStation.stSts3.aPosePassedLargeSt3;
+// 		stStationPoses.aPosePassedSmallSt1 := stStation.stSts3.aPosePassedSmallSt1;
+// 		stStationPoses.aPosePassedSmallSt2 := stStation.stSts3.aPosePassedSmallSt2;
+// 		stStationPoses.aPosePassedSmallSt3 := stStation.stSts3.aPosePassedSmallSt3;
+// 		stStationPoses.aPosePassedSmallSt4 := stStation.stSts3.aPosePassedSmallSt4;
+// 		stStationPoses.rLinPosPalletPass := stStation.stSts3.rLinPosPalletPass;
+// 		stStationPoses.rLinPosPalletReject := stStation.stSts3.rLinPosPalletReject;
+// 		stStationPoses.rLinPosMotorPickup := stStation.stSts3.rLinPosMotorPickup;
+// 		stStationPoses.rLinPosMirrorPickup := stStation.stSts3.rLinPosMirrorPickup;
+// 		stStationPoses.rLinPosPlace := stStation.stSts3.rLinPosPlace;
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

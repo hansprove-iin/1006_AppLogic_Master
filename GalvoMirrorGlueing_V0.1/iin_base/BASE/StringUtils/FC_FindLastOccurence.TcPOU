@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_FindLastOccurence" Id="{e0f5c6df-a6b5-42b6-b40c-4fc93fc68a5c}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_FindLastOccurence : INT		// Finds the last occurance of a character inside a string
+VAR_INPUT
+	iStr:			T_MaxString;		// String in where to search
+	iStrTofind:		T_SHORT_STR;		// Character to search for
+END_VAR
+VAR
+	i:			INT;
+	pos:		INT;
+	str:		T_MaxString;
+	strLen:		INT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Example
+// C:\Users\Administrator\Desktop\restartHmi.bat
+//   3     9             23      31
+
+FC_FindLastOccurence := 0;
+str := iStr;
+pos := FIND(str, iStrTofind);
+WHILE (pos > 0)  DO
+	strLen := LEN(str);
+	pos := FIND(str, iStrTofind);
+	str := MID(STR := str, LEN := strLen - pos, POS := pos + 1);
+	FC_FindLastOccurence := FC_FindLastOccurence + pos;
+END_WHILE
+
+
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="FC_FindLastOccurence">
+      <LineId Id="2" Count="16" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="ST_CONTROL_SIGNALS_V2" Id="{86de0c16-9814-47c8-92b1-2be13cbecff9}">
+    <Declaration><![CDATA[TYPE ST_CONTROL_SIGNALS_V2 :	// Control signals (auto/manual/service/...) for use in programs 
+STRUCT
+	in:				 	ST_CONTROL_SIGNALS_IN;
+	out:				ST_CONTROL_SIGNALS_OUT;
+	
+	settings:			REFERENCE TO ST_CONTROL_SIGNALS_SETTINGS;
+	staticSettings:		REFERENCE TO ST_CONTROL_SIGNALS_STATIC_SETTINGS;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

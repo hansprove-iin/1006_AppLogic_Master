@@ -1,0 +1,89 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_DataExchangeRead" Id="{7af71d4a-b939-4288-9ca7-e2c99536851c}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_DataExchangeRead
+VAR_INPUT
+	trigAdsRead		: BOOL;
+	ReadData121		: REFERENCE TO ST_Vis_Laser; // // TUrhaa lukumoodissa?
+	stModuleHmi		: REFERENCE TO ST_ModuleHmi;
+	
+	
+END_VAR
+VAR_OUTPUT
+	stLaserPositionData		: ST_AngleData;
+END_VAR
+VAR
+	adsWriteStatus : INT :=0; 	
+	fbAdsRead		:FB_ReadAdsSymByName :=(
+		sNetId :='192.168.1.10.1.1',
+		nPort := 852,
+		eComMode :=E_AdsComMode.eAdsComModeFastCom,
+		tTimeout :=DEFAULT_ADS_TIMEOUT);
+		
+	bstart			: BOOL;
+	delayedStart	: TON;
+	resetCounter	: INT :=0;
+	bAllowStart		: BOOL;
+	retryDelayTON	: TON;
+	bRetrytimer		: BOOL :=FALSE;
+	DataLenght		: UDINT := 100;
+	
+	
+END_VAR
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[//ADS Data reading case
+delayedStart (IN:=TRUE, PT:=T#10S);
+bAllowStart := TRUE;
+IF stModuleHmi.bResetCommunication THEN
+	adsWriteStatus := 30;
+END_IF
+
+CASE adsWriteStatus OF
+0 : 
+		IF NOT fbAdsRead.bBusy AND delayedStart.Q AND bAllowStart THEN	// Tarkastellaan toimiiko
+			adsWriteStatus := 10;
+		END_IF
+10 :
+		fbAdsRead(bRead := FALSE);
+		fbAdsRead(
+					sVarName := 'MAIN_VISION.stAngleData', //Luettavan tiedon osoite
+					nLen := SIZEOF(stLaserPositionData), //Luettavan tiedon koko, saadaanko jostain suoraan vai pitääkö asettaa kiinteäksi. ONKO 100 JÄRKEVÄ RIITTÄVÄ TAI TOIMiva, jos sizeof ei pelaa laitetaan suoraan 100
+					nDestAddr := ADR(stLaserPositionData), 	//Osoite johon kirjoitetaan luettu data
+					bRead := TRUE );
+		adsWriteStatus := 20;
+20 :
+
+		fbAdsRead(bRead := FALSE);
+		IF NOT fbAdsRead.bBusy THEN
+			IF NOT fbAdsRead.bError THEN
+				adsWriteStatus := 0;
+			ELSE
+				adsWriteStatus := 30;
+			END_IF
+		END_IF
+30 :
+ 	IF NOT bRetryTimer THEN
+        retryDelayTON(IN := TRUE, PT := T#10S);
+        bRetrytimer := TRUE;
+    ELSE
+        retryDelayTON(IN := TRUE); // keep running
+    END_IF
+
+		IF retryDelayTON.Q THEN
+        	retryDelayTON(IN := FALSE); // Reset timer 
+        	bRetrytimer := FALSE;
+
+        	IF delayedStart.Q AND resetCounter < 3 AND bAllowStart THEN
+            	resetCounter := resetCounter + 1;
+            	adsWriteStatus := 10;         // retry write
+        	ELSE
+            	bAllowStart := FALSE;         // 3 attempts failed
+            	adsWriteStatus := 0;          // go idle?
+        END_IF
+    END_IF
+END_CASE]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

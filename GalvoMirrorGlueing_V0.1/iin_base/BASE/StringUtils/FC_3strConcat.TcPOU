@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_3strConcat" Id="{a864a41e-eae4-44c5-99c4-a6e4a7a31776}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_3strConcat : T_DEFAULT_STR		// Concatenates 3 strings
+VAR_INPUT
+	iStr1:		T_DEFAULT_STR;
+	iStr2:		T_DEFAULT_STR;
+	iStr3:		T_DEFAULT_STR;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_3strConcat := CONCAT(CONCAT(iStr1, iStr2), iStr3);]]></ST>
+    </Implementation>
+    <LineIds Name="FC_3strConcat">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

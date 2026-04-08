@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_Pulse" Id="{7d376f42-822b-4dc5-aaea-9f5a99bfda6e}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Pulse			// Pulse (= 1 plc cycle) at the specified time
+VAR_INPUT
+	iTime:		TIME;			// Pulsing time
+END_VAR
+VAR_OUTPUT
+	oPulse:		BOOL;			// The pulser (iTime FALSE followed by a 1 plc cycle TRUE)
+END_VAR
+VAR
+	pulse:		TON;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[pulse(IN := TRUE, PT := iTime);
+oPulse := pulse.Q;
+IF (pulse.Q) THEN
+	pulse(IN := FALSE);
+END_IF
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_Pulse">
+      <LineId Id="2" Count="6" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,90 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_DummyDataReporter" Id="{ae3bd8d0-0d2b-43fa-9328-79a9d09a0685}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_DummyDataReporter IMPLEMENTS I_DataReporter		// Dummy data reporter
+	// This will be returned to the caller if no real implementation is found.
+	// Methods in this FB will do nothing, thus the project can run happily ]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="ic_deviceSpeedChanged" Id="{e3ff05e1-b8fe-4a49-ba3c-531688cea24c}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_deviceSpeedChanged	// To be called when the (device) speed changes
+VAR_INPUT
+	iPos:			E_POS;				// Position enumerate
+	iMiscArea:		T_SHORT_STR;		// Safety or misc area enumerate (string). If defined/non-empty, use this instead of iPos
+	iNew:			INT;				// The new speed value
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_initializeDone" Id="{e6173b74-6923-4a05-b4f0-8eea1d38b03f}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_initializeDone	// To be called when a initialization (aka hard reset) is done
+VAR_INPUT
+	iPos:			E_POS;				// The position
+	iMiscArea:		T_SHORT_STR;		// Safety or misc area enumerate (string). If defined/non-empty, use this instead of iPos
+	iOrigin:		E_RESET_ORIGIN;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_operationModeChanged" Id="{ccce60e2-a120-4d25-a30e-55e0f8ddf35f}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_operationModeChanged	// To be called when the control signal operation mode changes
+VAR_INPUT
+	iPos:			E_POS;				// The position
+	iMiscArea:		T_SHORT_STR;		// Safety or misc area enumerate (string). If defined/non-empty, use this instead of iPos
+	iNew:			E_OPERATION_MODE;	// New operation mode
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_resetDone" Id="{d6d8eab9-e9ca-402e-a7d4-57afa5b0b0c7}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_resetDone	// To be called when a reset is done
+VAR_INPUT
+	iPos:			E_POS;				// The position
+	iMiscArea:		T_SHORT_STR;		// Safety or misc area enumerate (string). If defined/non-empty, use this instead of iPos
+	iOrigin:		E_RESET_ORIGIN;
+	iResetKeyLabel:	T_SHORT_STR;		// What reset key was pressed
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_serviceStateChanged" Id="{07eb3339-4b2a-4551-bf3c-05852803fdb9}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_serviceStateChanged		// To be called when the (control signal) service state changes
+VAR_INPUT
+	iPos:			E_POS;				// The position
+	iMiscArea:		T_SHORT_STR;		// Safety or misc area enumerate (string). If defined/non-empty, use this instead of iPos
+	iState:			BOOL;				// TRUE = service activated, FALSE = service deactivated
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_DummyDataReporter">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DummyDataReporter.ic_deviceSpeedChanged">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DummyDataReporter.ic_initializeDone">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DummyDataReporter.ic_operationModeChanged">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DummyDataReporter.ic_resetDone">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_DummyDataReporter.ic_serviceStateChanged">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

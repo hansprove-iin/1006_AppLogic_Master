@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="AL86068" Id="{d118e3d7-ba8a-4c19-96ba-78bc6efb8cc4}">
+    <Declaration><![CDATA[TYPE AL86068 :
+STRUCT
+	PoseGluingSt1		:  ARRAY [1..6] OF REAL := [-170.1, 134 ,165.7  , -167.5 , -4.7 , 72.5]; // 
+	PoseGluingSt2 		:  ARRAY [1..6] OF REAL := [-175, 166 ,177.87  , -163.5 , -7.2 , 73.2]; // 
+	PoseGluingSt3 		:  ARRAY [1..6] OF REAL := [-175, 166 ,160.27  , -163.5 , -7.2 , 73.2]; // 
+	PoseGluingSt4 		:  ARRAY [1..6] OF REAL := [-157.9, 103.5 ,160.5  , -163.5 , -7.2 , 73.2]; // 
+	PoseGluingSt5		:  ARRAY [1..6] OF REAL := [ -173.55, 132.8, 103 , -123.6 , -17 , 90];  // 
+	
+	PoseGluingSt6 		:  ARRAY [1..6] OF REAL := [ -169.673813, 134.421356, 118.048595 , -123.6 , -17 , 90]; // 
+	PoseGluingSt7 		:  ARRAY [1..6] OF REAL := [ -173.192612,132.9314, 118.355591 , -123.600 , -17 , 90];  //
+	PoseGluingSt8		:  ARRAY [1..6] OF REAL := [ -174.150, 132.583 , 83.690 , -106.182 , -17 , 90];   //
+	PoseGluingSt9		:  ARRAY [1..6] OF REAL := [ -169.879,134.182,83.645,-106.182,-17,90];  //
+	PoseGluingSt10		:  ARRAY [1..6] OF REAL := [ -169.879,134.697,77,-106.182,-17,90];  //
+	iPoseAmount			: INT;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

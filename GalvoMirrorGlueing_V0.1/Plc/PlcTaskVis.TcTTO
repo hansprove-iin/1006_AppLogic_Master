@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Task Name="PlcTaskVis" Id="{96ff8140-c2de-460d-8a98-12db51db735a}">
+    <!--CycleTime in micro seconds.-->
+    <CycleTime>150000</CycleTime>
+    <Priority>1</Priority>
+    <PouCall>
+      <Name>MAIN_VISION</Name>
+    </PouCall>
+    <TaskFBGuid>{960cdffc-fca4-43ec-866f-9f8d04f8e7e6}</TaskFBGuid>
+    <Fb_init>{fd2edf18-59f5-4e67-bc62-5e14e6f7fa68}</Fb_init>
+    <Fb_exit>{b53632f3-bd6c-4f48-bd73-1cc494a8dd2d}</Fb_exit>
+    <CycleUpdate>{9e48f295-e6a2-48cb-bb18-786194e46531}</CycleUpdate>
+    <PostCycleUpdate>{a99d84ac-6fc6-431e-ae51-76a66c4656c7}</PostCycleUpdate>
+  </Task>
+</TcPlcObject>

@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="AddREAL" Id="{89cc04ef-ba49-4788-8c60-99b1c3e34711}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION AddREAL : BOOL				// Increments the given UINT value
+VAR_INPUT
+	iAdd:	REAL;
+END_VAR
+VAR_IN_OUT
+	ioNum:	REAL;		// Value to increment
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[ioNum := ioNum + iAdd;
+]]></ST>
+    </Implementation>
+    <LineIds Name="AddREAL">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

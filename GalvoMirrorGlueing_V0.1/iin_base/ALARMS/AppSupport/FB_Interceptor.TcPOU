@@ -1,0 +1,182 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_Interceptor" Id="{9a610ede-07a7-4761-929a-a5c852d75bdf}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Interceptor
+VAR_INPUT
+	iDebugEnableBreakpoint:	BOOL;			// When TRUE, stepping will stop as long as the debugging is ON
+END_VAR
+VAR_IN_OUT
+	ioDebugAllowSingleStep:	BOOL;			// When TRUE, a single step will be allowed, then the debugger becomes active again
+END_VAR
+VAR
+	interceptors:	ARRAY[0..3] OF ST_INTERCEPTOR;
+	cnt:			INT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="getResult" Id="{ec0946f7-36ab-4163-8faf-021d6cee22f8}">
+      <Declaration><![CDATA[METHOD PUBLIC getResult : ST_INTERCEPTOR_RESULT
+VAR
+	i:	INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[{warning disable C0371}
+
+getResult.clear := TRUE;
+getResult.missing := IING.STRING_BLANK;
+
+IF (cnt > 0) THEN
+	FOR i := 0 TO cnt - 1 DO
+		IF (NOT interceptors[i].check) THEN
+			getResult.clear := FALSE;						// This interceptor check fails
+			getResult.missing := interceptors[i].desc;		// Set the reason why this interceptor failed
+			RETURN;
+		END_IF
+	END_FOR
+END_IF
+
+// We come here when all interceptors were good
+IF (iDebugEnableBreakpoint) THEN
+	IF (ioDebugAllowSingleStep) THEN
+		ioDebugAllowSingleStep := FALSE;
+	ELSE
+		getResult.clear := FALSE;							// We stop program continuation by taking the 'clear' flag off 
+		getResult.missing := 'DEBUG';						// We tell to the user that the debugger is active
+	END_IF
+END_IF
+
+{warning restore C0371}]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="init" Id="{30006398-eb94-4cb7-8762-0f21b035b603}">
+      <Declaration><![CDATA[METHOD public init : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[cnt := 0;
+
+// Just in case
+interceptors[0].check := TRUE;
+interceptors[0].desc := 'this interceptor is not in use';
+
+interceptors[1].check := TRUE;
+interceptors[1].desc := 'this interceptor is not in use';
+
+interceptors[2].check := TRUE;
+interceptors[2].desc := 'this interceptor is not in use';
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="set1Interceptor" Id="{a833be52-de15-4d49-ac99-eacb09cc4b36}">
+      <Declaration><![CDATA[METHOD PUBLIC set1Interceptor : BOOL
+VAR_INPUT
+	check1:	BOOL;
+	desc1:	T_SHORT_STR;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[interceptors[0].check := check1;
+interceptors[0].desc := desc1;
+cnt := 1;
+
+// Just in case
+interceptors[1].check := TRUE;
+interceptors[1].desc := 'this interceptor is not in use';
+
+interceptors[2].check := TRUE;
+interceptors[2].desc := 'this interceptor is not in use';
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="set2Interceptor" Id="{4535aa8d-1647-4f59-b51b-1bb844bd6918}">
+      <Declaration><![CDATA[METHOD PUBLIC set2Interceptor : BOOL
+VAR_INPUT
+	check1:		BOOL;
+	desc1:		T_SHORT_STR;
+	check2:		BOOL;
+	desc2:		T_SHORT_STR;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[interceptors[0].check := check1;
+interceptors[0].desc := desc1;
+interceptors[1].check := check2;
+interceptors[1].desc := desc2;
+cnt := 2;
+
+// Just in case
+interceptors[2].check := TRUE;
+interceptors[2].desc := 'this interceptor is not in use';
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="set3Interceptor" Id="{0e722e9f-1695-4690-9ca3-2c4256f90807}">
+      <Declaration><![CDATA[METHOD PUBLIC set3Interceptor : BOOL
+VAR_INPUT
+	check1:		BOOL;
+	desc1:		T_SHORT_STR;
+	check2:		BOOL;
+	desc2:		T_SHORT_STR;
+	check3:		BOOL;
+	desc3:		T_SHORT_STR;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[interceptors[0].check := check1;
+interceptors[0].desc := desc1;
+interceptors[1].check := check2;
+interceptors[1].desc := desc2;
+interceptors[2].check := check3;
+interceptors[2].desc := desc3;
+cnt := 3;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="set4Interceptor" Id="{1c708519-41ac-4158-9cbc-3b8f299b04a9}">
+      <Declaration><![CDATA[METHOD PUBLIC set4Interceptor : BOOL
+VAR_INPUT
+	iCheck1:	BOOL;
+	iDesc1:		T_SHORT_STR;
+	iCheck2:	BOOL;
+	iDesc2:		T_SHORT_STR;
+	iCheck3:	BOOL;
+	iDesc3:		T_SHORT_STR;
+	iCheck4:	BOOL;
+	iDesc4:		T_SHORT_STR;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[interceptors[0].check := iCheck1;
+interceptors[0].desc := iDesc1;
+interceptors[1].check := iCheck2;
+interceptors[1].desc := iDesc2;
+interceptors[2].check := iCheck3;
+interceptors[2].desc := iDesc3;
+interceptors[3].check := iCheck4;
+interceptors[3].desc := iDesc4;
+cnt := 4;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Interceptor">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Interceptor.getResult">
+      <LineId Id="2" Count="25" />
+    </LineIds>
+    <LineIds Name="FB_Interceptor.init">
+      <LineId Id="2" Count="11" />
+    </LineIds>
+    <LineIds Name="FB_Interceptor.set1Interceptor">
+      <LineId Id="2" Count="10" />
+    </LineIds>
+    <LineIds Name="FB_Interceptor.set2Interceptor">
+      <LineId Id="2" Count="9" />
+    </LineIds>
+    <LineIds Name="FB_Interceptor.set3Interceptor">
+      <LineId Id="2" Count="6" />
+    </LineIds>
+    <LineIds Name="FB_Interceptor.set4Interceptor">
+      <LineId Id="2" Count="8" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,365 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <TextList Name="TL_ADS_ERRORS" Id="{b77f88f7-b645-4dad-aaff-2c67a2adef40}">
+    <XmlArchive>
+      <Data>
+        <o xml:space="preserve" t="TextListObject">
+          <v n="UniqueIdGenerator">"0"</v>
+          <l n="TextList" t="ArrayList" cet="TextListRow">
+            <o>
+              <v n="TextID">"0"</v>
+              <v n="TextDefault">"NO_ERROR"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"6"</v>
+              <v n="TextDefault">"TARGET_PORT_NOT_FOUND"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"7"</v>
+              <v n="TextDefault">"TARGET_MACHINE_NOT_FOUND"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1792"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_ERROR"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1793"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_SRVNOTSUPP"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1794"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_INVALIDGRP"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1795"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_INVALIDOFFSET"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1796"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_INVALIDACCESS"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1797"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_INVALIDSIZE"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1798"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_INVALIDDATA"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1799"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_NOTREADY"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1800"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_BUSY"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1801"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_INVALIDCONTEXT"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1802"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_NOMEMORY"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1803"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_INVALIDPARM"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1804"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_NOTFOUND"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1805"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_SYNTAX"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1806"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_INCOMPATIBLE"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1807"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_EXISTS"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1808"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_SYMBOLNOTFOUND"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1809"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_SYMBOLVERSIONINVAL"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1810"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_INVALIDSTATE"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1811"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_TRANSMODENOTSUPP"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1812"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_NOTIFYHNDINVALID"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1813"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_CLIENTUNKNOWN"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1814"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_NOMOREHDLS"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1815"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_INVALIDWATCHSIZE"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1816"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_NOTINIT"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1817"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_TIMEOUT"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1818"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_NOINTERFACE"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1819"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_INVALIDINTERFACE"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1820"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_INVALIDCLSID"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1821"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_INVALIDOBJID"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1822"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_PENDING"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1823"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_ABORTED"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1824"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_WARNING"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1825"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_INVALIDARRAYIDX"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1826"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_SYMBOLNOTACTIVE"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1827"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_ACCESSDENIED"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1828"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_LICENSENOTFOUND"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1829"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_LICENSEEXPIRED"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1830"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_LICENSEEXCEEDED"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1831"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_LICENSEINVALID"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1832"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_LICENSESYSTEMID"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1833"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_LICENSENOTIMELIMIT"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1834"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_LICENSEFUTUREISSUE"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1835"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_LICENSETIMETOLONG"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1836"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_EXCEPTION"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1837"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_LICENSEDUPLICATED"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1838"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_SIGNATUREINVALID"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1839"</v>
+              <v n="TextDefault">"ADSERR_DEVICE_CERTIFICATEINVALID"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1856"</v>
+              <v n="TextDefault">"ADSERR_CLIENT_ERROR"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1857"</v>
+              <v n="TextDefault">"ADSERR_CLIENT_INVALIDPARM"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1858"</v>
+              <v n="TextDefault">"ADSERR_CLIENT_LISTEMPTY"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1859"</v>
+              <v n="TextDefault">"ADSERR_CLIENT_VARUSED"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1860"</v>
+              <v n="TextDefault">"ADSERR_CLIENT_DUPLINVOKEID"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1861"</v>
+              <v n="TextDefault">"ADSERR_CLIENT_SYNCTIMEOUT"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1862"</v>
+              <v n="TextDefault">"ADSERR_CLIENT_W32ERROR"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1863"</v>
+              <v n="TextDefault">"ADSERR_CLIENT_TIMEOUTINVALID"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1864"</v>
+              <v n="TextDefault">"ADSERR_CLIENT_PORTNOTOPEN"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1872"</v>
+              <v n="TextDefault">"ADSERR_CLIENT_NOAMSADDR"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1873"</v>
+              <v n="TextDefault">"ADSERR_CLIENT_SYNCINTERNAL"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1874"</v>
+              <v n="TextDefault">"ADSERR_CLIENT_ADDHASH"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1875"</v>
+              <v n="TextDefault">"ADSERR_CLIENT_REMOVEHASH"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1876"</v>
+              <v n="TextDefault">"ADSERR_CLIENT_NOMORESYM"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1877"</v>
+              <v n="TextDefault">"ADSERR_CLIENT_SYNCRESINVALID"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"9999"</v>
+              <v n="TextDefault">"TODO"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">""</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+          </l>
+          <l n="Languages" t="ArrayList" />
+          <v n="GuidInit">{5e7d17f0-908d-4a63-a460-5304ca127416}</v>
+          <v n="GuidReInit">{f6ba7825-6458-4d6b-92eb-a0949660834a}</v>
+          <v n="GuidExitX">{e58998b0-5e2f-4f9b-ba53-15ca9358aac2}</v>
+        </o>
+      </Data>
+      <TypeList>
+        <Type n="ArrayList">System.Collections.ArrayList</Type>
+        <Type n="Guid">System.Guid</Type>
+        <Type n="String">System.String</Type>
+        <Type n="TextListObject">{2bef0454-1bd3-412a-ac2c-af0f31dbc40f}</Type>
+        <Type n="TextListRow">{53da1be7-ad25-47c3-b0e8-e26286dad2e0}</Type>
+      </TypeList>
+    </XmlArchive>
+  </TextList>
+</TcPlcObject>

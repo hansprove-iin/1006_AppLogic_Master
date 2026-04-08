@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="ST_INTERCEPTOR_RESULT" Id="{9f5b38bb-2391-40f4-8a42-8c35aa1f9e74}">
+    <Declaration><![CDATA[TYPE ST_INTERCEPTOR_RESULT :
+STRUCT
+	clear:		BOOL;				// When TRUE, all is good 
+	missing:	T_SHORT_STR;		// When clear is FALSE, this tells what is missing
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

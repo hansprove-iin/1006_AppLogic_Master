@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="ST_PERSISTENCY_SETTINGS" Id="{82473110-b50a-4b1d-b547-db62066cd6d4}">
+    <Declaration><![CDATA[TYPE ST_PERSISTENCY_SETTINGS :
+STRUCT
+	port:				UINT := 851;	
+	autoSave:			BOOL := TRUE;
+	saveInterval:		TIME := T#12H;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

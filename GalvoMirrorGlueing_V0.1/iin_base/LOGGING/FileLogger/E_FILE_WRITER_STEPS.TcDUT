@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="E_FILE_WRITER_STEPS" Id="{2a3a984f-0809-4b5d-8da0-10644a412606}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_FILE_WRITER_STEPS :
+(
+	IDLE := 0,
+	
+	OPEN_FILE,
+	
+	WAIT_DATA,
+	
+	WRITE_LINE,
+
+	CHECK_FILE,
+	
+	CLOSE_FILE,
+	
+	CLEANUP,
+	
+	OPENING_ERROR,
+	
+	TELL_ERROR,
+	
+	WRITING_ERROR,
+	
+	CLOSING_ERROR,
+	
+	END
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

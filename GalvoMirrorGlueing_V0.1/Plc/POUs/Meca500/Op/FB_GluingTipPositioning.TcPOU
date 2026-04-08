@@ -1,0 +1,681 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_GluingTipPositioning" Id="{5381de1a-5855-4e61-ab94-16e1875c6e60}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_GluingTipPositioning
+VAR_INPUT
+	bExecutePositining : BOOL;
+	stPlcCom	: REFERENCE TO ST_Module_PlcCom;
+	rJogSpeed : REFERENCE TO REAL;
+	bReCheckNeedle : BOOL;
+END_VAR
+VAR_OUTPUT
+	bRobotHomed : BOOL;
+	bDetectionDone : BOOL;
+	bReDetectionDone : BOOL;
+	bDetectionFailed	: BOOL;
+	stTipOffsets	: ST_GluetipCoordinates;
+END_VAR
+VAR
+	Sent				: BOOL;
+	Buffered			: BOOL;
+	Error				: BOOL;
+	
+	Delay				:Meca500_Delay;
+	Gripper				:Meca500_Gripper;
+	MoveGripper			:Meca500_MoveGripper;
+	MoveJoints			:Meca500_MoveJoints;
+	MoveJointsRel		:Meca500_MoveJointsRel;
+	MovejointsVel		:Meca500_MoveJointsVel;
+	MoveLin				:Meca500_MoveLin;
+	MoveLinRelTrf		:Meca500_MoveLinRelTrf;
+	MoveLinRelWrf		:Meca500_MoveLinRelWrf;
+	MoveLinVelTrf		:Meca500_MoveLinVelTrf;
+	MoveLinVelWrf		:Meca500_MoveLinVelWrf;
+	MovePose			:Meca500_MovePose;
+	SetAutoConf			:Meca500_SetAutoConf;
+	SetAutoConfTurn		:Meca500_SetAutoConfTurn;
+	SetBlending			:Meca500_SetBlending;
+	SetCartAcc			:Meca500_SetCartAcc;
+	SetCartAngVel		:Meca500_SetCartAngVel;
+	SetCartLinVel		:Meca500_SetCartLinVel;
+	SetCheckpoint		:Meca500_SetCheckpoint;
+	SetConf				:Meca500_SetConf;
+	SetConfTurn			:Meca500_SetConfTurn;
+	SetGripperForce		:Meca500_SetGripperForce;
+	SetGripperRange		:Meca500_SetGripperRange;
+	SetGripperVel		:Meca500_SetGripperVel;
+	SetJointAcc			:Meca500_SetJointAcc;
+	SetJointVel			:Meca500_SetJointVel;
+	SetTorqueLimitCfg	:Meca500_SetTorqueLimitCfg;
+	SetTorqueLimits		:Meca500_SetTorqueLimits;
+	SetTrf				:Meca500_SetTrf;
+	SetValveState		:Meca500_SetValveState;
+	SetVelTimeout		:Meca500_SetVelTimeout;
+	SetWrf				:Meca500_SetWrf;
+	StartProgram		:Meca500_StartProgram;
+	SetJointVelLimit	:Meca500_SetJointVelLimit;
+	SetTimeScaling		:Meca500_SetTimeScaling;
+	GetEOAT 			:Meca500_GetEOAT;
+	
+	
+	
+	iPositioningStep	: INT;
+	
+	aNegativeJogZ				: ARRAY [1..6] OF REAL := [0,0,-0.2,0,0,0];
+	
+	PoseHome			: ARRAY [1..6] OF REAL := [-90,0,0,0,90,0];
+	PoseMotorPickupTemp : ARRAY [1..6] OF REAL := [-73.2067 , 21.8881 , 23.8300 , -105.4797 , 75.4102 , -42.2884]; // JOINT VALUES
+	PoseMotorPlaceTemp 	: ARRAY [1..6] OF REAL := [127.3581 , -0.6526 , 7.9110 , 0.0000 , 82.7417, 37.3370]; // JOINT VALUES
+	PoseMirrorPickupTemp : ARRAY [1..6] OF REAL := [-154.1223 , 13.9826 , 1.7675 , 0.0000 ,  74.2499, 27.9110]; // JOINT VALUES
+	PoseMidPose 		: ARRAY [1..6] OF REAL := [-150.872, 152.243,154.566, -119.571, -22.210 ,84.857]; // 
+	
+	PoseTipSt1		:  ARRAY [1..6] OF REAL := [-179.478, 170.365 , 101.774  , -119.571 , -22.210 , 84.857]; // Mid station before detection 1
+	PoseTipSt2 		:  ARRAY [1..6] OF REAL := [-206.937, 217.033 , 86.60 , -100, -10 ,90]; // Pose start of detection 1
+	PoseTipSt3 		:  ARRAY [1..6] OF REAL := [-207.937, 222.033 ,86.60 , -100, -10 ,90]; // Pose end of detection 1 92.875
+	
+	PoseTipSt4		:  ARRAY [1..6] OF REAL := [-170.757, 186.867 ,163.452 , -100, -40 ,90]; // Mid pose after first detection
+	PoseTipSt5 		:  ARRAY [1..6] OF REAL := [-198.342, 212.81,92.875 , -115, -38 ,75.268]; // Pose start of detection 2
+	PoseTipSt6 		:  ARRAY [1..6] OF REAL := [-202.667, 218.711,92.875 , -115, -38 ,75.268]; // Pose end of detection 2
+	PoseTipFound 		:  ARRAY [1..6] OF REAL := [-198.937, 225.033 ,85.875 , -100, -10 ,90];
+	PoseTipFoundEnd	:  ARRAY [1..6] OF REAL := [-198.937, 225.033 ,85.875 , -100, -10 ,90];
+	EOAT				: ARRAY [0..5] OF REAL; // Values: [holding part, desired fingers opening reached, gripper closed, gripper open, gripper force, fingers opening].
+	
+	bMoveForward	: BOOL;
+	rDetectedTipPosY : REAL;
+	rDetectedTipPosX : REAL;
+	bSaveFirstCoordinates : BOOL;
+	bSaveSecondCoordinates : BOOL;
+	bSaveThirdCoordinates : BOOL;
+	aDetectedCoordinates	: ARRAY [1..4] OF ST_GluetipCoordinates;
+	rSetpointX				: REAL := -201.8805;
+	rSetPointY				: REAL := 219.1602;
+	rSetPointZ				: REAL := 87.286;
+	iSavingNumber	: INT;
+	CoordinateSaveTrig	: R_TRIG;
+	bNeedleFound : BOOL;
+	bTrigPositionSave: BOOL;
+	bHolt : BOOL;
+	bHeightSet: BOOL;
+	bPositionSaved: BOOL;
+	bPassStepSent : BOOL;
+	bMoveDown : BOOL;
+	bNeedleDetected :BOOL;
+	bAllowReCheck : BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[GetEOAT(
+	Status => EOAT,
+	Robot := Meca500.GVL.Meca500);
+IF NOT stPlcCom.stPlcComIn.bRobotGripperSensor THEN
+	bNeedleFound := TRUE;
+END_IF
+
+bDetectionDone := FALSE;
+bReDetectionDone := FALSE;
+CoordinateSaveTrig(CLK := bNeedleFound);
+IF CoordinateSaveTrig.Q AND bSaveFirstCoordinates THEN
+	aDetectedCoordinates[1].X := Meca500.GVL.Meca500.Inputs.End_Effector_Pose.SubIndex_001;
+	aDetectedCoordinates[1].Y := Meca500.GVL.Meca500.Inputs.End_Effector_Pose.SubIndex_002;
+	aDetectedCoordinates[1].Z := Meca500.GVL.Meca500.Inputs.End_Effector_Pose.SubIndex_003;
+	bSaveFirstCoordinates := FALSE;
+END_IF
+
+IF bSaveSecondCoordinates THEN
+	aDetectedCoordinates[2].X := Meca500.GVL.Meca500.Inputs.End_Effector_Pose.SubIndex_001;
+	aDetectedCoordinates[2].Y := Meca500.GVL.Meca500.Inputs.End_Effector_Pose.SubIndex_002;
+	aDetectedCoordinates[2].Z := Meca500.GVL.Meca500.Inputs.End_Effector_Pose.SubIndex_003;
+	bSaveSecondCoordinates := FALSE;
+END_IF
+
+IF CoordinateSaveTrig.Q AND bSaveThirdCoordinates THEN
+	aDetectedCoordinates[3].X := Meca500.GVL.Meca500.Inputs.End_Effector_Pose.SubIndex_001;
+	aDetectedCoordinates[3].Y := Meca500.GVL.Meca500.Inputs.End_Effector_Pose.SubIndex_002;
+	aDetectedCoordinates[3].Z := Meca500.GVL.Meca500.Inputs.End_Effector_Pose.SubIndex_003;
+	bSaveThirdCoordinates := FALSE;
+END_IF
+IF NOT stPlcCom.stPlcComIn.bRobotGripperSensor AND bAllowReCheck THEN
+	bNeedleDetected := TRUE;
+	bAllowReCheck := FALSE;
+END_IF
+
+CASE iPositioningStep OF
+	0: IF bExecutePositining AND NOT bReCheckNeedle THEN
+			bDetectionDone := FALSE;
+			bRobotHomed := FALSE;
+			bNeedleFound := FALSE;
+			bNeedleDetected := FALSE;
+			bReDetectionDone := FALSE;
+			bDetectionFailed := FALSE;			
+			PoseTipSt2[3] := 86.6;
+			PoseTipSt3[3] := 86.6;			
+			IF NOT stPlcCom.stPlcComIn.bGlueStopHome THEN
+				iPositioningStep := 1;
+				bExecutePositining := FALSE;
+			ELSE
+				stPlcCom.stPlcComOut.bGlueStopValve := TRUE;
+			END_IF
+		ELSIF bExecutePositining AND bReCheckNeedle THEN
+			iPositioningStep := 50;
+			bExecutePositining := FALSE;
+			bReCheckNeedle := FALSE;
+		END_IF
+	1: MoveGripper(mm := 24,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	2:	IF EOAT[5] = 24 THEN  // LISÄÄ ELSE
+			iPositioningStep := 3;
+		END_IF
+	3: MoveJoints(Joint_Angle := PoseMotorPlaceTemp,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	4: MovePose(Pose := PoseMidPose,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	5: SetCheckpoint(CheckpointID := 201,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	6:	IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 201 THEN
+			iPositioningStep := 7;	
+		END_IF
+	 
+	7: MovePose(Pose := PoseTipSt1,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);	
+	8: SetCheckpoint(CheckpointID := 203,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	9: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 203 THEN
+			bHeightSet := FALSE;
+			bSaveFirstCoordinates := TRUE;
+			iPositioningStep := 10;
+		END_IF 
+	10: MoveLin(Pose := PoseTipSt2,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	11: SetCartLinVel(
+			Velocity_Limit := 0.25,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	12: MoveLin(Pose := PoseTipSt3,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	
+	13: SetCheckpoint(CheckpointID := 202,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	14:	IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 202 THEN
+			IF bNeedleFound THEN
+				iPositioningStep := 15;	
+			ELSIF PoseTipSt2[3] < 94 AND NOT bHeightSet THEN
+				PoseTipSt2[3] := PoseTipSt2[3] + 0.5;
+				PoseTipSt3[3] := PoseTipSt3[3] + 0.5;
+				bHeightSet := TRUE;
+				iPositioningStep := 8;	
+			ELSE
+				iPositioningStep := 100; 
+			END_IF
+		END_IF	
+	15: SetCartLinVel(
+			Velocity_Limit := 10*rJogSpeed,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	16: PoseTipFound[1] := aDetectedCoordinates[1].X;
+		PoseTipFound[2] := aDetectedCoordinates[1].Y;
+		PoseTipFound[3] := aDetectedCoordinates[1].Z;
+		bNeedleFound := FALSE;
+		iPositioningStep := 17;
+	17: MovePose(Pose := PoseTipFound, // LISÄÄ KOODI JOSSA JOS PALUU POSITIOON EI OLE NEULAN KOHDALLA NIIN TUNNISTUS ALKAA ALUSTA
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	18: SetCheckpoint(CheckpointID := 205,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+			
+	19: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 205 THEN
+			iPositioningStep := 20;
+			PoseTipSt1[3] := 92;
+		END_IF
+		
+	20: bPassStepSent := TRUE;
+		IF bMoveDown THEN
+			 MoveLinVelWrf(
+				Velocity := aNegativeJogZ,
+				ExternalStatecontrol := 0,
+				ExternalMove_ID := 0,
+				Robot:= Meca500.GVL.Meca500, 
+				Error=> Error, 
+				Sent:= Sent, 
+				Buffered:= Buffered);
+		END_IF
+		IF Meca500.GVL.Meca500.Inputs.End_Effector_Pose.SubIndex_003 < 81 THEN
+			iPositioningStep := 100; 
+			bMoveDown := FALSE;
+		ELSIF NOT stPlcCom.stPlcComIn.bRobotGripperSensor THEN
+			bMoveDown := TRUE;
+		ELSE
+			bSaveSecondCoordinates := TRUE;
+			bMoveDown := FALSE;
+			iPositioningStep := 21;
+			bPassStepSent := FALSE;
+		END_IF
+		IF Sent AND Buffered THEN
+			Sent := FALSE;
+			Buffered := FALSE;
+		END_IF	
+		
+	21: MoveLin(Pose := PoseTipSt2,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	22: MoveLin(Pose := PoseTipSt1,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	23: MovePose(Pose := PoseMidPose,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);	
+	24: MoveJoints(Joint_Angle := PoseMotorPlaceTemp,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	25:	SetCheckpoint(CheckpointID := 207,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	26: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 207 THEN
+			iPositioningStep := 27;
+			bNeedleFound := FALSE;
+			PoseTipSt5[3] := aDetectedCoordinates[1].Z + 1;
+			PoseTipSt6[3] := aDetectedCoordinates[1].Z + 1;
+		END_IF
+	27: MovePose(Pose := PoseTipSt4,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	28: MovePose(Pose := PoseTipSt5,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	29: SetCartLinVel(
+			Velocity_Limit := 0.25,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	30: SetCheckpoint(CheckpointID := 208,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	31: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 208 THEN
+			iPositioningStep := 32;
+			bSaveThirdCoordinates := TRUE;
+			bHeightSet := FALSE;
+		END_IF
+	32: MoveLin(Pose := PoseTipSt6,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	33: SetCartLinVel(
+			Velocity_Limit := 10*rJogSpeed,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	34: MovePose(Pose := PoseTipSt5,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	35: MovePose(Pose := PoseTipSt4,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	36: MoveJoints(Joint_Angle := PoseMotorPlaceTemp,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	37: SetCheckpoint(CheckpointID := 209,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	38: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 209 THEN
+			stPlcCom.stPlcComOut.bGlueStopValve := FALSE;
+			stTipOffsets.X := rSetpointX- aDetectedCoordinates[3].X;
+			stTipOffsets.Y := rSetpointY- aDetectedCoordinates[2].Y;
+			stTipOffsets.Z := rSetpointZ- aDetectedCoordinates[2].Z;
+			iPositioningStep := 39;
+		END_IF
+	39: bDetectionDone := TRUE;
+		iPositioningStep := 0;
+	50:MoveGripper(mm := 24,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	51:	IF EOAT[5] = 24 THEN  // LISÄÄ ELSE
+			PoseTipFound[3] := PoseTipFound[3]+1;
+			PoseTipFoundEnd := PoseTipFound;
+			PoseTipFound[2] := PoseTipFound[2] - 0.3;
+			PoseTipFoundEnd[2] :=  PoseTipFoundEnd[2]+ 0.3;
+			bAllowReCheck := TRUE;
+			iPositioningStep := 52;
+		END_IF
+	52: MoveJoints(Joint_Angle := PoseMotorPlaceTemp,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	53: MovePose(Pose := PoseMidPose,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	54: SetCheckpoint(CheckpointID := 201,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	55:	IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 201 THEN
+			iPositioningStep := 56;	
+		END_IF
+	 
+	56: MovePose(Pose := PoseTipSt1,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);	
+	57: SetCheckpoint(CheckpointID := 203,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	58: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 203 THEN
+			bHeightSet := FALSE;
+			bSaveFirstCoordinates := TRUE;
+			iPositioningStep := 59;
+			stPlcCom.stPlcComOut.bGlueStopValve := TRUE;
+		END_IF 
+	59: MoveLin(Pose := PoseTipSt2,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	60: MoveLin(Pose := PoseTipFound,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered); 
+	61: SetCartLinVel(
+			Velocity_Limit := 0.25,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	62: SetCheckpoint(CheckpointID := 203,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	63: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 203 THEN
+			iPositioningStep := 64;
+		END_IF
+	64: MoveLin(Pose := PoseTipFoundEnd,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	65: SetCheckpoint(CheckpointID := 200,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	66: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 200 THEN
+			iPositioningStep := 67;
+		END_IF
+	67: SetCartLinVel(
+			Velocity_Limit := 10*rJogSpeed,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	68: MoveLin(Pose := PoseTipSt2,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	69: MoveLin(Pose := PoseTipSt1,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	70: MovePose(Pose := PoseMidPose,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);	
+	71: MoveJoints(Joint_Angle := PoseMotorPlaceTemp,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	72:	SetCheckpoint(CheckpointID := 209,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	73: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 209 THEN
+			stPlcCom.stPlcComOut.bGlueStopValve := FALSE;
+			bAllowReCheck := FALSE;
+			IF bNeedleDetected THEN
+				bReDetectionDone := TRUE;
+				bNeedleDetected := FALSE;
+				iPositioningStep := 0;
+			ELSE
+				bDetectionFailed := TRUE;
+				bNeedleDetected := FALSE;
+				iPositioningStep := 0;
+			END_IF
+		END_IF 
+	100: SetCartLinVel(
+			Velocity_Limit := 500,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	101: MoveLin(Pose := PoseTipSt2,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	102: MoveLin(Pose := PoseTipSt1,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	103: MovePose(Pose := PoseMidPose,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);	
+	104: MoveJoints(Joint_Angle := PoseMotorPlaceTemp,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+			
+	105: IF Meca500.GVL.Meca500.Inputs.Motion_Status.ReachedCheckPointId = 220 THEN
+			 iPositioningStep := 106;
+		END_IF
+	106: bDetectionFailed := TRUE;
+		iPositioningStep := 0;
+		bNeedleFound := FALSE;
+END_CASE
+
+
+IF Sent AND Buffered AND NOT bPassStepSent THEN
+	iPositioningStep := iPositioningStep +1;
+	Sent := FALSE;
+	Buffered := FALSE;
+END_IF]]></ST>
+    </Implementation>
+    <Method Name="Initialize" Id="{f26a2b8d-d96f-4c08-9501-75029005a01e}">
+      <Declaration><![CDATA[METHOD Initialize : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bDetectionDone := FALSE;
+bRobotHomed := FALSE;
+bNeedleFound := FALSE;
+bReDetectionDone := FALSE;
+bDetectionFailed := FALSE;		
+bDetectionDone := FALSE;
+bReDetectionDone := FALSE;
+bAllowReCheck := FALSE;
+bNeedleDetected := FALSE; ]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

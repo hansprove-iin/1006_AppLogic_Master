@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_GetPositionWithId" Id="{186e8a1c-9506-4931-9239-1379f623b311}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_GetPositionWithId : T_SHORT_STR
+VAR_INPUT
+	iPos:						E_POS := E_POS.UNDEFINED;
+	iDeviceId:					T_DEVICE_ID := IING.STRING_BLANK;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_GetPositionWithId := FC_2strConcatSeparator(iSeparator := IING.STRING_DOT, iStr1 := TO_STRING(iPos), iStr2 := iDeviceId);]]></ST>
+    </Implementation>
+    <LineIds Name="FC_GetPositionWithId">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

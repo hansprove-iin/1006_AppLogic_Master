@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="E_StsActState" Id="{265bdca5-8442-4554-9653-da45c5676766}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_StsActState :
+(
+	StartupCheck,
+	AssemblyCheck,
+	Idle,
+	DataLogging,
+	RobotSlotHold,
+	AngleAdj,
+	PositionAdj,
+	ProductMounting,
+	ProductDisMounting,
+	Disabled,
+	Error,
+	HoldForValveRelease
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

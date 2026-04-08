@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_GetLocalHostName" Id="{004f4cfb-894b-4bd7-946a-8b82e5ef7059}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_GetLocalHostName : T_MaxString	// Returns the local host name
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_GetLocalHostName := IING.localHostName;]]></ST>
+    </Implementation>
+    <LineIds Name="FC_GetLocalHostName">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

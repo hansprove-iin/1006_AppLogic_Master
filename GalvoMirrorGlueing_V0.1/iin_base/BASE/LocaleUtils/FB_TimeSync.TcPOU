@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_TimeSync" Id="{939060a6-281a-433e-80c8-fdb832c3a109}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TimeSync		// FB for synchronizing the PLC times from the 'master/main', a maximum of 10 slaves can be synchronized
+VAR_INPUT	
+	iAmsNetIds:				POINTER TO T_AmsNetID;		// Ams net id of the slaves we want to time sync
+	iAmsNetIdArraySize:		INT;						// Number of Ams net ids passed (= the array size)
+	iSyncInterval: 			TIME;						// Time interval between synchronizations
+END_VAR
+VAR
+	pulser:					FB_Pulse;										// Pulser for starting the time sync
+	fbNtSetLocalTime:		ARRAY[0..MAX_SYNC_SIZE-1] OF NT_SetLocalTime;	// Memory reservation for max x slave syncing
+	i: 						INT;											// For loop
+	minCnt:					INT;
+END_VAR
+VAR CONSTANT
+	MAX_SYNC_SIZE:			INT := 10;	// We can set a maximum of 10 slave PLCs here
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[pulser(iTime := iSyncInterval);
+
+// We must prevent out of array bounds
+minCnt := MIN(iAmsNetIdArraySize, MAX_SYNC_SIZE);
+IF (minCnt > MAX_SYNC_SIZE) THEN
+	minCnt := MAX_SYNC_SIZE;
+END_IF
+
+FOR i := 0 TO minCnt - 1 BY 1 DO
+	fbNtSetLocalTime[i](NETID := iAmsNetIds[i], TIMESTR := IING.localSystemTime, START:= pulser.oPulse);	// IIN.localSystemTime is part of TM_Base
+END_FOR
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_TimeSync">
+      <LineId Id="2" Count="11" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

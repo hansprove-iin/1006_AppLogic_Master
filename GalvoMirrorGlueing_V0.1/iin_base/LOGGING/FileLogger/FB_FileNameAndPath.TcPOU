@@ -1,0 +1,120 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_FileNameAndPath" Id="{c314721a-024a-4d0d-851e-19e47820829d}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_FileNameAndPath		// Utility function for making file path/naming easier
+VAR
+	path:				T_DEFAULT_STR;
+	fileName:			T_DEFAULT_STR;
+	extension:			T_SHORT_STR;
+	fileNameAndPath:	T_DEFAULT_STR;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="getExtension" Id="{ed63b379-8a7b-4126-b626-d2e75bf9bdfd}">
+      <Declaration><![CDATA[METHOD public getExtension : T_SHORT_STR		// Returns the file extension
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getExtension := extension;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getFileNameAndPath" Id="{053d2557-c3f3-41a2-981a-b16f303e1c39}">
+      <Declaration><![CDATA[METHOD PUBLIC getFileNameAndPath : T_DEFAULT_STR		// Returns the full file name and path (including extension)
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getFileNameAndPath := fileNameAndPath;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getFileNameNoExtension" Id="{822a2402-514e-42d9-b356-2983fafaecc4}">
+      <Declaration><![CDATA[METHOD public getFileNameNoExtension : T_DEFAULT_STR		// Returns the file name without the extension
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getFileNameNoExtension := fileName;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getFileNameWithExtension" Id="{f83f714d-1a9c-4225-98dc-f6b5c9fe14a0}">
+      <Declaration><![CDATA[METHOD PUBLIC getFileNameWithExtension : T_DEFAULT_STR	// Returns the file name with extension
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getFileNameWithExtension := FC_2strConcatSeparator(iSeparator := IING.STRING_DOT, iStr1 := fileName, iStr2 := extension);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getPath" Id="{e4c4b9f0-facc-4a89-869d-8b084e5e0220}">
+      <Declaration><![CDATA[METHOD PUBLIC getPath : T_DEFAULT_STR		// Returns the file path
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getPath := path;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setPath_FileNameAndExtension" Id="{171e19f2-f39d-4817-937c-313d6eea08b1}">
+      <Declaration><![CDATA[METHOD PUBLIC setPath_FileNameAndExtension : BOOL	// Setter for file name, extension and path
+VAR_INPUT
+	iPath:			T_DEFAULT_STR;		// Path
+	iFileName:		T_SHORT_STR;		// File name excluding the extension
+	iExtension:		T_SHORT_STR;		// The file extension
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setPathAndFileName(iPath := iPath, iFileName := FC_3strConcat(iStr1 := iFileName, iStr2 := IING.STRING_DOT, iStr3 := iExtension));]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setPathAndFileName" Id="{c0ffa65c-6064-449d-8708-f7f42c308c89}">
+      <Declaration><![CDATA[METHOD public setPathAndFileName : BOOL		// Setter for file name (including extension) and path
+VAR_INPUT
+	iPath:			T_DEFAULT_STR;		// Path
+	iFileName:		T_SHORT_STR;		// File name including the extension
+END_VAR
+
+VAR
+	dotPos:int;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Construct path having back slash at the end
+IF (RIGHT(iPath, 1) = IING.STRING_BACKSLASH) THEN
+	path := iPath;
+ELSE
+	path := CONCAT(iPath, IING.STRING_BACKSLASH);
+END_IF
+
+// Construct file name with extension
+dotPos := FIND(iFileName, IING.STRING_DOT);
+IF (dotPos > 0) THEN
+	fileName := LEFT(STR := iFileName, SIZE := dotPos -1);
+	extension := RIGHT(STR := iFileName, SIZE := LEN(iFileName) - dotPos);
+ELSE
+	fileName := iFileName;
+	extension := 'missing';
+END_IF
+
+
+fileNameAndPath := CONCAT(path, getFileNameWithExtension());]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_FileNameAndPath">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FileNameAndPath.getExtension">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FileNameAndPath.getFileNameAndPath">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FileNameAndPath.getFileNameNoExtension">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FileNameAndPath.getFileNameWithExtension">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FileNameAndPath.getPath">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FileNameAndPath.setPath_FileNameAndExtension">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FileNameAndPath.setPathAndFileName">
+      <LineId Id="2" Count="18" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

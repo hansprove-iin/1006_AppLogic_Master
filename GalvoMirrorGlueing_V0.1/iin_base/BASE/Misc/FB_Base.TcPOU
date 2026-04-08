@@ -1,0 +1,68 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_Base" Id="{35d1b19c-fa9a-4d17-a9fd-58e261b922d0}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Base		// Base block providing Controls signals and Loggers
+VAR_INPUT
+	iControlSignals:			ST_CONTROL_SIGNALS_OUT;
+
+	iPos:						E_POS := E_POS.UNDEFINED;
+	iDeviceType:				E_DEVICE_TYPE := E_DEVICE_TYPE.CONVEYOR;
+	iDeviceId:					T_DEVICE_ID := IING.STRING_BLANK;
+	
+	iControlSignalsIf:			I_ControlSignals;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="forceMethodOverwrite" Id="{e6932172-3465-4566-a8e7-8fa3a3ce9001}">
+      <Declaration><![CDATA[METHOD PROTECTED forceMethodOverwrite : BOOL
+VAR_INPUT
+	iCaller: T_SHORT_STR;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FC_GetLogger().info(FC_2strConcatSeparator(iSeparator := IING.STRING_SPACE, iStr1 := 'Overwrite this method: ', iStr2 := iCaller));]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getLoggingId" Id="{4b49bc80-1787-4ea7-b3b7-2041f97b4241}">
+      <Declaration><![CDATA[METHOD PUBLIC getLoggingId : T_SHORT_STR	// Returns DeviceType__Position.Id
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getLoggingId := FC_GetLoggingId(iPos, iDeviceType, iDeviceId, IING.STRING_BLANK);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getPositionWithId" Id="{d5ee7ad1-2f77-4c2c-b23f-c7fed0a45adf}">
+      <Declaration><![CDATA[METHOD PUBLIC getPositionWithId : T_SHORT_STR		// Returns Position.Id
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getPositionWithId := FC_GetPositionWithId(iPos, iDeviceId);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getPosNrWithId" Id="{704b6358-ab0b-45b1-8e66-0eb2232b418c}">
+      <Declaration><![CDATA[METHOD PUBLIC getPosNrWithId : T_SHORT_STR		// Returns Position.Id
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getPosNrWithId := FC_GetPosNrWithId(iPos, iDeviceId);]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Base">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Base.forceMethodOverwrite">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Base.getLoggingId">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+    <LineIds Name="FB_Base.getPositionWithId">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_Base.getPosNrWithId">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

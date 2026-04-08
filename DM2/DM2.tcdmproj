@@ -1,0 +1,66 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Name>Drive Manager 2</Name>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{a64ae3d7-5708-40ff-95cc-96c79185cf51}</ProjectGuid>
+    <TcPath>C:\Repository\IIN\Projects\1006\AppCode\GalvoMirrorGlueing_V0.1\GalvoMirrorGlueing_V0.1\GalvoMirrorGlueing_V0.1.tsproj</TcPath>
+    <AssemblyName>DM2</AssemblyName>
+    <RootNamespace>DM2</RootNamespace>
+    <SaveDriveDataAsFiles>False</SaveDriveDataAsFiles>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="K121 %28EL7037%29.tcdmdrv">
+      <SubType>Content</SubType>
+      <IoItemPathName>TIID^Device 3 (EtherCAT)^K100 (EK1100)^K121 (EL7037)</IoItemPathName>
+    </Content>
+    <Content Include="K122 %28EL7037%29.tcdmdrv">
+      <SubType>Content</SubType>
+      <IoItemPathName>TIID^Device 3 (EtherCAT)^K100 (EK1100)^K122 (EL7037)</IoItemPathName>
+    </Content>
+    <Content Include="K123 %28EL7037%29.tcdmdrv">
+      <SubType>Content</SubType>
+      <IoItemPathName>TIID^Device 3 (EtherCAT)^K100 (EK1100)^K123 (EL7037)</IoItemPathName>
+    </Content>
+    <Content Include="K124 %28EL7037%29.tcdmdrv">
+      <SubType>Content</SubType>
+      <IoItemPathName>TIID^Device 3 (EtherCAT)^K100 (EK1100)^K124 (EL7037)</IoItemPathName>
+    </Content>
+    <Content Include="K125 %28EL7037%29.tcdmdrv">
+      <SubType>Content</SubType>
+      <IoItemPathName>TIID^Device 3 (EtherCAT)^K100 (EK1100)^K125 (EL7037)</IoItemPathName>
+    </Content>
+    <Content Include="K126 %28EL7037%29.tcdmdrv">
+      <SubType>Content</SubType>
+      <IoItemPathName>TIID^Device 3 (EtherCAT)^K100 (EK1100)^K126 (EL7037)</IoItemPathName>
+    </Content>
+    <Content Include="K127 %28EL7037%29.tcdmdrv">
+      <SubType>Content</SubType>
+      <IoItemPathName>TIID^Device 3 (EtherCAT)^K100 (EK1100)^K127 (EL7037)</IoItemPathName>
+    </Content>
+    <Content Include="K128 %28EL7037%29.tcdmdrv">
+      <SubType>Content</SubType>
+      <IoItemPathName>TIID^Device 3 (EtherCAT)^K100 (EK1100)^K128 (EL7037)</IoItemPathName>
+    </Content>
+    <Content Include="K129 %28EL7037%29.tcdmdrv">
+      <SubType>Content</SubType>
+      <IoItemPathName>TIID^Device 3 (EtherCAT)^K100 (EK1100)^K129 (EL7037)</IoItemPathName>
+    </Content>
+    <Content Include="K130 %28EL7037%29.tcdmdrv">
+      <SubType>Content</SubType>
+      <IoItemPathName>TIID^Device 3 (EtherCAT)^K100 (EK1100)^K130 (EL7037)</IoItemPathName>
+    </Content>
+    <Content Include="K131 %28EL7221-9014%29.tcdmdrv">
+      <SubType>Content</SubType>
+      <IoItemPathName>TIID^Device 3 (EtherCAT)^K100 (EK1100)^K131 (EL7221-9014)</IoItemPathName>
+    </Content>
+    <Content Include="Term 4 %28EL7047%29.tcdmdrv">
+      <SubType>Content</SubType>
+      <IoItemPathName>TIID^Device 3 (EtherCAT)^Term 8 (EK1200)^Term 4 (EL7047)</IoItemPathName>
+    </Content>
+    <Content Include="Term 5 %28EL7047%29.tcdmdrv">
+      <SubType>Content</SubType>
+      <IoItemPathName>TIID^Device 3 (EtherCAT)^Term 8 (EK1200)^Term 5 (EL7047)</IoItemPathName>
+    </Content>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,299 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_MecaConf" Id="{e8ed9f50-5c86-4df3-bc23-e70107c73d25}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_MecaConf
+VAR_INPUT
+	rOperatingSpeed							: REFERENCE TO REAL;
+	CartLinVelocity							: REAL := 100;
+	CartAngVelocity							: REAL := 100;
+	JointVelocity							: REAL := 10;
+	JointAccSpeed							: REAL := 30;
+	CartAcceleration						: REAL := 60;
+	Blending								: REAL := 0;
+	GripperForce							: REAL := 40;
+	PoseTRF									: ARRAY[0..5]OF REAL := [0,0,98.6,0,0,0]; // OR 106.6mm for mirror gripper
+	PoseWRF									: ARRAY[0..5]OF REAL := [0,0,0,0,0,0];	
+	bExecute								: BOOL;
+	stPlcCom								: REFERENCE TO ST_Module_PlcCom;
+	bRecoveryMode							: REFERENCE TO BOOL;
+END_VAR
+VAR_OUTPUT
+	bRecoveryModeActive						: BOOL;
+	bError									: BOOL;
+END_VAR
+VAR_IN_OUT
+	bConfDone								:BOOL;
+END_VAR
+VAR
+	Sent: BOOL;
+	Buffered: BOOL;
+	Error: BOOL;
+	
+	Delay				:Meca500_Delay;
+	Gripper				:Meca500_Gripper;
+	MoveGripper			:Meca500_MoveGripper;
+	MoveJoints			:Meca500_MoveJoints;
+	MoveJointsRel		:Meca500_MoveJointsRel;
+	MovejointsVel		:Meca500_MoveJointsVel;
+	MoveLin				:Meca500_MoveLin;
+	MoveLinRelTrf		:Meca500_MoveLinRelTrf;
+	MoveLinRelWrf		:Meca500_MoveLinRelWrf;
+	MoveLinVelTrf		:Meca500_MoveLinVelTrf;
+	MoveLinVelWrf		:Meca500_MoveLinVelWrf;
+	MovePose			:Meca500_MovePose;
+	SetAutoConf			:Meca500_SetAutoConf;
+	SetAutoConfTurn		:Meca500_SetAutoConfTurn;
+	SetBlending			:Meca500_SetBlending;
+	SetCartAcc			:Meca500_SetCartAcc;
+	SetCartAngVel		:Meca500_SetCartAngVel;
+	SetCartLinVel		:Meca500_SetCartLinVel;
+	SetCheckpoint		:Meca500_SetCheckpoint;
+	SetConf				:Meca500_SetConf;
+	SetConfTurn			:Meca500_SetConfTurn;
+	SetGripperForce		:Meca500_SetGripperForce;
+	SetGripperRange		:Meca500_SetGripperRange;
+	SetGripperVel		:Meca500_SetGripperVel;
+	SetJointAcc			:Meca500_SetJointAcc;
+	SetJointVel			:Meca500_SetJointVel;
+	SetTorqueLimitCfg	:Meca500_SetTorqueLimitCfg;
+	SetTorqueLimits		:Meca500_SetTorqueLimits;
+	SetTrf				:Meca500_SetTrf;
+	SetValveState		:Meca500_SetValveState;
+	SetVelTimeout		:Meca500_SetVelTimeout;
+	SetWrf				:Meca500_SetWrf;
+	StartProgram		:Meca500_StartProgram;
+	SetJointVelLimit	:Meca500_SetJointVelLimit;
+	SetTimeScaling		:Meca500_SetTimeScaling;
+	GetEOAT 			:Meca500_GetEOAT;
+	MecaEOATStatus : ARRAY [0..5] OF REAL;
+	
+	iConfStep		: INT;
+	iResetCycle		: INT;
+	ErrorResetOnTmr		: TON := (
+		PT := T#2S);
+	ResetTmr			: TOF := (
+		PT := T#0.5S);
+	ResetCycleTmr		: TON := ( 
+		PT := T#5S);
+	ResetStartTmr		: TON := ( 
+			PT := T#1S);
+	ConfErrTmr		: TON := ( 
+			PT := T#15S);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[ErrorResetOnTmr();
+ResetCycleTmr();
+ResetStartTmr();
+ResetTmr(Q=> stPlcCom.stPlcComOut.bMecaReset);
+
+CASE iConfStep OF
+	0: IF bExecute THEN
+			bError := FALSE;
+			ResetStartTmr.IN := TRUE;
+			bConfDone := FALSE;
+			IF ResetStartTmr.Q THEN
+				IF NOT stPlcCom.stPlcComIn.bRobotPower THEN
+					iConfStep := 1;
+					ResetStartTmr.IN := FALSE;
+				ELSE
+					iConfStep := 3;
+					ResetStartTmr.IN := FALSE;
+				END_IF
+			END_IF
+		END_IF 
+
+	1: ResetTmr.IN := TRUE;
+		iConfStep := 2;
+	2: IF stPlcCom.stPlcComOut.bMecaReset THEN
+			 ResetTmr.IN := FALSE;
+		ELSIF stPlcCom.stPlcComIn.bRobotPower THEN
+			ResetTmr.IN := FALSE;
+			iConfStep := 3;
+		END_IF
+	3: IF NOT Meca500.GVL.Meca500.Inputs.Robot_Status.Estop THEN
+			IF NOT stPlcCom.stPlcComIn.bRobotPower THEN
+				iConfStep := 2;
+			ELSE
+				iConfStep := 4;
+			END_IF
+		ELSIF ResetCycleTmr.Q AND iResetCycle < 5 THEN
+			iConfStep := 1;
+			iResetCycle := iResetCycle +1;
+			ResetCycleTmr.IN := FALSE;
+		ELSIF iResetCycle >= 5 THEN
+			bExecute := FALSE;
+			iConfStep := 999;
+		ELSE
+			ResetCycleTmr.IN := TRUE;
+		END_IF
+	4: IF NOT Meca500.GVL.Meca500.Inputs.Robot_Status.Activated THEN
+			Meca500.GVL.Meca500.Outputs.Robot_Control.Activate := TRUE;
+			ConfErrTmr.IN := TRUE;
+		ELSE
+			Meca500.GVL.Meca500.Outputs.Robot_Control.Activate := FALSE;
+			iConfStep := 5;
+		END_IF
+		IF ConfErrTmr.Q THEN
+			iConfStep := 999;
+		END_IF
+	5:	IF Meca500.GVL.Meca500.Inputs.Robot_Status.Error = 0 THEN
+			iConfStep := 8;
+		ELSE
+			Meca500.GVL.Meca500.Outputs.Motion_Control.Clear_Move := TRUE;
+			iConfStep := 7;																	// POISTA?
+		END_IF
+	6: IF ErrorResetOnTmr.Q THEN
+			ErrorResetOnTmr.IN := FALSE;
+			Meca500.GVL.Meca500.Outputs.Robot_Control.Reset_Error := FALSE;	
+			Meca500.GVL.Meca500.Outputs.Motion_Control.Clear_Move := FALSE;										
+		ELSIF Meca500.GVL.Meca500.Inputs.Robot_Status.Error = 0 THEN
+			Meca500.GVL.Meca500.Outputs.Robot_Control.Reset_Error := FALSE;
+			iConfStep := 8;
+		ELSIF NOT Meca500.GVL.Meca500.Inputs.Robot_Status.Error = 0 THEN
+			iConfStep := 999;
+		END_IF
+	7: Meca500.GVL.Meca500.Outputs.Robot_Control.Reset_Error := TRUE;
+		ErrorResetOnTmr.IN := TRUE;
+		iConfStep := 6; 
+		
+
+	8: 	IF NOT Meca500.GVL.Meca500.Inputs.Robot_Status.Homed AND bRecoveryMode THEN
+				Meca500.GVL.Meca500.Outputs.Robot_Control.Recovery_Mode := TRUE;
+				IF Meca500.GVL.Meca500.Inputs.Robot_Status.RecoveryMode THEN
+					iConfStep := 200;
+				END_IF
+			ELSIF NOT Meca500.GVL.Meca500.Inputs.Robot_Status.Homed THEN
+				Meca500.GVL.Meca500.Outputs.Robot_Control.Home:= TRUE;
+			ELSE
+				Meca500.GVL.Meca500.Outputs.Robot_Control.Home:= FALSE;
+				iConfStep := 10;
+			END_IF
+	9:	IF Meca500.GVL.Meca500.Inputs.Motion_Status.Paused THEN
+			Meca500.GVL.Meca500.Outputs.Motion_Control.Resume_Motion := TRUE;
+		ELSE 
+			Meca500.GVL.Meca500.Outputs.Motion_Control.Resume_Motion := FALSE;
+			iConfStep := 10;
+		END_IF
+
+	10:	SetBlending(
+			Blending_Percentage := Blending,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	11:	SetCartAcc(
+			Acceleration_Percentage := 6 * rOperatingSpeed,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	12:	SetCartLinVel(
+			Velocity_Limit := 10*rOperatingSpeed,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	13:	SetCartAngVel(
+			Velocity_Limit := 10*rOperatingSpeed,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	14:	SetJointAcc(
+			Acceleration_Percentage := 1.5*rOperatingSpeed,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	15:	SetJointVel(
+			Velocity_Percentage := rOperatingSpeed,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	16:	SetAutoConf( 
+			Enable := 1,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	17:	SetGripperForce(
+			Force := GripperForce,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	18:	SetTrf(
+			Pose := PoseTRF,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	19:	SetWrf(
+			Pose := PoseWRF,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	20: iConfStep := 100;
+	100: bConfDone := TRUE;
+		bExecute := FALSE;
+		iConfStep := 0;
+	200: bExecute := FALSE;
+		iConfStep := 0;
+		bRecoveryModeActive := TRUE;
+	999: bExecute := FALSE;
+		iConfStep := 0;
+		bError := TRUE;
+END_CASE
+	
+IF Sent AND Buffered THEN
+	Sent := FALSE;
+	Buffered := FALSE;
+	iConfStep := iConfStep + 1;
+END_IF
+]]></ST>
+    </Implementation>
+    <Method Name="Initialize" Id="{6b8b0deb-b040-484a-94ed-ee67bd7d80a6}">
+      <Declaration><![CDATA[METHOD Initialize : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ResetTmr.IN := FALSE;
+ResetCycleTmr.IN := FALSE;
+ErrorResetOnTmr.IN := FALSE;
+iConfStep := 0;
+bError := FALSE;
+bExecute := FALSE;
+iResetCycle := 0;
+ResetStartTmr.IN := FALSE;
+Meca500.GVL.Meca500.Outputs.Robot_Control.Activate := FALSE;
+Meca500.GVL.Meca500.Outputs.Robot_Control.Home := FALSE;
+stPlcCom.stPlcComOut.bMecaReset := FALSE;
+bRecoveryModeActive := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

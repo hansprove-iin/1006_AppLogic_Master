@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_MemoryMonitor" Id="{215e6dee-527a-4d54-979b-c82014e52898}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_MemoryMonitor		// Will read the Router info periodically and log the available memory
+VAR_INPUT
+	iPulser:		BOOL;			// Put a periodic PULSER (1 plc cycle high) here
+END_VAR
+VAR
+	getRouterStatusInfo:		FB_GetRouterStatusInfo;
+	statusInfoReadyEdge:		R_TRIG;
+	statusInfo:					ST_TcRouterStatusInfo;
+	totalMem:					DINT;
+	freeMem:					DINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[getRouterStatusInfo(bExecute := iPulser, tTimeout := IING.ADS_WRITE_TIMEOUT, info => statusInfo);
+
+statusInfoReadyEdge(CLK := NOT getRouterStatusInfo.bBusy AND NOT getRouterStatusInfo.bError);
+IF (statusInfoReadyEdge.Q) THEN
+	totalMem := DWORD_TO_DINT(statusInfo.maxMem) / IING.ONE_KBYTE;
+	freeMem := DWORD_TO_DINT(statusInfo.maxMemAvail) / IING.ONE_KBYTE;
+	FC_GetLogger().info(iData := FC_4strConcat(iStr1 := 'Memory usage (KB): ', iStr2 := DINT_TO_STRING(freeMem),
+		iStr3 := ' / ', iStr4 := DINT_TO_STRING(totalMem)));
+END_IF
+
+
+// I believe it goes to error in livonia since no data coming from this one, check out and handle errors]]></ST>
+    </Implementation>
+    <LineIds Name="FB_MemoryMonitor">
+      <LineId Id="2" Count="11" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

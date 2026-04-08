@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_Persistency" Id="{460d2def-8631-4cba-9eb0-14f13776023d}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Persistency		// Called from FB_Cyclestart, DO NOT call from your application
+VAR_INPUT
+	iExtSave:					BOOL;	// An external sav e trigger (eg. from a UPS function)
+END_VAR
+VAR_OUTPUT
+	oOut:						ST_PERSISTENCY_OUT;
+	oHmi:						ST_PERSISTENCY_HMI;
+END_VAR
+VAR
+	pulser:						FB_Pulse;
+	extSaveEdge:				R_TRIG;
+	saveNowEdge:				R_TRIG;
+	doSave:						BOOL;
+	write:						FB_WritePersistentData;
+	service:					ST_PERSISTENCY_SERVICE;
+END_VAR
+VAR PERSISTENT	
+	settings:					ST_PERSISTENCY_SETTINGS;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[pulser(iTime := settings.saveInterval);
+
+extSaveEdge(CLK := iExtSave);
+saveNowEdge(CLK := service.saveNow);
+
+
+doSave := saveNowEdge.Q OR extSaveEdge.Q OR (settings.autoSave AND pulser.oPulse);
+
+write(PORT := settings.port, START := doSave, TMOUT := T#2S, MODE := E_PersistentMode.SPDM_VAR_BOOST,
+	BUSY => oOut.busy, ERR => oOut.error, ERRID => oOut.beckhoffErrorId);
+	
+oOut.errorIdEnum := FC_GetAdsErrorCode(oOut.beckhoffErrorId);
+
+hmi();]]></ST>
+    </Implementation>
+    <Method Name="hmi" Id="{6c9c63bd-d3cd-476e-abe7-52a207043dd9}">
+      <Declaration><![CDATA[METHOD PRIVATE hmi : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+oHmi.service REF= service;
+oHmi.settings REF= settings;
+oHmi.out REF= oOut;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_Persistency">
+      <LineId Id="2" Count="13" />
+    </LineIds>
+    <LineIds Name="FB_Persistency.hmi">
+      <LineId Id="2" Count="3" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

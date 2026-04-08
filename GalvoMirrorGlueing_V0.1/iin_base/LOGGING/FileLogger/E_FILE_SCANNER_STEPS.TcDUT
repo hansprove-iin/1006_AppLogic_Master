@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="E_FILE_SCANNER_STEPS" Id="{36b99e2e-9b54-4a72-a5a9-0661113a1127}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_FILE_SCANNER_STEPS :
+(
+	IDLE := 0,
+	
+	SCAN,
+	
+	STORE_FILE,
+	
+	DONE,
+	
+	ERROR,
+	
+	END
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

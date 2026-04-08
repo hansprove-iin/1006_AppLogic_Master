@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="ST_RAISE_ALARM" Id="{89fe0f75-d5d3-01be-3746-d656eed425fd}">
+    <Declaration><![CDATA[TYPE ST_RAISE_ALARM EXTENDS ST_ALARM_BASE:
+STRUCT
+	givenDeviceName:		STRING;
+	freeText:				STRING;
+	subAlarmCode:			INT;
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

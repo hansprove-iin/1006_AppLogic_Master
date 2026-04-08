@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_FilePathGenerator" Id="{063c12d0-8836-4cce-adee-4e73ee1cd8a6}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_FilePathGenerator : T_MaxString
+VAR_INPUT
+	iPath:			T_MaxString;
+	iFile:			T_MaxString;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_FilePathGenerator := FC_3strConcat(iStr1 := iPath, iStr2 := IING.STRING_BACKSLASH, iStr3 := iFile);
+]]></ST>
+    </Implementation>
+    <LineIds Name="FC_FilePathGenerator">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

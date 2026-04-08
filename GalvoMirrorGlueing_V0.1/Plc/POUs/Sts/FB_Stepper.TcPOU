@@ -1,0 +1,302 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Stepper" Id="{771d1d91-9a25-4542-9f60-2e1af5f65aab}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Stepper
+VAR_INPUT
+	bStepForward				: BOOL;
+	bStepBackward				: BOOL;
+	rStepperVel					: LREAL;
+	rStepCount					: LREAL := 1;
+	bExecuteEncHoming			: BOOL;
+	bResetAxis					: BOOL;
+	stPlcCom					: REFERENCE TO ST_Sts_PlcCom;
+	bInitializeAngle			: BOOL;
+	bAutoReset					: BOOL;
+	bEstopOk					: REFERENCE TO BOOL;
+END_VAR
+VAR_OUTPUT
+	bAxisReady					: BOOL;
+	rPosition					: LREAL;
+	bAxisInitialized			: BOOL;
+	bEnchomingDone				: BOOL;
+	bDone						: BOOL;
+	bError						: BOOL;
+	nErrorID					: UDINT;
+END_VAR
+VAR
+	fbAxis						: Axis_REf;
+	fbJog						: MC_Jog;
+	fbJogCont					: MC_Jog;
+	fbHalt						: MC_Halt;
+	fbStop						: MC_Stop;
+	fbHome						: MC_Home;
+	bAxis1StatusOk				: BOOL;
+	
+	rStepCountAct				: LREAL;
+	
+	bOperational				: BOOL;
+	bExecuteHoming				: BOOL;
+	iEncHomingStep				: INT;
+	bJogForwardCont				: BOOL;
+	bJogForward					: BOOL;
+	bMovementStarted			: BOOL;
+	bJogBackwards				: BOOL;
+	bJogBackwardsCont			: BOOL;
+	eState						: E_StepperState;
+	fbReset						: MC_Reset;
+	fbPower						: MC_Power;
+	fbMoveAbs					: MC_MoveAbsolute;
+	fbReadPos					: MC_ReadActualPosition;
+	StopTmr						: TON;
+	DoneTmr						: TOF;
+	iInitializingStep 			: INT;
+	bExecuteMoveAbs				: BOOL;
+	rStepperDec						: LREAL := 14000;
+	rStepperAcc						: LREAL := 14000;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbAxis.ReadStatus();
+StopTmr(PT := T#1S);
+fbReadPos(Axis := fbAxis,Enable := TRUE, Position => rPosition);
+DoneTmr(PT := T#0.5S, Q => bDone);
+IF NOT bEstopOk THEN
+	eState := E_StepperState.Error;
+END_IF
+DoneTmr.IN := FALSE;
+
+CASE eState OF
+	E_StepperState.Offline:
+		bOperational := FALSE;
+		IF NOT fbReset.Busy THEN
+			IF NOT fbPower.Error AND NOT fbJog.Error AND NOT fbReset.Error AND NOT fbHalt.Error THEN
+				bError := FALSE;
+				bResetAxis := FALSE;
+				IF NOT fbPower.Active OR NOT fbPower.enable THEN
+					eState := E_StepperState.Power;
+				ELSE
+					eState := E_StepperState.Operational;
+				END_IF
+			ELSE
+				eState := E_StepperState.Reset;
+			END_IF
+		END_IF
+		 
+	E_StepperState.Reset:
+		bJogForward := FALSE;
+		bJogForwardCont := FALSE;
+		bJogBackwards := FALSE;
+		bJogBackwardsCont := FALSE;
+		fbReset.Execute := TRUE;		
+		IF NOT fbReset.Busy AND fbReset.Done THEN
+			fbPower.Enable:= FALSE;	
+			fbReset.Execute := FALSE;
+			eState := E_StepperState.Offline;
+		ELSE
+			eState := E_StepperState.Error;
+		END_IF
+	
+	
+	E_StepperState.Power:
+		IF NOT bAxis1StatusOk THEN
+			fbPower.Enable:= TRUE;
+		END_IF
+		IF bAxis1StatusOk THEN
+			eState := E_StepperState.Operational;
+		END_IF
+		IF fbPower.Error THEN
+			eState := E_StepperState.Offline;	
+		END_IF
+		
+	E_StepperState.Operational:
+		bOperational := TRUE;
+		bAxisReady := TRUE;
+		IF NOT bAxis1StatusOk OR bResetAxis THEN
+			eState := E_StepperState.Offline;
+		ELSIF bStepForward OR bStepBackward THEN
+			eState := E_StepperState.Jog;
+		ELSIF bExecuteEncHoming THEN
+			eState := E_StepperState.EncHoming;
+		ELSIF bInitializeAngle THEN
+			eState := E_StepperState.Homing;
+		END_IF
+		
+		
+	E_StepperState.EncHoming:
+		bAxisReady := FALSE;
+			CASE iEncHomingStep	OF
+				0: IF stPlcCom.stPlcComIn.bAngleMotorSensor THEN
+						bJogForwardCont := FALSE;
+						StopTmr.IN := TRUE;
+						iEncHomingStep := 1;
+					ELSE
+						bJogForwardCont := TRUE;
+					END_IF
+					IF fbJog.Error OR bError THEN
+						eState := E_StepperState.Error;
+					END_IF
+				1: IF StopTmr.Q THEN
+					IF NOT bEnchomingDone THEN
+						bExecuteHoming := TRUE;
+						bExecuteEncHoming := FALSE;
+					END_IF
+					IF fbHome.Done THEN
+						StopTmr.IN := FALSE;
+						bExecuteHoming := FALSE;
+						bEnchomingDone := TRUE;
+						iEncHomingStep := 2;
+					ELSIF fbHome.Error OR bError THEN
+						eState := E_StepperState.Error;
+					END_IF
+				END_IF
+				2: bJogForward := FALSE;
+					eState := E_StepperState.Operational;
+					bAxisInitialized := TRUE;
+					iEncHomingStep := 0;
+			END_CASE
+			
+			
+	E_StepperState.Homing:
+			bAxisReady := FALSE;
+			CASE iInitializingStep OF
+				0: IF bInitializeAngle THEN
+						IF stPlcCom.stPlcComIn.bAngleMotorSensor THEN
+							bJogBackwardsCont := FALSE;
+							bInitializeAngle := FALSE;
+							iInitializingStep := 1;
+						ELSE
+							bJogBackwardsCont := TRUE;
+						END_IF
+						IF fbJog.Error OR bError THEN
+							eState := E_StepperState.Error;
+						END_IF
+					END_IF
+				1: bAxisInitialized := TRUE;
+					iInitializingStep := 0;
+					eState := E_StepperState.Operational;
+				
+			END_CASE
+			
+			
+			
+		E_StepperState.Jog:
+			bAxisInitialized := FALSE;
+			bAxisReady := FALSE;	
+			IF NOT bMovementStarted AND bStepForward THEN
+				bJogForward:= TRUE;
+				bMovementStarted := TRUE;
+				bStepForward := FALSE;
+			ELSIF NOT bMovementStarted AND bStepBackward THEN
+				bJogBackwards:= TRUE;
+				bMovementStarted := TRUE;
+				bStepBackward := FALSE;
+			END_IF
+			IF fbJog.Done THEN
+				DoneTmr.IN := TRUE;
+				bJogForward:= FALSE;
+				bJogBackwards := FALSE;
+				bMovementStarted := FALSE;
+				eState := E_StepperState.Operational;
+			END_IF
+			IF fbJog.Error OR fbHalt.Error OR bError THEN
+				eState := E_StepperState.Error;
+			END_IF
+				
+				
+	E_StepperState.Error:
+		fbReset.Execute := FALSE;
+		Initialize();
+		fbPower.Enable:= FALSE;	
+		bError := TRUE;
+		IF bResetAxis THEN
+			eState := E_StepperState.Offline;
+		END_IF
+END_CASE
+
+
+fbPower(
+	Axis := fbAxis,
+	Enable_Positive := TRUE,
+	Enable_Negative := TRUE,
+	Status => bAxis1StatusOk,
+	Override := 100,
+	Error => ,
+	ErrorID => nErrorID
+	);
+
+fbReset(
+	Axis := fbAxis,
+	Error =>,
+	ErrorID => nErrorID
+	);
+	
+fbJogCont(
+	Axis := fbAxis,
+	JogForward := bJogForwardCont AND bEstopOk,
+	JogBackwards:= bJogBackwardsCont AND bEstopOk,
+	Mode := E_JOGMODE.MC_JOGMODE_CONTINOUS,
+	Velocity := rStepperVel,
+	Acceleration := rStepperAcc, 
+	Deceleration := rStepperDec,
+	Done =>,
+	Error =>,
+	ErrorID => nErrorID);
+fbMoveAbs(
+	Axis := fbAxis,
+	Execute := bExecuteMoveAbs AND bEstopOk,
+	Position:= rStepCount,
+	Velocity := rStepperVel,
+	Acceleration := rStepperAcc, 
+	Deceleration := rStepperDec,
+	Done =>,
+	Error =>,
+	ErrorID => nErrorID);
+fbJog(
+	Axis := fbAxis,
+	JogForward := bJogForward AND bEstopOk,
+	JogBackwards:= bJogBackwards AND bEstopOk,
+	Position:= rStepCount,
+	Mode := E_JOGMODE.MC_JOGMODE_INCHING,
+	Velocity := rStepperVel,
+	Acceleration := rStepperAcc, 
+	Deceleration := rStepperDec,
+	Done =>,
+	Error =>,
+	ErrorID => nErrorID);
+
+fbHome(
+	Axis := fbAxis,
+	Execute := bExecuteHoming,
+	Position := 0,
+	HomingMode := Tc2_MC2.MC_Direct,
+	Done => ,
+	Error => ,
+	ErrorID => nErrorID);
+	]]></ST>
+    </Implementation>
+    <Method Name="Initialize" Id="{19c69444-890c-4d92-9451-09c9bf7777a3}">
+      <Declaration><![CDATA[METHOD Initialize : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bExecuteHoming := FALSE;	
+iEncHomingStep := 0;	
+bJogForwardCont	:= FALSE;
+bJogForward	:= FALSE;	
+bMovementStarted := FALSE;		
+bJogBackwards := FALSE;
+bJogBackwardsCont := FALSE;	
+bExecuteMoveAbs := FALSE;
+DoneTmr.IN := FALSE;
+iInitializingStep := 0;
+bExecuteMoveAbs := FALSE;
+StopTmr.IN := FALSE;
+iEncHomingStep := 0;
+bAxisReady	:= FALSE;				
+bAxisInitialized := FALSE;
+bEnchomingDone := FALSE;	]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

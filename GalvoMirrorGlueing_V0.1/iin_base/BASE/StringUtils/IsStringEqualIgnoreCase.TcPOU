@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="IsStringEqualIgnoreCase" Id="{525c75f4-a936-0302-3ca5-5b19765d4276}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION IsStringEqualIgnoreCase : BOOL
+VAR_INPUT
+	iString1:	STRING;
+	iString2:	STRING;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IsStringEqualIgnoreCase := F_ToUCase(iString1) = F_ToUCase(iString2);]]></ST>
+    </Implementation>
+    <LineIds Name="IsStringEqualIgnoreCase">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

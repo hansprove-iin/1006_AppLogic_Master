@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_Sts7_PoseData" Id="{62014421-82d9-4335-a3c9-59036d37b9a7}">
+    <Declaration><![CDATA[TYPE ST_Sts7_PoseData :
+STRUCT
+	
+	aPoseSmallMotorPlaceSt1 : ARRAY [1..6] OF REAL; // Pose before Small motor in station
+	aPoseSmallMotorPlaceSt2 : ARRAY [1..6] OF REAL; // Pose Small motor in station
+	rLinPosPlace : LREAL; // Linear axis position for placing functions for selected station
+
+	aPoseMirrorAdj : ARRAY[1..6] OF REAL; // Pose where final position of left mirror is saved in case position adjustment is needed.
+	
+	aPoseLargeMotorPickupSt1	: ARRAY [1..6] OF REAL := [-95,-150.45 , 110.5 , 0, -90 ,0]; // POSE BEFORE ACTUAL GRIP POSITION -108.2
+	aPoseLargeMotorPickupSt2	: ARRAY [1..6] OF REAL := [-128.2,-150.45 , 110.5 , 0, -90 ,0];// ACTUAL GRIP POSITION
+	aPoseLargeMotorPickupSt3	: ARRAY [1..6] OF REAL := [-128.2,-150.45 , 200.5 , 0, -90 ,0];// MOTOR LIFT FROM PALLET
+	rLinPosPickup				: LREAL; // Linear axis position for pickup functions for selected station
+	
+	aPoseLargeMotorPlaceSt1	: ARRAY [1..6] OF REAL := [-73.8605, 110 ,165.6645  , -180 , 0 , 90]; // POSE BEFORE ACTULA LEAVING POSITION
+	aPoseLargeMotorPlaceSt2	: ARRAY [1..6] OF REAL := [-73.8605, 140 ,165.6645  , -180 , 0 , 90]; // ACTUAL POSITION FOR LEAVING MOTOR AT CURING STATION
+	aPoseLargeMotorPlaceSt3	: ARRAY [1..6] OF REAL := [-73.8605, 140 ,200  , -180 , 0 , 90]; // POSE AFTER LEAVING MOTOR AT CURING STATION
+	
+	aPoseMirrorPickupSt1	: ARRAY [1..6] OF REAL := [-159.1,-91.5 , 200 ,180, 0 ,0]; // POSE BEFORE ACTUAL GRIP POSITION
+	aPoseMirrorPickupSt2	: ARRAY [1..6] OF REAL := [-159.1,-91.5 , 186.9757 ,180, 0 ,0];// ACTUAL GRIP POSITION 187.1757
+	
+	aPoseMirrorPlaceSt1	: ARRAY [1..6] OF REAL := [-72.2, 192.8 ,200.3  , -180 , 0 , 90]; // POSE BEFORE INSERTIN MIRROR IN STATION
+	aPoseMirrorPlaceSt2	: ARRAY [1..6] OF REAL := [-72.2, 192.8 ,173.55  , -180 , 0 , 90]; // POSE MIRROR IN STATION BUT NOT INSERTED TO MOTOR  192.8, 173.45
+	aPoseMirrorPlaceSt3	: ARRAY [1..6] OF REAL := [-72.2, 189.4545 ,173.95  , -180 , 0 , 90]; // POSE MIRROR INSERTED TO MOTOR
+	
+	aPosePassedLargeSt1 		: ARRAY [1..6] OF REAL := [-72.2, 189.4545 ,173.95  , -180 , 0 , 90];
+	aPosePassedLargeSt2			: ARRAY [1..6] OF REAL := [-72.2, 189.4545 ,173.95  , -180 , 0 , 90];
+	aPosePassedLargeSt3			: ARRAY [1..6] OF REAL := [-72.2, 189.4545 ,173.95  , -180 , 0 , 90];
+	
+	aPosePassedSmallSt1			: ARRAY [1..6] OF REAL := [-72.2, 189.4545 ,173.95  , -180 , 0 , 90];
+	aPosePassedSmallSt2			: ARRAY [1..6] OF REAL := [-72.2, 189.4545 ,173.95  , -180 , 0 , 90];
+	aPosePassedSmallSt3			: ARRAY [1..6] OF REAL := [-72.2, 189.4545 ,173.95  , -180 , 0 , 90];
+	aPosePassedSmallSt4			: ARRAY [1..6] OF REAL := [-72.2, 189.4545 ,173.95  , -180 , 0 , 90];
+	
+	rLinPosPalletPass : LREAL; // Linear axis position for placing passed assembly for selected station
+	rLinPosPalletReject : LREAL; // Linear axis position for placing rejected assembly for selected station
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

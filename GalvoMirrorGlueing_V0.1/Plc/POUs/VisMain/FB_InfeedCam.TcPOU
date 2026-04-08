@@ -1,0 +1,434 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_InfeedCam" Id="{3e7c5107-fac6-4507-b0fd-fe088b288780}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_InfeedCam
+VAR_INPUT
+	bTriggerImage : BOOL;
+ 	stPosData : REFERENCE TO ST_PalletImagingData;
+ 	stImagingSetValues : REFERENCE TO ST_Recipes;
+	bDetectPallet1To5 : BOOL;
+	bDetectPallet6To10 : BOOL;
+END_VAR
+VAR_OUTPUT
+	bImageReceived : BOOL;
+	bPartDetectFailed : BOOL;
+	bDone : BOOL;
+END_VAR
+VAR
+	hr									: HRESULT;
+	eVisionState						: ETcVnCameraState;
+	fbCamera          					: FB_VN_GevCameraControl;
+	ImageRawDisp						: ITcVnDisplayableImage;
+	ImageFilter							: Tc3_Vision.ITcVnImage;
+	ImageFilterDisp						: ITcVnDisplayableImage;
+	nNewImageCounter 					: UINT;
+	ImageRaw							: Tc3_Vision.ITcVnImage;
+	ImageProsessed						: Tc3_Vision.ITcVnImage;
+	ipImageTest							: ITcVnImage;
+	ipImageTestDisp						: ITcVnDisplayableImage;
+	
+	stRectangle							: TcVnRotatedRectangle;
+	ImageProsessedDisp					: Tc3_Vision.ITcVnDisplayableImage;
+	
+
+	rThreshold			: LREAL := 20;
+	rMaxvalue			: LREAL := 255;
+	
+	fFoundStr : REAL;
+	eAlgorithm           				: ETcVnEdgeDetectionAlgorithm;
+	aStartPoint1 						: TcVnPoint2_REAL;
+	aEndPoint1							: TcVnPoint2_REAL;
+	ipEdgePointsL    					: ITcVnContainer;
+	aFitlineL							: TcVnVector4_LREAL;
+	aElement1 							: TcVnPoint2_REAL;
+	
+	aStartPoint2 						: TcVnPoint2_REAL;
+	aEndPoint2							: TcVnPoint2_REAL;
+	ipEdgePoints14mm    				: ITcVnContainer;
+	aFitline2							: TcVnVector4_LREAL;
+	aElement2 							: TcVnPoint2_REAL;
+	
+	aStartPoint3 						: TcVnPoint2_REAL;
+	aEndPoint3							: TcVnPoint2_REAL;
+	ipEdgePoints3	    				: ITcVnContainer;
+	aFitline3							: TcVnVector4_LREAL;
+	aElement3 							: TcVnPoint2_REAL;
+	
+	aStartPointMirr1 						: TcVnPoint2_REAL;
+	aEndPointMirr1							: TcVnPoint2_REAL;
+	ipEdgePointsMirr1    					: ITcVnContainer;
+	
+	aStartPointMirr2 						: TcVnPoint2_REAL;
+	aEndPointMirr2							: TcVnPoint2_REAL;
+	ipEdgePointsMirr2   					: ITcVnContainer;
+	
+	stDetectionArea1							: TcVnRectangle_UDINT;
+	stDetectionArea2							: TcVnRectangle_UDINT;
+	aAverage  							: TcVnVector4_LREAL;
+	aStdDev								: TcVnVector4_LREAL;
+	aSavedStdDev						: ARRAY [0..4] OF LREAL;
+	aPalletBinary						: ARRAY [0..5] OF BOOL;
+	wPalletBinary1						: WORD;
+	wPalletBinary2						: WORD;
+	iDetectPos 							: INT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[eVisionState := fbCamera.GetState();
+eAlgorithm 		:= TCVN_EDA_APPROX_ERF;
+
+
+IF stImagingSetValues.Station1To5.rGalvoThickness = 9.5 THEN
+	stPosData.bTogglePallet := TRUE;
+ELSIF stImagingSetValues.Station1To5.rGalvoThickness = 14 THEN	
+	stPosData.bTogglePallet := FALSE;
+END_IF
+
+SetPoints();
+
+IF eVisionState = TCVN_CS_ERROR THEN
+	hr := fbCamera.Reset();
+ELSIF eVisionState = TCVN_CS_TRIGGERING THEN
+	hr := fbCamera.TriggerImage();
+ELSIF eVisionState < TCVN_CS_ACQUIRING THEN
+    hr := fbCamera.StartAcquisition();
+ELSIF eVisionState = TCVN_CS_ACQUIRING THEN
+	hr := fbCamera.GetCurrentImageUndistorted(ImageRaw); // switch to undistorted
+	IF SUCCEEDED(hr) AND ImageRaw <> 0 THEN
+		stPosData.bSuccess_10mmLocate := FALSE;
+		stPosData.bSuccess_14mmLocate := FALSE;
+		nNewImageCounter := nNewImageCounter +1;
+		bPartDetectFailed := FALSE;
+		bImageReceived := TRUE;
+		hr := F_VN_CopyIntoDisplayableImage (ImageRaw, ImageRawDisp, hr);
+		GalvoPalletDetect();
+		MirrorPalletDetect();
+	END_IF
+END_IF]]></ST>
+    </Implementation>
+    <Method Name="GalvoPalletDetect" Id="{d6af1c9e-8739-43b6-be51-c9e5863bbd44}">
+      <Declaration><![CDATA[METHOD GalvoPalletDetect : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[
+hr := F_VN_Threshold(
+	ipSrcImage      :=  ImageRaw,
+	ipDestImage     :=  ImageFilter,
+	fThreshold      :=  rThreshold, // half value range: (2^8)/2=128
+	fMaxValue       :=  rMaxvalue, // max value of 8-bit image: (2^8)-1=255
+	eThresholdType  :=  TCVN_TT_BINARY,
+	hrPrev          :=  hr);
+hr := F_VN_CopyIntoDisplayableImage (ImageFilter, ImageFilterDisp, hr);
+hr := F_VN_ConvertColorSpace(ipSrcImage:= ImageRaw , ipDestImage:= ImageProsessed ,
+eTransform:= ETcVnColorSpaceTransform.TCVN_CST_GRAY_TO_RGB, hrPrev:= hr);	
+IF stPosData.bTogglePallet THEN	
+	hr := F_VN_LocateEdgeExp(
+		ipSrcImage:= ImageRaw, 
+		ipEdgePoints:= ipEdgePointsL, 
+		aStartPoint:= aStartPoint1, 
+		aEndPoint:= aEndPoint1, 
+		eEdgeDirection:= TCVN_ED_DARK_TO_LIGHT, 
+		fMinStrength:= 60,
+		fSearchLineDist  := 10,
+		nMaxThickness := 20,
+		nSearchLines:= 10,
+		eAlgorithm := eAlgorithm,
+		nSubpixelsIterations := 10,
+		fApproxPrecision := 0.001,
+		hrPrev:= hr, 
+		fAvgStrength=> fFoundStr);
+stPosData.bSuccess_10mmLocate := SUCCEEDED(hr);
+	IF SUCCEEDED(hr) THEN
+		hr := F_VN_GetAt_TcVnVector2_REAL(ipContainer:= ipEdgePointsL, aElement:= aElement1, nIndex:= 0, hrPrev:= hr);
+		hr := F_VN_DrawPoints(
+			ipPoints:= ipEdgePointsL, 
+			ipDestImage:= ImageProsessed, 
+			eShape:= ETcVnDrawShape.TCVN_DS_X, 
+			aColor:= Color.Lime, 
+			hrPrev:= hr);
+		hr := F_VN_FitLine(
+			ipPointSet 	:= ipEdgePointsL, 
+			hrPrev		:= hr,
+			aFitLine	:= aFitlineL);
+		hr := F_VN_DrawLine_TcVnVector4_LREAL(
+			ipDestImage := ImageProsessed,
+			aColor		:= Color.Aqua,
+			nThickness	:= 1,
+			aLine		:= aFitlineL,
+			hrPrev		:= hr);
+	
+		hr := F_VN_CopyIntoDisplayableImage (ImageProsessed, ImageProsessedDisp, hr);
+	END_IF
+ELSE
+	hr := F_VN_LocateEdgeExp(
+		ipSrcImage:= ImageRaw, 
+		ipEdgePoints:= ipEdgePoints14mm, 
+		aStartPoint:= aStartPoint2, 
+		aEndPoint:= aEndPoint2, 
+		eEdgeDirection:= TCVN_ED_LIGHT_TO_DARK, 
+		fMinStrength:= 45,
+		fSearchLineDist  := 10,
+		nMaxThickness := 20,
+		nSearchLines:= 5,
+		eAlgorithm := eAlgorithm,
+		nSubpixelsIterations := 10,
+		fApproxPrecision := 0.001,
+		hrPrev:= hr, 
+		fAvgStrength=> fFoundStr);
+	stPosData.bSuccess_14mmLocate := SUCCEEDED(hr);
+	IF SUCCEEDED(hr) THEN
+		hr := F_VN_GetAt_TcVnVector2_REAL(ipContainer:= ipEdgePoints14mm, aElement:= aElement1, nIndex:= 0, hrPrev:= hr);
+		hr := F_VN_DrawPoints(
+			ipPoints:= ipEdgePoints14mm, 
+			ipDestImage:= ImageProsessed, 
+			eShape:= ETcVnDrawShape.TCVN_DS_X, 
+			aColor:= Color.Lime, 
+			hrPrev:= hr);
+		hr := F_VN_FitLine(
+			ipPointSet 	:= ipEdgePoints14mm, 
+			hrPrev		:= hr,
+			aFitLine	:= aFitline2);
+		hr := F_VN_DrawLine_TcVnVector4_LREAL(
+			ipDestImage := ImageProsessed,
+			aColor		:= Color.Aqua,
+			nThickness	:= 1,
+			aLine		:= aFitline2,
+			hrPrev		:= hr);
+		hr := F_VN_CopyIntoDisplayableImage (ImageProsessed, ImageProsessedDisp, hr);
+	END_IF
+	hr := F_VN_LocateEdgeExp(
+		ipSrcImage:= ImageRaw, 
+		ipEdgePoints:= ipEdgePoints3, 
+		aStartPoint:= aStartPoint3, 
+		aEndPoint:= aEndPoint3, 
+		eEdgeDirection:= TCVN_ED_LIGHT_TO_DARK, 
+		fMinStrength:= 45,
+		fSearchLineDist  := 10,
+		nMaxThickness := 20,
+		nSearchLines:= 5,
+		eAlgorithm := eAlgorithm,
+		nSubpixelsIterations := 10,
+		fApproxPrecision := 0.001,
+		hrPrev:= hr, 
+		fAvgStrength=> fFoundStr);
+	stPosData.bSuccess_14mmLocate := SUCCEEDED(hr);
+	IF SUCCEEDED(hr) THEN
+		hr := F_VN_GetAt_TcVnVector2_REAL(ipContainer:= ipEdgePoints3, aElement:= aElement3, nIndex:= 0, hrPrev:= hr);
+		hr := F_VN_DrawPoints(
+			ipPoints:= ipEdgePoints3, 
+			ipDestImage:= ImageProsessed, 
+			eShape:= ETcVnDrawShape.TCVN_DS_X, 
+			aColor:= Color.Lime, 
+			hrPrev:= hr);
+		hr := F_VN_FitLine(
+			ipPointSet 	:= ipEdgePoints3, 
+			hrPrev		:= hr,
+			aFitLine	:= aFitline3);
+		hr := F_VN_DrawLine_TcVnVector4_LREAL(
+			ipDestImage := ImageProsessed,
+			aColor		:= Color.Aqua,
+			nThickness	:= 1,
+			aLine		:= aFitline3,
+			hrPrev		:= hr);
+		hr := F_VN_CopyIntoDisplayableImage (ImageProsessed, ImageProsessedDisp, hr);
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MirrorPalletDetect" Id="{6071b0a2-138a-441d-970a-438c4c34d172}">
+      <Declaration><![CDATA[METHOD MirrorPalletDetect : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[stDetectionArea1.nHeight := 8;
+stDetectionArea1.nWidth := 10;
+stDetectionArea1.nX := 90;
+stDetectionArea1.nY := 27;
+iDetectPos := 0;
+
+stDetectionArea2.nHeight := 8;
+stDetectionArea2.nWidth := 10;
+stDetectionArea2.nX := 631;
+stDetectionArea2.nY := 27;
+hr := F_VN_CopyImage(ImageRaw, ipImageTest, hrPrev := hr);
+hr:= F_VN_ConvertColorSpace(ipSrcImage:= ipImageTest , ipDestImage:= ipImageTest ,
+		eTransform:= ETcVnColorSpaceTransform.TCVN_CST_GRAY_TO_RGB, hrPrev:= hr);
+IF bDetectPallet1To5 THEN
+	hr := F_VN_LocateEdgeExp(
+		ipSrcImage:= ImageRaw, 
+		ipEdgePoints:= ipEdgePointsMirr1, 
+		aStartPoint:= aStartPointMirr1, 
+		aEndPoint:= aEndPointMirr1, 
+		eEdgeDirection:= TCVN_ED_LIGHT_TO_DARK, 
+		fMinStrength:= 45,
+		fSearchLineDist  := 10,
+		nMaxThickness := 20,
+		nSearchLines:= 5,
+		eAlgorithm := eAlgorithm,
+		nSubpixelsIterations := 10,
+		fApproxPrecision := 0.001,
+		hrPrev:= hr, 
+		fAvgStrength=> );
+	IF Succeeded(hr) THEN
+		hr := F_VN_SetRoi_TcVnRectangle_UDINT(stRoi:= stDetectionArea1, ipDestImage:= ipImageTest, hrPrev:= hr);
+		hr := F_VN_ImageAverageStdDev(ipSrcImage:= ipImageTest,aStdDev := aStdDev, aAverage:= aAverage, hrPrev:= hr);
+		hr := F_VN_ResetRoi(ipImage:= ipImageTest, hrPrev:= hr);
+		hr := F_VN_DrawRectangle_TcVnRectangle_UDINT(
+			stRectangle:= stDetectionArea1,
+			ipDestImage:= ipImageTest,
+			aColor:= Color.Green,
+			nThickness:= 1,
+			hrPrev:= hr);
+		IF aStdDev[0] > 20 THEN
+			wPalletBinary1 := wPalletBinary1 OR SHL(1, 0);
+		ELSE
+			wPalletBinary1 := wPalletBinary1 AND NOT SHL(1, 0);
+		END_IF
+		stDetectionArea1.nY := stDetectionArea1.nY + 22;
+		FOR iDetectPos := 1 TO 4 DO
+			hr := F_VN_SetRoi_TcVnRectangle_UDINT(stRoi:= stDetectionArea1, ipDestImage:= ipImageTest, hrPrev:= hr);
+// 			hr := F_VN_ImageAverage(ipSrcImage:= ipImageTest, aAverage:= aAverage, hrPrev:= hr);
+			hr := F_VN_ImageAverageStdDev(ipSrcImage:= ipImageTest,aStdDev := aStdDev, aAverage:= aAverage, hrPrev:= hr);
+			hr := F_VN_ResetRoi(ipImage:= ipImageTest, hrPrev:= hr);
+			hr := F_VN_DrawRectangle_TcVnRectangle_UDINT(
+				stRectangle:= stDetectionArea1,
+				ipDestImage:= ipImageTest,
+				aColor:= Color.Green,
+				nThickness:= 1,
+				hrPrev:= hr);
+			IF aAverage[0] > 160 THEN
+				wPalletBinary1 := wPalletBinary1 OR SHL(1, iDetectPos);
+			ELSE
+				wPalletBinary1 := wPalletBinary1 AND NOT SHL(1, iDetectPos);
+			END_IF
+			IF iDetectPos = 1 THEN
+				stDetectionArea1.nY := stDetectionArea1.nY + 98;
+			ELSE
+				stDetectionArea1.nY := stDetectionArea1.nY + 21;
+			END_IF
+			aSavedStdDev[iDetectPos] := aStdDev[0];
+		END_FOR
+		IF SUCCEEDED(hr) THEN
+			hr := F_VN_CopyIntoDisplayableImage (ipImageTest, ipImageTestDisp, hr);	
+		END_IF
+		bDetectPallet1To5 := FALSE;
+	ELSE
+		// ERROR 402
+		Err.Err;
+	END_IF
+END_IF
+IF bDetectPallet6To10 THEN
+	hr := F_VN_LocateEdgeExp(
+		ipSrcImage:= ImageRaw, 
+		ipEdgePoints:= ipEdgePointsMirr2, 
+		aStartPoint:= aStartPointMirr2, 
+		aEndPoint:= aEndPointMirr2, 
+		eEdgeDirection:= TCVN_ED_LIGHT_TO_DARK, 
+		fMinStrength:= 45,
+		fSearchLineDist  := 10,
+		nMaxThickness := 20,
+		nSearchLines:= 5,
+		eAlgorithm := eAlgorithm,
+		nSubpixelsIterations := 10,
+		fApproxPrecision := 0.001,
+		hrPrev:= hr, 
+		fAvgStrength=> );
+	IF Succeeded(hr) THEN
+		FOR iDetectPos := 0 TO 1 DO
+			hr := F_VN_SetRoi_TcVnRectangle_UDINT(stRoi:= stDetectionArea2, ipDestImage:= ipImageTest, hrPrev:= hr);
+			hr := F_VN_ImageAverageStdDev(ipSrcImage:= ipImageTest,aStdDev := aStdDev, aAverage:= aAverage, hrPrev:= hr);
+			hr := F_VN_ResetRoi(ipImage:= ipImageTest, hrPrev:= hr);
+			hr := F_VN_DrawRectangle_TcVnRectangle_UDINT(
+				stRectangle:= stDetectionArea2,
+				ipDestImage:= ipImageTest,
+				aColor:= Color.Green,
+				nThickness:= 1,
+				hrPrev:= hr);
+			IF aStdDev[0] > 20 THEN
+				wPalletBinary2 := wPalletBinary2 OR SHL(1, 0);
+			ELSE
+				wPalletBinary2 := wPalletBinary2 AND NOT SHL(1, 0);
+			END_IF
+			stDetectionArea2.nY := stDetectionArea2.nY + 22;
+		END_FOR
+		FOR iDetectPos := 2 TO 4 DO
+			hr := F_VN_SetRoi_TcVnRectangle_UDINT(stRoi:= stDetectionArea2, ipDestImage:= ipImageTest, hrPrev:= hr);
+// 			hr := F_VN_ImageAverage(ipSrcImage:= ipImageTest, aAverage:= aAverage, hrPrev:= hr);
+			hr := F_VN_ImageAverageStdDev(ipSrcImage:= ipImageTest,aStdDev := aStdDev, aAverage:= aAverage, hrPrev:= hr);
+			hr := F_VN_ResetRoi(ipImage:= ipImageTest, hrPrev:= hr);
+			hr := F_VN_DrawRectangle_TcVnRectangle_UDINT(
+				stRectangle:= stDetectionArea2,
+				ipDestImage:= ipImageTest,
+				aColor:= Color.Green,
+				nThickness:= 1,
+				hrPrev:= hr);
+			IF aAverage[0] > 160 THEN
+				wPalletBinary2 := wPalletBinary2 OR SHL(1, iDetectPos);
+			ELSE
+				wPalletBinary2 := wPalletBinary2 AND NOT SHL(1, iDetectPos);
+			END_IF
+			IF iDetectPos = 1 THEN
+				stDetectionArea2.nY := stDetectionArea2.nY + 98;
+			ELSE
+				stDetectionArea2.nY := stDetectionArea2.nY + 21;
+			END_IF
+			aSavedStdDev[iDetectPos] := aStdDev[0];
+		END_FOR
+		IF SUCCEEDED(hr) THEN
+			hr := F_VN_CopyIntoDisplayableImage (ipImageTest, ipImageTestDisp, hr);	
+		END_IF
+		bDetectPallet6To10 := FALSE;
+	ELSE
+		// ERROR 402
+		Err.Err;
+	END_IF
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Action Name="SetPoints" Id="{f3a534bf-7bf6-4cc7-a364-19b76d20b0f8}">
+      <Implementation>
+        <ST><![CDATA[aStartPoint1[0] := 1100;
+aStartPoint1[1] := 730;
+aEndPoint1[0] 	:= 1100;
+aEndPoint1[1] 	:= 770;
+
+
+aStartPoint2[0] := 1;
+aStartPoint2[1] := 530;
+aEndPoint2[0] 	:= 50;
+aEndPoint2[1] 	:= 530;
+
+aStartPoint3[0] := 1140;
+aStartPoint3[1] := 530;
+aEndPoint3[0] 	:= 50;
+aEndPoint3[1] 	:= 1040;
+
+aStartPointMirr1[0] := 60;
+aStartPointMirr1[1] := 220;
+aEndPointMirr1[0] 	:= 110;
+aEndPointMirr1[1] 	:= 220;
+
+aStartPointMirr2[0] := 600;
+aStartPointMirr2[1] := 220;
+aEndPointMirr2[0] 	:= 660;
+aEndPointMirr2[1] 	:= 220;
+]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="TrigImage" Id="{6229a8b2-57c9-4709-aea7-919dfb66469f}">
+      <Declaration><![CDATA[METHOD TrigImage : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbCamera.TriggerImage();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_GetLoggingId" Id="{aeb69a51-1556-46e6-8d51-66a15fe4c234}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_GetLoggingId : T_SHORT_STR		// Returns the ID of the given FB instance based on position, device type and extra field
+VAR_INPUT
+	iPos:			E_POS;
+	iDeviceType:	E_DEVICE_TYPE;
+	iDeviceId:		T_DEVICE_ID;
+	iExtra:			T_SHORT_STR;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF (FC_StringEmpty(iExtra)) THEN
+	FC_GetLoggingId := FC_2strConcatSeparator(iSeparator := '__', iStr1 := TO_STRING(iDeviceType), iStr2 := FC_GetPositionWithId(iPos, iDeviceId));
+ELSE
+	FC_GetLoggingId := FC_3strConcatSeparator(iSeparator := '__', iStr1 := TO_STRING(iDeviceType), iStr2 := FC_GetPositionWithId(iPos, iDeviceId), iExtra);
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FC_GetLoggingId">
+      <LineId Id="2" Count="4" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_HandshakeDelay" Id="{30d03d4e-0a9e-4968-a5a5-65b67a51fb54}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_HandshakeDelay	// Delays the signal (TOF) so the handshake has enough time to be seen by the other part (inside PLC/EAP/normal IO)
+VAR_INPUT
+	iHandshake:			BOOL;				// The handshake signal
+	iSignalDuration:	TIME := T#100MS;	// The delay
+END_VAR
+VAR_OUTPUT
+	oHandshake:	BOOL;						// The handshake signal having an additional delay
+END_VAR
+VAR
+	delay: TOF;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[delay(IN := iHandshake, PT := iSignalDuration, Q => oHandshake);]]></ST>
+    </Implementation>
+    <LineIds Name="FB_HandshakeDelay">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

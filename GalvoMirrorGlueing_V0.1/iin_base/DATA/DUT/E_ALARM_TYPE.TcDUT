@@ -1,0 +1,154 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="E_ALARM_TYPE" Id="{271b5c29-c443-02c0-040d-a476bbb1f24c}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'to_string'}
+TYPE E_ALARM_TYPE :
+(
+	UNDEFINED := 0,
+
+	// An operation took too long to complete
+	TIME_OUT,
+
+	// A sensor is blocked
+	SENSOR_BLOCKED,
+	
+	// Bad request, eg. asking to open and close a cylinder at the same time 
+	BAD_REQUEST,
+	
+	// Overload from eg. a fuse or servo drive
+	OVERLOAD,
+	
+	// A component is overheating
+	OVERHEAT,
+
+	// Collision detected
+	COLLISION,
+	
+	// Regular servo error
+	SERVO_ERROR,
+	
+	// Positioning error
+	POSITIONING_ERROR,
+	
+	// Velocity error
+	VELOCITY_ERROR,
+	
+	MOVE_RELATIVE_ERROR,
+	
+	// Jogging error
+	JOGGING_ERROR,
+
+	// Probing error	
+	PROBING_ERROR,
+	
+	// Gearing error
+	GEARING_ERROR,
+	
+	GEAR_IN_ERROR,
+	
+	GEAR_OUT_ERROR,
+	
+	// Measurement of a member/truss did not match the WP length
+	DIMENSION_MISMATCH,
+	
+	// Buffer station or robots get values not in the allowed work area
+	WRONG_COORDINATES,
+	
+	// Member id (or eventId) mismatch, plate mismatch
+	ITEM_MISMATCH,
+	
+	ESTOP,
+	
+	BELOW_MIN,
+	
+	ABOVE_MAX,
+	
+	// Communication error
+	COMM_ERROR,
+	
+	MISSING_PART,
+	
+	HOMING_ERROR,
+	
+	ZEROING_ERROR,
+	
+	TOOL_DROP,
+	
+	SAFETY,
+	
+	DOCKING_STATION_ERROR,
+	
+	PARSE_ERROR,
+	
+	TOOL_CHANGER_ERROR,
+	
+	// Sequence expects something but this is not fullfilled
+	WRONG_STATE,
+	
+	HOMING_NOT_ENABLED,
+	
+	// Eg, not supported settings (nor head, nor tail selection)
+	CONFIGURATION_ERROR,
+
+	FORCING,			// Used with the Forcing alarm manager
+	
+	NO_POWER,			// Power supply 'OFF'
+	
+	INTERRUPTION,		// Something got interrupted/stopped, eg. STOPMESS in robot
+
+	TASK_DIED,			// Eg. submit interpreter not running
+	
+	SIMULATION_ACTIVE,
+	
+	STICKY_BUTTON,		// Eg. a button is sticky (PLC HMI)
+	
+	SAFE_TORQUE_OFF,	// STO active, eg, freq drive or servo
+	
+	FREQ_DRIVE_ERROR,	// Any kind of frequence related error
+
+	START_CONDITIONS_NOT_MET,
+	
+	MISC,
+	
+	OUT_OF_RANGE,
+	
+	CLOGGED,					// Eg. filter clogged
+	
+	MISSING,					// Eg. air pressure missing
+	
+	OPEN,						// Eg. a door is open
+	
+	PREMATURE_DETECTION,		// Probing ready before slowing down conveyor
+	
+	TRIGGERED,					// Safety scanner got triggered
+	
+	LOW_VALUE,					// eg. speed setting rather low, intentional?
+	
+	DEVIATION_DETECTED,			// AI and AO settings not matching (enfield)
+	
+	OVERSHOOTING,				// Servo is overshooting (then reversing)
+	
+	SENSOR_BROKEN,				// AI readings not possible
+	
+	ROBOT_APP_ERROR,			// Robot sends us some error code (probably calculation/e1 related)
+	
+	VACUUM_MISSING,				// Vacuum is missing
+	
+	MANUAL_MODE,				// Device is in manual
+	
+	EDM,						// External Device Monitoring
+	
+	CLOSED,						// Eg. a (gantry) door is closed
+	
+	WAITING_CONFIRMATION,
+	
+	SUPER_POWERS,
+	
+	END //63
+	
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

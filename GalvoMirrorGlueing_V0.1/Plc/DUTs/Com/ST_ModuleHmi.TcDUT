@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_ModuleHmi" Id="{9adacfc9-9ae1-47ba-8130-36b8446c6369}">
+    <Declaration><![CDATA[TYPE ST_ModuleHmi :
+STRUCT
+	
+	MecaHmi 					: ST_MecaHmi;
+	Stations					: ST_StationHmi;
+	bModuleProductionStart		: BOOL; // Is always active if assemblies are active
+	bModulePlayPause 			: BOOL; // Only used for glue remove
+	bProductionStart1To5 		: BOOL; // 
+	bProductionStart6To10		: BOOL;
+	bProductionStageCompleted	: BOOL; // To indicate that assemblies of 1 to 5 or 6 to 10 are set and more assemblies can be inserted
+	bModuleProductionStop		: BOOL;
+	bModuleStartup				: BOOL;
+	bModuleStartupDone			: BOOL;
+	bModuleFault				: BOOL;
+	bResetCommunication			: BOOL;
+	bResetModuleFault			: BOOL;
+	bPowerOff					: BOOL;
+	bClearAlarms				: BOOL;
+	sOperatingStatus			: STRING;
+	bProductionStartFailure		: BOOL;
+	bOpenAllLocks				: BOOL;
+	bAcOk						: BOOL;
+	
+	bGlueDispensing				: BOOL;
+	bToggleDispensingPressure	: BOOL;
+	bDispensingPressed			: BOOL;
+	bStartDetection				: BOOL;
+	bAllowManDispensing			: BOOL;
+	bDetectionSucceeded			: BOOL;
+	sTimeSinceDispensing		: STRING;
+	bDispensingStageDone		: BOOL;
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

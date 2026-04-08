@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_Sts_DetectionData" Id="{2eb9e510-cb79-488c-9743-cb8c8ca8b7ea}">
+    <Declaration><![CDATA[TYPE ST_Sts_DetectionData :
+STRUCT
+	
+	stLaser	: ST_Vis_Laser;
+	stMirror : ST_Vis_Mirror;
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

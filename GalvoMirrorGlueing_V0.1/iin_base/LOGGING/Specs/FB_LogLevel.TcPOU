@@ -1,0 +1,61 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_LogLevel" Id="{ba3a63a2-bb7c-46bd-8653-829240b48843}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogLevel		// Helper for setting and getting ENUM as string
+VAR
+	level:	E_LOG_LEVEL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="asString" Id="{24937936-5e39-47f2-8f82-6be5d6045ac9}">
+      <Declaration><![CDATA[METHOD PUBLIC asString : T_DEFAULT_STR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE level OF
+	E_LOG_LEVEL.TRACE:
+		asString := '[TRACE]';
+	
+	E_LOG_LEVEL.DEBUG:
+		asString := '[DEBUG]';
+	
+	E_LOG_LEVEL.INFO:
+		asString := '[INFO]';
+	
+	E_LOG_LEVEL.WARN:
+		asString := '[WARN]';
+	
+	E_LOG_LEVEL.ERROR:
+		asString := '[ERROR]';
+
+	E_LOG_LEVEL.OFF:
+		asString := 'do not use this log level';
+
+ELSE
+	asString := 'todo';
+END_CASE
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="set" Id="{c6324bcb-4808-4dd3-b9f2-5fc557d9b851}">
+      <Declaration><![CDATA[METHOD public set : BOOL
+VAR_INPUT
+	iLevel:	E_LOG_LEVEL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[level := iLevel;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_LogLevel">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_LogLevel.asString">
+      <LineId Id="2" Count="22" />
+    </LineIds>
+    <LineIds Name="FB_LogLevel.set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

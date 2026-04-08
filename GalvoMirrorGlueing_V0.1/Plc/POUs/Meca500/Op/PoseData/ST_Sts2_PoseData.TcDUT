@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_Sts2_PoseData" Id="{16534d22-967a-4cd6-ba8b-96dfc98d8231}">
+    <Declaration><![CDATA[TYPE ST_Sts2_PoseData :
+STRUCT
+	
+	aPoseSmallMotorPickupSt1 : ARRAY [1..6] OF REAL := [-222.713, 67.9 , 150, 180, -20 ,0] ; // Pose before gripper in to the pallet picking position
+	aPoseSmallMotorPickupSt2 : ARRAY [1..6] OF REAL := [-222.713, 67.9 , 112.2, 180, -20 ,0] ; // Pose before gripper grip, or pose after gripper grip
+	aPoseSmallMotorPickupSt3 : ARRAY [1..6] OF REAL := [-220.552, 67.9 , 111.4134, 180, -20 ,0] ; // Pose gripper grip
+	rLinPosSmallMotorPickup				: LREAL := 80; // Linear axis position for pickup functions for selected station
+	
+	aPoseSmallMotorPlaceSt1 : ARRAY [1..6] OF REAL := [-144.652, 129 , 110.5 , 0, -90 ,0] ; // Pose before Small motor in station
+	aPoseSmallMotorPlaceSt2 : ARRAY [1..6] OF REAL  := [-224.652, 129 , 110.5 , 0, -90 ,0]; // Pose Small motor in station
+	rLinPosPlace : LREAL := 10; // Linear axis position for placing functions for selected station
+
+	aPoseMirrorAdj : ARRAY[1..6] OF REAL; // Pose where final position of left mirror is saved in case position adjustment is needed.
+	
+	aPoseLargeMotorPickupSt1	: ARRAY [1..6] OF REAL := [-124.609, 117.800 , 101.6 , 0, -90 ,0]; // POSE BEFORE ACTUAL GRIP POSITION -108.2
+	aPoseLargeMotorPickupSt2	: ARRAY [1..6] OF REAL := [-224.609, 117.800 , 101.6 , 0, -90 ,0];// ACTUAL GRIP POSITION
+	aPoseLargeMotorPickupSt3	: ARRAY [1..6] OF REAL := [-224.609, 117.800 , 201.6 , 0, -90 ,0];// MOTOR LIFT FROM PALLET
+	rLinPosMotorPickup				: LREAL := 160; // Linear axis position for pickup functions for selected station
+	
+	aPoseLargeMotorPlaceSt1	: ARRAY [1..6] OF REAL := [27.350, 79.603 , 67.4 , 180, 0 ,90]; // POSE BEFORE ACTULA LEAVING POSITION '
+	aPoseLargeMotorPlaceSt2	: ARRAY [1..6] OF REAL := [27.350, 145.603 , 67.4 , 180, 0 ,90]; // ACTUAL POSITION FOR LEAVING MOTOR AT CURING STATION '
+	aPoseLargeMotorPlaceSt3	: ARRAY [1..6] OF REAL := [27.350, 145.603 , 100.6 , 180, 0 ,90]; // POSE AFTER LEAVING MOTOR AT CURING STATION '
+	
+	aPoseMirrorPickupSt1	: ARRAY [1..6] OF REAL := [-158.94, 76.3 , 120, 181, 0 ,0]; // POSE BEFORE ACTUAL GRIP POSITION
+	aPoseMirrorPickupSt2	: ARRAY [1..6] OF REAL := [-158.94, 76.3 , 81.55, 181, 0 ,0];// ACTUAL GRIP POSITION 187.1757
+	rLinPosMirrorPickup				: LREAL := 137; // Linear axis position for pickup functions for selected station
+	
+// 	aPoseG14MirrorPlaceSt1	: ARRAY [1..6] OF REAL := [-72, 190.6 ,117.4 , 180, 0 ,90]; // POSE BEFORE INSERTIN MIRROR IN STATION'
+// 	aPoseG14MirrorPlaceSt2	: ARRAY [1..6] OF REAL := [-72, 188.2 ,70.4 , -170, 0 ,90]; // POSE MIRROR IN STATION BUT NOT INSERTED TO MOTOR '
+// 	aPoseg14MirrorPlaceSt3	: ARRAY [1..6] OF REAL := [-72, 187 ,68.6 , -180, 0 ,90]; // POSE MIRROR INSERTED TO MOTOR'
+	
+	aPoseG14MirrorPlaceSt1	: ARRAY [1..6] OF REAL := [27.350, 190.66 ,117.4 , 180, 0 ,90]; // POSE BEFORE INSERTIN MIRROR IN STATION'
+	aPoseG14MirrorPlaceSt2	: ARRAY [1..6] OF REAL := [27.350, 191.66 ,70.4 , -170, 0 ,90]; // POSE MIRROR IN STATION BUT NOT INSERTED TO MOTOR '
+	aPoseg14MirrorPlaceSt3	: ARRAY [1..6] OF REAL := [27.350, 190.16 ,68.6 , -178.5, -0.2 ,90]; // POSE MIRROR INSERTED TO MOTOR'
+	
+	aPosePassedLargeSt1 		: ARRAY [1..6] OF REAL := [-213.4, 62.25 , 141.45, 180, -20 ,0]; // In and out of pallet
+	aPosePassedLargeSt2			: ARRAY [1..6] OF REAL := [-223.4, 62.25 , 101.45, 180, -20 ,0]; // before leaving position
+	aPosePassedLargeSt3			: ARRAY [1..6] OF REAL := [-228, 62.25 ,97.79, 180, -20 ,0]; // Leaving position
+	
+	aPosePassedSmallSt1			: ARRAY [1..6] OF REAL := [-72.2, 189.4545 ,173.95  , -180 , 0 , 90];
+	aPosePassedSmallSt2			: ARRAY [1..6] OF REAL := [-72.2, 189.4545 ,173.95  , -180 , 0 , 90];
+	aPosePassedSmallSt3			: ARRAY [1..6] OF REAL := [-72.2, 189.4545 ,173.95  , -180 , 0 , 90];
+	aPosePassedSmallSt4			: ARRAY [1..6] OF REAL := [-72.2, 189.4545 ,173.95  , -180 , 0 , 90];
+	
+	rLinPosPalletPass : LREAL := 320; // Linear axis position for placing passed assembly for selected station
+	rLinPosPalletReject : LREAL; // Linear axis position for placing rejected assembly for selected station
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

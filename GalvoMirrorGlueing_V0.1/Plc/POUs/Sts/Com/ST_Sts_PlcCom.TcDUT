@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_Sts_PlcCom" Id="{b7705aa8-ada2-4504-9669-fcec4e7913bc}">
+    <Declaration><![CDATA[TYPE ST_Sts_PlcCom :
+STRUCT
+	
+	stPlcComIn		AT %I*: ST_Sts_PlcComIn;
+	stPlcComOut		AT %Q*: ST_Sts_PlcComOut;
+
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

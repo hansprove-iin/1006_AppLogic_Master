@@ -1,0 +1,122 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_RejectCam" Id="{c0245f07-072d-4b37-b150-cdf8ebf2bfc9}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_RejectCam
+VAR_INPUT
+	bCheckRow1	: BOOL;
+	bCheckRow2 : BOOL;
+END_VAR
+VAR_OUTPUT
+	bError : BOOL;
+	bPalletRow1NotClear : BOOL;
+	bPalletRow2NotClear : BOOL;
+	iErrorId			: INT;
+	bImagingDone	: BOOL;
+END_VAR
+VAR
+	hr									: HRESULT;
+	eVisionState						: ETcVnCameraState;
+	fbCamera          					: FB_VN_GevCameraControl;
+	ImageRawDisp						: ITcVnDisplayableImage;
+	nNewImageCounter 					: UINT;
+	ImageRaw: Tc3_Vision.ITcVnImage;
+	ipImageTest							: ITcVnImage;
+	ipImageTestDisp						: ITcVnDisplayableImage;
+	
+
+	stDetectionArea1					: TcVnRectangle_UDINT;
+	aStdDev								: TcVnVector4_LREAL;
+	aAverage  							: TcVnVector4_LREAL;
+	stDetectionArea2					: TcVnRectangle_UDINT;
+	aStdDev2								: TcVnVector4_LREAL;
+	aAverage2  							: TcVnVector4_LREAL;
+	DoneTof								: TOF;
+	bInitTrig 								: BOOL;
+	TrigCheckTmr							: TON;
+	fbEventlogger							: FB_EventLogger;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[eVisionState := fbCamera.GetState();
+DoneTof(PT := T#0.5S, Q => bImagingDone);
+DoneTof.IN := FALSE;
+
+stDetectionArea1.nHeight := 50;
+stDetectionArea1.nWidth := 1100;
+stDetectionArea1.nX := 30;
+stDetectionArea1.nY := 140;
+
+stDetectionArea2.nHeight := 25;
+stDetectionArea2.nWidth := 1090;
+stDetectionArea2.nX := 40;
+stDetectionArea2.nY := 595;
+
+
+IF eVisionState = TCVN_CS_ERROR THEN
+	hr := fbCamera.Reset();
+ELSIF eVisionState = TCVN_CS_TRIGGERING THEN
+	hr := fbCamera.TriggerImage();
+ELSIF eVisionState < TCVN_CS_ACQUIRING THEN
+    hr := fbCamera.StartAcquisition();
+ELSIF eVisionState = TCVN_CS_ACQUIRING THEN
+	hr := fbCamera.GetCurrentImage(ImageRaw); // switch to undistorted
+	IF SUCCEEDED(hr) AND ImageRaw <> 0 THEN
+		bError := FALSE;
+		nNewImageCounter := nNewImageCounter +1;
+		hr := F_VN_CopyIntoDisplayableImage (ImageRaw, ImageRawDisp, hr);
+		hr := F_VN_CopyImage(ImageRaw, ipImageTest, hrPrev := hr);
+		hr:= F_VN_ConvertColorSpace(ipSrcImage:= ipImageTest , ipDestImage:= ipImageTest ,
+				eTransform:= ETcVnColorSpaceTransform.TCVN_CST_GRAY_TO_RGB, hrPrev:= hr);
+		hr := F_VN_SetRoi_TcVnRectangle_UDINT(stRoi:= stDetectionArea1, ipDestImage:= ipImageTest, hrPrev:= hr);
+		hr := F_VN_ImageAverageStdDev(ipSrcImage:= ipImageTest,aStdDev := aStdDev, aAverage:= aAverage, hrPrev:= hr);
+		hr := F_VN_ResetRoi(ipImage:= ipImageTest, hrPrev:= hr);
+		hr := F_VN_DrawRectangle_TcVnRectangle_UDINT(
+			stRectangle:= stDetectionArea1,
+			ipDestImage:= ipImageTest,
+			aColor:= Color.Green,
+			nThickness:= 1,
+			hrPrev:= hr);
+		hr := F_VN_SetRoi_TcVnRectangle_UDINT(stRoi:= stDetectionArea2, ipDestImage:= ipImageTest, hrPrev:= hr);
+		hr := F_VN_ImageAverageStdDev(ipSrcImage:= ipImageTest,aStdDev := aStdDev2, aAverage:= aAverage2, hrPrev:= hr);
+		hr := F_VN_ResetRoi(ipImage:= ipImageTest, hrPrev:= hr);
+		hr := F_VN_DrawRectangle_TcVnRectangle_UDINT(
+			stRectangle:= stDetectionArea2,
+			ipDestImage:= ipImageTest,
+			aColor:= Color.Green,
+			nThickness:= 1,
+			hrPrev:= hr);
+		IF aStdDev[0] > 13 THEN
+			bPalletRow1NotClear := TRUE;
+		ELSE
+			bPalletRow1NotClear := FALSE;
+		END_IF
+		IF aStdDev2[0] > 14 THEN
+			bPalletRow2NotClear := TRUE;
+		ELSE
+			bPalletRow2NotClear := FALSE;
+		END_IF
+		hr := F_VN_CopyIntoDisplayableImage (ipImageTest, ipImageTestDisp, hr);
+		DoneTof.IN := TRUE;
+	ELSIF bInitTrig AND TrigCheckTmr.Q THEN
+		bError := TRUE;
+		iErrorId := 402;
+		fbEventlogger.bRaiseAlarm[16]:=TRUE;
+		fbEventlogger.sErrorCode:= '402';
+		Err.Err;
+		bInitTrig := FALSE;
+		TrigCheckTmr.IN := FALSE;
+	END_IF
+END_IF]]></ST>
+    </Implementation>
+    <Method Name="TrigImage" Id="{98d0965a-1d20-4aa7-997a-851c00850823}">
+      <Declaration><![CDATA[METHOD TrigImage : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbCamera.TriggerImage();
+bInitTrig := TRUE;
+TrigCheckTmr.IN := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

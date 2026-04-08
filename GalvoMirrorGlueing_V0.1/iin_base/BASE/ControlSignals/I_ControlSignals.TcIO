@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <Itf Name="I_ControlSignals" Id="{73c27081-a666-4ada-9b58-fe75f7f4db59}">
+    <Declaration><![CDATA[INTERFACE I_ControlSignals
+]]></Declaration>
+    <Method Name="ic_getControlSignalsOutPtr" Id="{b88a6a5a-5ef0-4cb6-94d9-a444f61975e3}">
+      <Declaration><![CDATA[METHOD ic_getControlSignalsOutPtr : POINTER TO ST_CONTROL_SIGNALS_OUT
+]]></Declaration>
+    </Method>
+    <Method Name="ic_getControlSignalsPtr" Id="{8f91d806-df6d-4f03-ac56-83280775633a}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_getControlSignalsPtr : POINTER TO ST_CONTROL_SIGNALS_V2
+
+]]></Declaration>
+    </Method>
+    <Method Name="ic_isInAuto" Id="{293cce48-0bf5-48ed-a4eb-5b286f0cd8f9}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_isInAuto : BOOL
+]]></Declaration>
+    </Method>
+    <Method Name="ic_isInPause" Id="{23d335b4-81d5-487f-9c8a-b9ada8466bb5}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_isInPause : BOOL
+]]></Declaration>
+    </Method>
+    <Method Name="ic_switchToAuto" Id="{94bf76d7-492b-4ade-b937-b5f1dc0a4fb4}">
+      <Declaration><![CDATA[METHOD PUBLIC ic_switchToAuto
+]]></Declaration>
+    </Method>
+    <Method Name="ic_unPause" Id="{57f60bb3-e02e-40d8-b5ee-3dcf11426428}">
+      <Declaration><![CDATA[METHOD ic_unPause
+]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_StationHmi" Id="{a18ef705-cf4e-47d4-b4fa-a02e3be11d12}">
+    <Declaration><![CDATA[TYPE ST_StationHmi :
+STRUCT
+		
+	bActivateStation1 : BOOL := TRUE;
+	bActivateStation2 : BOOL := TRUE;
+	bActivateStation3 : BOOL := TRUE;
+	bActivateStation4 : BOOL := TRUE;
+	bActivateStation5 : BOOL := TRUE;
+	bActivateStation6 : BOOL := TRUE;
+	bActivateStation7 : BOOL := TRUE;
+	bActivateStation8 : BOOL := TRUE;
+	bActivateStation9 : BOOL := TRUE;
+	bActivateStation10 : BOOL := TRUE;
+	
+	tAssemmblyTime1				: STRING;
+	tAssemmblyTime2				: STRING;
+	tAssemmblyTime3				: STRING;
+	tAssemmblyTime4				: STRING;
+	tAssemmblyTime5				: STRING;
+	tAssemmblyTime6				: STRING;
+	tAssemmblyTime7				: STRING;
+	tAssemmblyTime8				: STRING;
+	tAssemmblyTime9				: STRING;
+	tAssemmblyTime10			: STRING;
+	
+	bReleaseHolders1			: BOOL;
+	bReleaseHolders2			: BOOL;
+	bReleaseHolders3			: BOOL;
+	bReleaseHolders4			: BOOL;
+	bReleaseHolders5			: BOOL;
+	bReleaseHolders6			: BOOL;
+	bReleaseHolders7			: BOOL;
+	bReleaseHolders8			: BOOL;
+	bReleaseHolders9			: BOOL;
+	bReleaseHolders10			: BOOL;
+	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_GetPosNrWithId" Id="{099d52be-bd73-4f30-8925-c3d74a2b45a1}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_GetPosNrWithId : T_SHORT_STR		// Returns the position number as INT followed by the ID
+VAR_INPUT
+	iPos:						E_POS := E_POS.UNDEFINED;
+	iDeviceId:					T_DEVICE_ID := IING.STRING_BLANK;
+END_VAR
+VAR
+	enumAsInt:					INT;	// INT_TO_STRING(ofAnEnum) prints the whole ENUM
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[enumAsInt := iPos;
+FC_GetPosNrWithId := FC_2strConcatSeparator(iSeparator := IING.STRING_DOT, iStr1 := INT_TO_STRING(enumAsInt), iStr2 := iDeviceId);]]></ST>
+    </Implementation>
+    <LineIds Name="FC_GetPosNrWithId">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

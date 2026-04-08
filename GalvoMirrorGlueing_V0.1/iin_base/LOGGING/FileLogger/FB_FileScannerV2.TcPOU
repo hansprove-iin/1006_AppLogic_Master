@@ -1,0 +1,133 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_FileScannerV2" Id="{f34d81cd-6d71-0b21-0798-e1608f982eba}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_FileScannerV2	// Scans the given folder for files with given name
+VAR_INPUT
+	iAmsNetId:					T_AmsNetId := IING.STRING_BLANK;	// Where to scan for files
+	iPath:						T_DEFAULT_STR;					// Path where to scan, this MAY NOT contain the file name
+	iFileName:					T_SHORT_STR;					// File names to match, do not include wildcards here
+	iScan:						BOOL;							// TRUE will start the scanning
+	iControlSignals:			ST_CONTROL_SIGNALS_OUT;			// Control signals (carrying reset signal)
+END_VAR
+VAR_OUTPUT
+	oDone:						BOOL;									// Set TRUE when scanning is completed
+	oFiles:						ARRAY[0..MAX_FILES-1] OF T_SHORT_STR;	// List of scanned files matching the given fileName
+	oFilesFound:				INT;									// Number of matching files
+	oError:						BOOL;									// Set TRUE when a scan error occurs
+	oAdsErrorCode:				E_ADS_ERRORS;							// The error code in case oError is TRUE
+END_VAR
+VAR
+	fileNameAndPath:			FB_FileNameAndPath;
+	fileCnt:					INT;
+	fileToSearch:				T_DEFAULT_STR;
+	scanCommand:				E_EnumCmdType;
+	scanFolder:					FB_EnumFindFileEntry;
+	scanFolderError:			UDINT;
+
+	stepChanged:				BOOL;
+	step:						E_FILE_SCANNER_STEPS;
+	oldStepForStepChangeOnly:	E_FILE_SCANNER_STEPS;			// Dont use for anything else
+	prevStep:					E_FILE_SCANNER_STEPS;
+END_VAR
+VAR CONSTANT
+	MAX_FILES:					INT := 100;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[CASE step OF
+	E_FILE_SCANNER_STEPS.IDLE:
+		gotoNextStep(iCondition := iScan, iNextStep := E_FILE_SCANNER_STEPS.SCAN);
+	
+	E_FILE_SCANNER_STEPS.SCAN:
+		gotoNextStep(iCondition := scanFolder.bError, iNextStep := E_FILE_SCANNER_STEPS.ERROR);
+		gotoNextStep(iCondition := NOT scanFolder.bBusy, iNextStep := E_FILE_SCANNER_STEPS.STORE_FILE);	
+
+	E_FILE_SCANNER_STEPS.STORE_FILE:
+		IF (NOT scanFolder.bEOE) THEN
+			IF (fileCnt < MAX_FILES) THEN
+				oFiles[fileCnt] := scanFolder.stFindFile.sFileName;
+				IncINT(fileCnt);
+			END_IF
+			gotoNextStep(iCondition := TRUE, iNextStep := E_FILE_SCANNER_STEPS.SCAN);		
+		ELSE
+			gotoNextStep(iCondition := TRUE, iNextStep := E_FILE_SCANNER_STEPS.DONE);		
+		END_IF	
+		
+	E_FILE_SCANNER_STEPS.DONE:
+		gotoNextStep(iCondition := NOT iScan, iNextStep := E_FILE_SCANNER_STEPS.IDLE);
+
+	E_FILE_SCANNER_STEPS.ERROR:
+		oAdsErrorCode := FC_GetAdsErrorCode(scanFolderError);
+		gotoNextStep(iCondition := iControlSignals.resetPulse, iNextStep := E_FILE_SCANNER_STEPS.IDLE);
+ELSE
+	step := E_FILE_SCANNER_STEPS.IDLE;
+END_CASE
+updateOldStep();
+
+
+IF (stepChanged AND (step = E_FILE_SCANNER_STEPS.IDLE)) THEN
+	fileCnt := 0;
+	MEMSET(destAddr := ADR(oFiles), fillByte := 0, SIZEOF(oFiles));
+END_IF
+
+IF (stepChanged AND (step = E_FILE_SCANNER_STEPS.SCAN)) THEN
+	fileNameAndPath.setPathAndFileName(iPath := iPath, iFileName := iFileName);
+	IF (prevStep = E_FILE_SCANNER_STEPS.IDLE) THEN
+		fileToSearch := fileNameAndPath.getFileNameNoExtension();
+
+		// Wildcards to find files with similar name
+		fileToSearch := FC_3strConcat(iStr1 := fileNameAndPath.getPath(), iStr2 := fileToSearch, iStr3 := IING.STRING_STAR);
+
+		// First scan starts from the beginning (FB_EnumFindFileEntry)
+		scanCommand := E_EnumCmdType.eEnumCmd_First;
+	ELSE
+		// Next scan just continues (FB_EnumFindFileEntry)
+		scanCommand := E_EnumCmdType.eEnumCmd_Next;
+	END_IF
+END_IF
+
+scanFolder(sNetID := iAmsNetId, sPathName := fileToSearch, eCmd := scanCommand, bExecute := (step = E_FILE_SCANNER_STEPS.SCAN), tTimeout := IING.ADS_WRITE_TIMEOUT,
+	nErrID => scanFolderError);
+
+oDone := (step = E_FILE_SCANNER_STEPS.DONE);
+oFilesFound := fileCnt;
+oError := (step = E_FILE_SCANNER_STEPS.ERROR);
+]]></ST>
+    </Implementation>
+    <Method Name="gotoNextStep" Id="{df74de00-da2b-06ff-1054-13ad5cdc964b}">
+      <Declaration><![CDATA[METHOD PRIVATE gotoNextStep : BOOL
+VAR_INPUT
+	iCondition:	BOOL;
+	iNextStep:	E_FILE_SCANNER_STEPS;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (NOT (step<>oldStepForStepChangeOnly)) THEN
+	IF (iCondition) THEN
+		step := iNextStep;
+	END_IF
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Action Name="updateOldStep" Id="{cf12f8f7-f756-0844-1826-abce3297f659}">
+      <Implementation>
+        <ST><![CDATA[IF (step <> oldStepForStepChangeOnly) THEN
+	stepChanged := TRUE;
+	prevStep := oldStepForStepChangeOnly;			// Otherwise next SWITCH CASE checks oldStep which was just updated here!!
+	oldStepForStepChangeOnly := step;
+ELSE 
+	stepChanged := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Action>
+    <LineIds Name="FB_FileScannerV2">
+      <LineId Id="2" Count="58" />
+    </LineIds>
+    <LineIds Name="FB_FileScannerV2.gotoNextStep">
+      <LineId Id="2" Count="5" />
+    </LineIds>
+    <LineIds Name="FB_FileScannerV2.updateOldStep">
+      <LineId Id="1" Count="6" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

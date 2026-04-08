@@ -1,0 +1,432 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_FileLogger" Id="{7e21435e-e678-04ac-2b78-ee398178ec2e}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_FileLogger IMPLEMENTS I_Logger				// File logger implementation
+VAR_INPUT
+	iAmsNetId:					T_AmsNetId := IING.STRING_BLANK;	// Where to write the file
+	iPath:						T_DEFAULT_STR;					// Path where to log, this MAY NOT contain the file name
+	iFileName:					T_SHORT_STR;					// File name for the log files, US style date will be prepended to the file name
+END_VAR
+VAR_OUTPUT
+	oHmi:						ST_FILE_LOGGER_HMI;
+END_VAR
+VAR
+	tcHmiCs:	TC_HMI_CS;	
+
+
+	service:					ST_FILE_LOGGER_SERVICE;
+	controlSignalsFb:			FB_ControlSignalsV2;
+	
+	
+	currentFileNameAndPath:		FB_FileNameAndPath;
+	fileWriter:					FB_FileWriterV2;
+	
+	stopWriting:				BOOL;							// Needed to we can rename the file
+	fileScanner:				FB_FileScannerV2;
+	higestNumberInFileName:		INT;
+	
+	newFileName:				T_SHORT_STR;
+	newFileNameHelper:			FB_FileNameAndPath;
+	fileRenamer:				FB_FileRename;
+	fileRenameError:			UDINT;
+	lastFileSize:				DINT;
+	autoResetTimer:				TON;
+	tracingTimer:				TON;
+	
+	stepChanged:				BOOL;
+	step:						E_FILE_LOGGER_STEPS;
+	oldStepForStepChangeOnly:	E_FILE_LOGGER_STEPS;			// Dont use for anything else
+	prevStep:					E_FILE_LOGGER_STEPS;
+	
+	observerName:				STRING := 'fileLogger';
+END_VAR
+VAR PERSISTENT
+	settings:					ST_FILE_LOGGER_SETTINGS;
+	fileCnt:					INT := 0;
+	initCalled:	 				INT;
+	reInitCalled:				INT;
+	exitCalled:					INT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[controlSignalsFb(iExternalReset := autoResetTimer.Q, ioTcHmi := tcHmiCs);
+currentFileNameAndPath.setPathAndFileName(iPath := iPath, iFileName := FC_2strConcatSeparator(iSeparator := IING.STRING_UNDERSCORE, iStr1 := FC_GetUsDateString(), iStr2 := iFileName));
+
+CASE step OF
+	E_FILE_LOGGER_STEPS.WAIT_ACTIVITY:
+		// When the file gets renamed, the fileSize from the writer gets updated ONLY after the next file write, here we ensure we dont start renaming instantly after the previous rename  
+		gotoNextStep(iCondition := fileWriter.oFileSize <> lastFileSize, iNextStep := E_FILE_LOGGER_STEPS.CHECK_SIZE);
+	
+	E_FILE_LOGGER_STEPS.CHECK_SIZE:
+		gotoNextStep(iCondition := (fileWriter.oFileSize > settings.MaxFileSizeMB * IING.ONE_MBYTE), iNextStep := E_FILE_LOGGER_STEPS.CLOSE_FILE);
+	
+	E_FILE_LOGGER_STEPS.CLOSE_FILE:
+		gotoNextStep(iCondition := fileWriter.oFileClosed, iNextStep := E_FILE_LOGGER_STEPS.SCAN_FOLDER);
+	
+	E_FILE_LOGGER_STEPS.SCAN_FOLDER:
+		gotoNextStep(iCondition := fileScanner.oDone, iNextStep := E_FILE_LOGGER_STEPS.ITERATE_FILES);
+	
+	E_FILE_LOGGER_STEPS.ITERATE_FILES:
+		higestNumberInFileName := iterateFiles(iBaseName := currentFileNameAndPath.getFileNameWithExtension(),
+			iScannedFiles := ADR(fileScanner.oFiles), iNumberOfFiles := fileScanner.oFilesFound);
+	
+		gotoNextStep(iCondition := TRUE, iNextStep := E_FILE_LOGGER_STEPS.RENAME_FILE);
+
+	E_FILE_LOGGER_STEPS.RENAME_FILE:
+		gotoNextStep(iCondition := fileRenamer.bError, iNextStep := E_FILE_LOGGER_STEPS.RENAME_FILE_ERROR);
+		gotoNextStep(iCondition := NOT fileRenamer.bBusy, iNextStep := E_FILE_LOGGER_STEPS.WAIT_ACTIVITY);
+		
+	E_FILE_LOGGER_STEPS.RENAME_FILE_ERROR:
+		gotoNextStep(iCondition := controlSignalsFb.oControlSignals^.out.resetPulse, iNextStep := E_FILE_LOGGER_STEPS.CHECK_SIZE);
+ELSE
+	step := E_FILE_LOGGER_STEPS.WAIT_ACTIVITY;
+END_CASE
+updateOldStep();
+
+// For rename to succeed, the log file is first to be closed, when rename fails, we let the logging continue hence that step is not included here
+// One thing to notice is that when doLog is called while file rename is ongoing, the file writer will automatically buffer the data and write to file as soon as renaming is completed
+stopWriting := (step = E_FILE_LOGGER_STEPS.CLOSE_FILE) OR (step = E_FILE_LOGGER_STEPS.SCAN_FOLDER) OR (step = E_FILE_LOGGER_STEPS.ITERATE_FILES) OR (step = E_FILE_LOGGER_STEPS.RENAME_FILE);
+
+fileWriter(iKeepFileOpen := TRUE, iAmsNetId := iAmsNetId, iFileNameAndPath := currentFileNameAndPath.getFileNameAndPath(), iFlush := service.doFileFlush, iStopWriting := stopWriting,
+	iControlSignals := controlSignalsFb.oControlSignals^.out, oFileWriterRecordCnt => oHmi.fileWriterRecordCnt, oFileWriterBytesUsed => oHmi.fileWriterBytesUsed);
+
+fileScanner(iAmsNetId := iAmsNetId, iPath := iPath, iFileName := currentFileNameAndPath.getFileNameWithExtension(),
+	iScan := (step = E_FILE_LOGGER_STEPS.SCAN_FOLDER) OR (step = E_FILE_LOGGER_STEPS.ITERATE_FILES), iControlSignals := controlSignalsFb.oControlSignals^.out);
+
+IF (stepChanged AND (step = (E_FILE_LOGGER_STEPS.RENAME_FILE))) THEN
+	lastFileSize := fileWriter.oFileSize;
+	newFileName := CONCAT(STR1 := currentFileNameAndPath.getFileNameNoExtension(), STR2 := INT_TO_STRING(higestNumberInFileName + 1));
+	newFileNameHelper.setPath_FileNameAndExtension(iPath := iPath, iFileName := newFileName, iExtension := currentFileNameAndPath.getExtension());
+END_IF	
+
+fileRenamer(sNetId := iAmsNetId, sOldName := currentFileNameAndPath.getFileNameAndPath(), sNewName := newFileNameHelper.getFileNameAndPath(), ePath := E_OpenPath.PATH_GENERIC,
+	bExecute := (step = E_FILE_LOGGER_STEPS.RENAME_FILE), tTimeout := IING.ADS_WRITE_TIMEOUT, nErrID => fileRenameError);
+
+autoSwitchOffTracing();
+autoReset();
+hmi();]]></ST>
+    </Implementation>
+    <Method Name="autoReset" Id="{307ffd2f-392b-0c8e-3b31-759aaf8964f6}">
+      <Declaration><![CDATA[METHOD autoReset : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[autoResetTimer(IN := oHmi.error, PT := settings.autoResetTime);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="autoSwitchOffTracing" Id="{c8539f99-b313-070e-1bf2-a2bb1c358333}">
+      <Declaration><![CDATA[METHOD PRIVATE autoSwitchOffTracing : BOOL	// Tracing can create a lot of file writing and load, therefore we switch this off after a while
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[oHmi.tracingOn := settings.logLevel = E_LOG_LEVEL.TRACE;
+
+tracingTimer(IN := settings.enableMaxTracingTime AND oHmi.tracingOn, PT := settings.maxTracingTime, ET => oHmi.tracingTimeExpired);
+IF (tracingTimer.Q) THEN
+	settings.logLevel := E_LOG_LEVEL.ERROR;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="debug" Id="{dff297f4-d543-0d78-0659-04c0c6aa2987}">
+      <Declaration><![CDATA[METHOD PUBLIC debug : BOOL	// Logs the data with log level 'DEBUG'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[doLog(iData := iData, iLevel := E_LOG_LEVEL.DEBUG);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="deregister" Id="{8cf930a8-e79a-4fd0-b273-0e96c9aa3517}">
+      <Declaration><![CDATA[METHOD PUBLIC deregister : BOOL
+VAR_INPUT
+	iWho:				T_SHORT_STR;
+END_VAR
+
+	]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="doLog" Id="{04f5b6ad-674d-0be0-221d-fa63e25c4d12}">
+      <Declaration><![CDATA[METHOD PUBLIC doLog : BOOL		// Logs the data to the file (depending on the activated log level)
+								// Timestamp is always added in front of the data
+VAR_INPUT
+	iData:					T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+	iLevel:					E_LOG_LEVEL := E_LOG_LEVEL.ERROR;	// Log level
+END_VAR
+VAR
+	logLevel:				FB_LogLevel;
+	header:					T_DEFAULT_STR;
+	fullLine:				T_LONG_STR_512;
+	
+	runningNumberAsString:	T_SHORT_STR;
+	eventIdAsString:		T_SHORT_STR;
+	
+	testSuccess: 			BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+v: Visible
+						doLog called with
+						-----------------
+						ERROR		WARN		INFO		DEBUG		TRACE
+Current log level
+-----------------
+OFF						
+ERROR					v
+WARN					v			v
+INFO					v			v			v
+DEBUG					v			v			v			v
+TRACE					v			v			v			v			v
+*)
+
+// Logging is only done when the log level is higher or equal the current log level
+IF (iLevel >= settings.logLevel) THEN
+	logLevel.set(iLevel);
+
+	header := FC_2strConcatSeparator (iSeparator := IING.STRING_SPACE, iStr1 := FC_GetLocalDateAndTimeString(), iStr2 := logLevel.asString());
+	
+	
+	// iData can be up to 255 chars, including the header therefore more than 255, we use CONCAT2 and 'long' string 
+	fullLine := CONCAT(STR1 := header, STR2 := IING.STRING_SPACE);
+	testSuccess := CONCAT2(pSrcString1  := ADR(fullLine), pSrcString2 := ADR(iData), pDstString := ADR(fullLine), nDstSize := SIZEOF(fullLine));
+	testSuccess := CONCAT2(pSrcString1  := ADR(fullLine), pSrcString2 := ADR(IING.STRING_LINE_FEED), pDstString := ADR(fullLine), nDstSize := SIZEOF(fullLine));
+	
+	fileWriter.doWrite(fullLine);
+END_IF
+
+// Just in case something went wrong and the level is not within the enum range
+IF (settings.logLevel > E_LOG_LEVEL.OFF) THEN
+	settings.logLevel := E_LOG_LEVEL.ERROR;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="error" Id="{f3b3a0ef-080c-0f6b-3730-a38702589d93}">
+      <Declaration><![CDATA[METHOD PUBLIC error : BOOL	// Logs the data with log level 'ERROR'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[doLog(iData := iData, iLevel := E_LOG_LEVEL.ERROR);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_exit" Id="{cccccf68-56a1-4155-966e-526319686089}">
+      <Declaration><![CDATA[METHOD FB_exit : BOOL
+VAR_INPUT
+	bInCopyCode : BOOL; // if TRUE, the exit method is called for exiting an instance that is copied afterwards (online change).
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IncInt(exitCalled);
+
+//FC_GetLogger().deregister(observerName);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{01b117f1-1ab7-403c-8620-c52dd09f5e19}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IncInt(initCalled);
+
+//FC_GetLogger().register(observerName, THIS^);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_reinit" Id="{3c641026-c9fe-4bd5-b78f-37d5f303fda9}">
+      <Declaration><![CDATA[METHOD FB_reinit : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IncInt(reInitCalled);
+
+//FC_GetLogger().register(observerName, THIS^);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="gotoNextStep" Id="{4113518f-2aa3-0103-1ad0-a2601800fbfa}">
+      <Declaration><![CDATA[METHOD PRIVATE gotoNextStep : BOOL
+VAR_INPUT
+	iCondition:	BOOL;
+	iNextStep:	E_FILE_LOGGER_STEPS;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (NOT (step<>oldStepForStepChangeOnly)) THEN
+	IF (iCondition) THEN
+		step := iNextStep;
+	END_IF
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="hmi" Id="{56af3a21-adce-0afc-30fc-078e6d44cd63}">
+      <Declaration><![CDATA[METHOD PRIVATE hmi : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[oHmi.service REF= service;
+oHmi.settings REF= settings;
+oHmi.controlSignals REF= controlSignalsFb.oControlSignals^.in;
+
+IF (step = E_FILE_LOGGER_STEPS.SCAN_FOLDER) THEN
+	oHmi.error := fileScanner.oError;
+	oHmi.adsErrorCode := fileScanner.oAdsErrorCode;
+ELSIF (step = E_FILE_LOGGER_STEPS.RENAME_FILE_ERROR) THEN
+	oHmi.error := TRUE;	
+	oHmi.adsErrorCode := FC_GetAdsErrorCode(fileRenameError);				
+ELSE
+	oHmi.error := fileWriter.oError;
+	oHmi.adsErrorCode := fileWriter.oAdsErrorCode;
+END_IF
+	
+oHmi.amsNetId := iAmsNetId;
+oHmi.fileNameAndPath := currentFileNameAndPath.getFileNameAndPath();
+
+oHmi.fileWriterOverflowCount := fileWriter.oOverflowCount;
+
+// Found from autoSwitchOffTracing
+//oHmi.tracingOn 
+//oHmi.tracingTimeLeft]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="info" Id="{a8067122-d7e7-0757-20e7-6622a587c3b2}">
+      <Declaration><![CDATA[METHOD PUBLIC info : BOOL	// Logs the data with log level 'INFO'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[doLog(iData := iData, iLevel := E_LOG_LEVEL.INFO);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="iterateFiles" Id="{66655fbf-e406-0801-0b34-6b57e86ad223}">
+      <Declaration><![CDATA[METHOD PRIVATE iterateFiles : INT		// Iterates the given files and stores the highest number as appended in the base file name
+VAR_INPUT
+	iBaseName:				T_SHORT_STR;				// Base name, eg. 2019-11-14-logging
+	iScannedFiles:			POINTER TO T_SHORT_STR;		// Array of files as given by FB_FileScanner matching the base name
+	iNumberOfFiles:			INT;						// Number of files in the scannedFiles array
+END_VAR
+VAR 
+	i:						INT;						// For loop
+	baseNameHelper:			FB_FileNameAndPath;
+	scannedFileHelper:		FB_FileNameAndPath;
+	fileNumberAsString:		T_SHORT_STR;
+	fileNumber:				INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Iterates the given files and stores the highest number as appended in the base file name, in this example it would be 3
+// 2019-11-14-logging1.txt
+// 2019-11-14-logging2.txt
+// 2019-11-14-logging3.txt
+baseNameHelper.setPathAndFileName(iPath := iPath, iFileName := iBaseName);
+
+FOR i := 0 TO iNumberOfFiles -1 BY 1 DO
+	scannedFileHelper.setPathAndFileName(iPath := iPath, iFileName := iScannedFiles[i]);
+	fileNumberAsString := RIGHT(STR := scannedFileHelper.getFileNameNoExtension(), SIZE := LEN(scannedFileHelper.getFileNameNoExtension()) - LEN(baseNameHelper.getFileNameNoExtension()));
+	
+	fileNumber := STRING_TO_INT(fileNumberAsString);// If this fails, 0 will be returned so this is safe to do
+	iterateFiles := MAX(fileNumber, iterateFiles);
+END_FOR
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="register" Id="{81f31d12-9dce-4ce8-a4b8-f48bff528a0d}">
+      <Declaration><![CDATA[METHOD PUBLIC register : BOOL
+VAR_INPUT
+	iWho:		T_SHORT_STR;
+	iObserver:	I_Logger;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="trace" Id="{03596714-7583-028f-1aae-d1307c2c977b}">
+      <Declaration><![CDATA[METHOD PUBLIC trace : BOOL	// Logs the data with log level 'TRACE'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[doLog(iData := iData, iLevel := E_LOG_LEVEL.TRACE);]]></ST>
+      </Implementation>
+    </Method>
+    <Action Name="updateOldStep" Id="{711973f8-587d-006d-31d6-015a032801f5}">
+      <Implementation>
+        <ST><![CDATA[IF (step <> oldStepForStepChangeOnly) THEN
+	stepChanged := TRUE;
+	prevStep := oldStepForStepChangeOnly;			// Otherwise next SWITCH CASE checks oldStep which was just updated here!!
+	oldStepForStepChangeOnly := step;
+ELSE 
+	stepChanged := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Action>
+    <Method Name="warn" Id="{2d6820bc-4010-07e4-0269-a80d371b1a09}">
+      <Declaration><![CDATA[METHOD PUBLIC warn : BOOL	// Logs the data with log level 'WARN'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[doLog(iData := iData, iLevel := E_LOG_LEVEL.WARN);]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_FileLogger">
+      <LineId Id="2" Count="55" />
+    </LineIds>
+    <LineIds Name="FB_FileLogger.autoReset">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FileLogger.autoSwitchOffTracing">
+      <LineId Id="2" Count="6" />
+    </LineIds>
+    <LineIds Name="FB_FileLogger.debug">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FileLogger.deregister">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FileLogger.doLog">
+      <LineId Id="2" Count="33" />
+    </LineIds>
+    <LineIds Name="FB_FileLogger.error">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FileLogger.FB_exit">
+      <LineId Id="2" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_FileLogger.FB_init">
+      <LineId Id="2" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_FileLogger.FB_reinit">
+      <LineId Id="2" Count="3" />
+    </LineIds>
+    <LineIds Name="FB_FileLogger.gotoNextStep">
+      <LineId Id="2" Count="5" />
+    </LineIds>
+    <LineIds Name="FB_FileLogger.hmi">
+      <LineId Id="2" Count="22" />
+    </LineIds>
+    <LineIds Name="FB_FileLogger.info">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FileLogger.iterateFiles">
+      <LineId Id="2" Count="14" />
+    </LineIds>
+    <LineIds Name="FB_FileLogger.register">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FileLogger.trace">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_FileLogger.updateOldStep">
+      <LineId Id="1" Count="6" />
+    </LineIds>
+    <LineIds Name="FB_FileLogger.warn">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

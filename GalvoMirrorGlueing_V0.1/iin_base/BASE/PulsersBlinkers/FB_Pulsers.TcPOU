@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_Pulsers" Id="{9947269e-d264-442b-8b90-de6d7ef75ed4}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Pulsers		// Called from FB_Cyclestart, DO NOT call from your application
+								// Collection of pulsers
+
+VAR_OUTPUT
+	oPulse100Ms:		BOOL;
+	oPulse500Ms:		BOOL;
+	oPulse1S:			BOOL;
+	oPulse2S:			BOOL;
+	oPulse10S:			BOOL;
+	oPulse30S:			BOOL;
+	oPulse1M:			BOOL;
+	oPulse1H:			BOOL;
+END_VAR
+VAR
+	pulse100Ms:			FB_Pulse;
+	pulse500Ms:			FB_Pulse;
+	pulse1S:			FB_Pulse;
+	pulse2S:			FB_Pulse;
+	pulse10S:			FB_Pulse;
+	pulse30S:			FB_Pulse;
+	pulse1M:			FB_Pulse;
+	pulse1H:			FB_Pulse;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[pulse100Ms(iTime := T#100MS, oPulse => oPulse100Ms);
+pulse500Ms(iTime := T#500MS, oPulse => oPulse500Ms);
+pulse1S(iTime := T#1S, oPulse => oPulse1S);
+pulse2S(iTime := T#2S, oPulse => oPulse2S);
+pulse10S(iTime := T#10S, oPulse => oPulse10S);
+pulse30S(iTime := T#30S, oPulse => oPulse30S);
+pulse1M(iTime := T#1M, oPulse => oPulse1M);
+pulse1H(iTime := T#1H, oPulse => oPulse1H);]]></ST>
+    </Implementation>
+    <LineIds Name="FB_Pulsers">
+      <LineId Id="2" Count="7" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

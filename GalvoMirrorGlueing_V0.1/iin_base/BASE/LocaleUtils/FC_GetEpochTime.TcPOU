@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_GetEpochTime" Id="{14513e43-2c1f-48e3-8165-5a5e0f64d099}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_GetEpochTime : ULINT	// Returns the current EPOCH time 
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_GetEpochTime := IING.epochtime;]]></ST>
+    </Implementation>
+    <LineIds Name="FC_GetEpochTime">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="ST_PERSISTENCY_HMI" Id="{e74bc28f-6166-4e18-9dc7-74ee3eb90f48}">
+    <Declaration><![CDATA[TYPE ST_PERSISTENCY_HMI :
+STRUCT
+	service:		REFERENCE TO ST_PERSISTENCY_SERVICE;
+	settings:		REFERENCE TO ST_PERSISTENCY_SETTINGS;
+	out:			REFERENCE TO ST_PERSISTENCY_OUT;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

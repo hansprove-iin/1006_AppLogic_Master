@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_BoolLogger" Id="{94dea79c-535e-4dc5-8cc5-3ec44da6bd7e}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_BoolLogger EXTENDS FB_BoolTrigger		// Logs the changes in a BOOL signal, usefull for logging a DI
+VAR_INPUT
+	iLogRising:		BOOL := FALSE;
+	iLogFalling:	BOOL := FALSE;
+	iLogLevel:		E_LOG_LEVEL := E_LOG_LEVEL.TRACE;
+END_VAR
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^(iIn := iIn);
+
+IF (iLogRising AND oRTrig) THEN
+	FC_GetLogger().doLog(iData := FC_2strConcatSeparator(iSeparator := IING.STRING_BLANK, iStr1 := 'Rising edge:', iStr2 := getLoggingId()), iLogLevel);
+END_IF
+
+IF (iLogFalling AND oFTrig) THEN
+	FC_GetLogger().doLog(iData := FC_2strConcatSeparator(iSeparator := IING.STRING_BLANK, iStr1 := 'Falling edge:', iStr2 := getLoggingId()), iLogLevel);
+END_IF
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_BoolLogger">
+      <LineId Id="2" Count="9" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

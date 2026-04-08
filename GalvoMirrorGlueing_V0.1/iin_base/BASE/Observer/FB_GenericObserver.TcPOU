@@ -1,0 +1,96 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_GenericObserver" Id="{f0db1e60-5124-444c-87f8-471140afd8e8}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK ABSTRACT FB_GenericObserver		// To be extended by the REAL observer
+VAR
+	observers:		ARRAY[0..GVL_GENERIC_OBSERVER.OBSERVER_CNT-1] OF ST_GENERIC_OBSERVER;
+	validObservers:	ST_VALID_OBSERVERS;
+END_VAR
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="deregisterObserver" Id="{170a8a56-b77c-40fc-91b4-2f66f0d29d79}">
+      <Declaration><![CDATA[METHOD PUBLIC deregisterObserver : BOOL
+VAR_INPUT
+	iWho:				T_SHORT_STR;
+END_VAR
+VAR
+	i: 					INT;
+END_VAR
+	]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := 0 TO GVL_GENERIC_OBSERVER.OBSERVER_CNT-1 BY 1 DO
+	IF (IsStringEqualIgnoreCase(observers[i].who, iWho)) THEN
+		observers[i].who := IING.STRING_BLANK;
+	END_IF
+END_FOR
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getObservers" Id="{db706a7e-0307-491f-84ee-c5668817fcbd}">
+      <Declaration><![CDATA[METHOD PUBLIC getObservers : BOOL
+VAR_INPUT
+END_VAR
+VAR
+	i: 					INT;
+END_VAR
+	]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[validObservers.cnt := 0;
+FOR i := 0 TO GVL_GENERIC_OBSERVER.OBSERVER_CNT-1 BY 1 DO
+	IF (FC_StringNotEmpty(observers[i].who)) THEN
+		validObservers.observers[validObservers.cnt].observer := observers[i].observer;
+		IncInt(validObservers.cnt);
+	END_IF
+END_FOR
+	]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="registerObserver" Id="{4771099f-2b9d-4cf2-a204-a3f56ee50583}">
+      <Declaration><![CDATA[METHOD PUBLIC registerObserver : BOOL
+VAR_INPUT
+	iWho:				T_SHORT_STR;
+	iObserver:			POINTER TO BYTE;
+END_VAR
+VAR
+	i: 					INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Search if already registered, we do not want to register this twice
+FOR i := 0 TO GVL_GENERIC_OBSERVER.OBSERVER_CNT-1 BY 1 DO
+	IF (IsStringEqualIgnoreCase(observers[i].who, iWho)) THEN
+		observers[i].observer := iObserver;	// Override the observer since it may have changed (re-initialised)
+		RETURN;		
+	END_IF
+END_FOR
+
+// Find 1st free element
+FOR i := 0 TO GVL_GENERIC_OBSERVER.OBSERVER_CNT-1 BY 1 DO
+	IF (FC_StringEmpty(observers[i].who)) THEN
+		observers[i].observer := iObserver;
+		observers[i].who := iWho;
+		RETURN;		
+	END_IF
+END_FOR
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_GenericObserver">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_GenericObserver.deregisterObserver">
+      <LineId Id="2" Count="5" />
+    </LineIds>
+    <LineIds Name="FB_GenericObserver.getObservers">
+      <LineId Id="2" Count="7" />
+    </LineIds>
+    <LineIds Name="FB_GenericObserver.registerObserver">
+      <LineId Id="2" Count="19" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_NowAsDt" Id="{6b6fc9dd-7926-497d-ba0b-e895cf67f837}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_NowAsDt : DT		// Returns the current time (=now) as 'DT'
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_NowAsDt := FC_DateAndTimeToDt(iDateAndTime := FC_GetLocalDateAndTimeString());]]></ST>
+    </Implementation>
+    <LineIds Name="FC_NowAsDt">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

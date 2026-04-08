@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_IntLogger" Id="{5ed3aaae-b4fd-4277-be8f-424eb275d35b}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_IntLogger EXTENDS FB_IntChangeTrigger		// Logs the changes in an INT signal
+VAR_INPUT
+	iLogLevel:		E_LOG_LEVEL := E_LOG_LEVEL.TRACE;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^(iInt := iInt);
+
+IF (oChanged) THEN
+	FC_GetLogger().doLog(iData := FC_5strConcatSeparator(iSeparator := IING.STRING_BLANK, iStr1 := getLoggingId(), iStr2 := ' changed from old: ',
+		iStr3 := INT_TO_STRING(oOld), iStr4 := ', New: ', iStr5 := INT_TO_STRING(oNew)), iLogLevel);
+END_IF
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_IntLogger">
+      <LineId Id="2" Count="6" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,421 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_EventLogger" Id="{8cbe9a99-2078-4b98-8690-6810a3a7bc7e}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_EventLogger
+VAR_INPUT
+	bInitDone		: BOOL;
+	fbAlarms		: ARRAY [0..18] OF FB_TcAlarm;		// Jokaiselle error tyypille oma fbAlarmi
+	bRaiseAlarm		: ARRAY [0..18] OF BOOL;
+	bClearAlarm		: ARRAY [0..18] OF BOOL;
+	bCondirmAlarm	: ARRAY [0..18] OF BOOL;
+	fbSourceInfo	: FB_TcSourceInfo;
+	sErrorCode			: STRING;		//Error code tahan
+	//fbTest			: reference TO FB_MecaStateMachine;
+	stModuleHmi		: REFERENCE TO ST_ModuleHmi;
+END_VAR
+VAR_OUTPUT
+	bErrorActive	:BOOL;
+END_VAR
+VAR
+	//stModuleOut	: reference to ST_ModuleHmi;
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF NOT bInitDone THEN
+	fbSourceInfo.Clear();
+	fbSourceInfo.sName := sErrorCode;		//Strgini variable
+	fbAlarms[0].CreateEx(TC_events.ErrorEvent.SafetyCircuitError, TRUE, fbSourceInfo);
+	fbAlarms[1].CreateEx(TC_events.ErrorEvent.EstopError, TRUE, fbSourceInfo);
+	fbAlarms[2].CreateEx(TC_events.ErrorEvent.PlcSafetyError, TRUE, fbSourceInfo);
+	fbAlarms[3].CreateEx(TC_events.ErrorEvent.RobotError, TRUE, fbSourceInfo);
+	fbAlarms[4].CreateEx(TC_events.ErrorEvent.LinearAxisHomingError, TRUE, fbSourceInfo);
+	fbAlarms[5].CreateEx(TC_events.ErrorEvent.LinearAxisEnableError, TRUE, fbSourceInfo);
+	fbAlarms[6].CreateEx(TC_events.ErrorEvent.LinearAxisMovementError, TRUE, fbSourceInfo);
+	fbAlarms[7].CreateEx(TC_events.ErrorEvent.StepperMotorError, TRUE, fbSourceInfo);
+	fbAlarms[8].CreateEx(TC_events.ErrorEvent.PneumaticError, TRUE, fbSourceInfo);
+	fbAlarms[9].CreateEx(TC_events.ErrorEvent.HeaterError, TRUE, fbSourceInfo);
+	fbAlarms[10].CreateEx(TC_events.ErrorEvent.HeaterSensorError, TRUE, fbSourceInfo);
+	fbAlarms[11].CreateEx(TC_events.ErrorEvent.ImagingError, TRUE, fbSourceInfo);
+	fbAlarms[12].CreateEx(TC_events.ErrorEvent.UnderlightDetectionError, TRUE, fbSourceInfo);
+	fbAlarms[13].CreateEx(TC_events.ErrorEvent.LaserDetectionError, TRUE, fbSourceInfo);
+	fbAlarms[14].CreateEx(TC_events.ErrorEvent.StartupError, TRUE, fbSourceInfo);
+	fbAlarms[15].CreateEx(TC_events.ErrorEvent.HatchLockError, TRUE, fbSourceInfo);
+	fbAlarms[16].CreateEx(TC_events.ErrorEvent.PalletError, TRUE, fbSourceInfo);
+	fbAlarms[17].CreateEx(TC_events.ErrorEvent.NeedleDetectError, TRUE, fbSourceInfo);
+	bInitDone := TRUE;
+END_IF
+
+IF stModuleHmi.bClearAlarms THEN
+	bClearAlarm[0] := TRUE;
+	bClearAlarm[1] := TRUE;
+	bClearAlarm[2] := TRUE;
+	bClearAlarm[3] := TRUE;
+	bClearAlarm[4] := TRUE;
+	bClearAlarm[5] := TRUE;
+	bClearAlarm[6] := TRUE;
+	bClearAlarm[7] := TRUE;
+	bClearAlarm[8] := TRUE;
+	bClearAlarm[9] := TRUE;
+	bClearAlarm[10] := TRUE;
+	bClearAlarm[11] := TRUE;
+	bClearAlarm[12] := TRUE;
+	bClearAlarm[13] := TRUE;
+	bClearAlarm[14] := TRUE;
+	bClearAlarm[15] := TRUE;
+	bClearAlarm[16] := TRUE;
+	bClearAlarm[17] := TRUE;
+END_IF
+
+
+
+////////////////////////////////////////////////
+IF bRaiseAlarm[0] THEN
+	bRaiseAlarm[0] := FALSE;
+	fbAlarms[0].ipArguments.Clear().AddString(sErrorCode); //sTest on string variable, tähän voitaisiin kirjottaa vikakoodit suoraan stsActissa. 
+	fbAlarms[0].Raise(0);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+END_IF
+
+IF bCondirmAlarm[0] THEN
+	bCondirmAlarm[0] := FALSE;
+	fbAlarms[0].Confirm(0);	 // 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+	bClearAlarm[0] := TRUE;
+END_IF
+
+IF bClearAlarm[0] THEN
+	bClearAlarm[0] := FALSE;
+	fbAlarms[0].Clear(0,TRUE);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime, f/t määrittää voidaanko alarmi confirmata clearauksen jälkeen, falsella voidaan, truella ei. 
+							//Falsella ei synny uutta alarmia ennen confirm+clear, truella syntyy pelkällä confirmilla, true ehkä parempio, raise + clear riittää?
+END_IF
+////////////////////////////////////////////////
+
+IF bRaiseAlarm[1] THEN
+	bRaiseAlarm[1] := FALSE;
+	fbAlarms[1].ipArguments.Clear().AddString(sErrorCode); //sTest on string variable, tähän voitaisiin kirjottaa vikakoodit suoraan stsActissa. 
+	fbAlarms[1].Raise(0);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+END_IF
+
+IF bCondirmAlarm[1] THEN
+	bCondirmAlarm[1] := FALSE;
+	fbAlarms[1].Confirm(0);	 // 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+	bClearAlarm[1] := TRUE;
+END_IF
+
+IF bClearAlarm[1] THEN
+	bClearAlarm[1] := FALSE;
+	fbAlarms[1].Clear(0,TRUE);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime, f/t määrittää voidaanko alarmi confirmata clearauksen jälkeen, falsella voidaan, truella ei. 
+							//Falsella ei synny uutta alarmia ennen confirm+clear, truella syntyy pelkällä confirmilla, true ehkä parempio, raise + clear riittää?
+END_IF
+////////////////////////////////////////////////
+
+IF bRaiseAlarm[2] THEN
+	bRaiseAlarm[2] := FALSE;
+	fbAlarms[2].ipArguments.Clear().AddString(sErrorCode); //sTest on string variable, tähän voitaisiin kirjottaa vikakoodit suoraan stsActissa. 
+	fbAlarms[2].Raise(0);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+END_IF
+
+IF bCondirmAlarm[2] THEN
+	bCondirmAlarm[2] := FALSE;
+	fbAlarms[2].Confirm(0);	 // 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+	bClearAlarm[2] := TRUE;
+END_IF
+
+IF bClearAlarm[2] THEN
+	bClearAlarm[2] := FALSE;
+	fbAlarms[2].Clear(0,TRUE);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime, f/t määrittää voidaanko alarmi confirmata clearauksen jälkeen, falsella voidaan, truella ei. 
+							//Falsella ei synny uutta alarmia ennen confirm+clear, truella syntyy pelkällä confirmilla, true ehkä parempio, raise + clear riittää?
+END_IF
+////////////////////////////////////////////////
+
+IF bRaiseAlarm[3] THEN
+	bRaiseAlarm[3] := FALSE;
+	fbAlarms[3].ipArguments.Clear().AddString(sErrorCode); //sTest on string variable, tähän voitaisiin kirjottaa vikakoodit suoraan stsActissa. 
+	fbAlarms[3].Raise(0);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+END_IF
+
+IF bCondirmAlarm[3] THEN
+	bCondirmAlarm[3] := FALSE;
+	fbAlarms[3].Confirm(0);	 // 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+	bClearAlarm[3] := TRUE;
+END_IF
+
+IF bClearAlarm[3] THEN
+	bClearAlarm[3] := FALSE;
+	fbAlarms[3].Clear(0,TRUE);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime, f/t määrittää voidaanko alarmi confirmata clearauksen jälkeen, falsella voidaan, truella ei. 
+							//Falsella ei synny uutta alarmia ennen confirm+clear, truella syntyy pelkällä confirmilla, true ehkä parempio, raise + clear riittää?
+END_IF
+////////////////////////////////////////////////
+
+IF bRaiseAlarm[4] THEN
+	bRaiseAlarm[4] := FALSE;
+	fbAlarms[4].ipArguments.Clear().AddString(sErrorCode); //sTest on string variable, tähän voitaisiin kirjottaa vikakoodit suoraan stsActissa. 
+	fbAlarms[4].Raise(0);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+END_IF
+
+IF bCondirmAlarm[4] THEN
+	bCondirmAlarm[4] := FALSE;
+	fbAlarms[4].Confirm(0);	 // 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+	bClearAlarm[4] := TRUE;
+END_IF
+
+IF bClearAlarm[4] THEN
+	bClearAlarm[4] := FALSE;
+	fbAlarms[4].Clear(0,TRUE);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime, f/t määrittää voidaanko alarmi confirmata clearauksen jälkeen, falsella voidaan, truella ei. 
+							//Falsella ei synny uutta alarmia ennen confirm+clear, truella syntyy pelkällä confirmilla, true ehkä parempio, raise + clear riittää?
+END_IF
+////////////////////////////////////////////////
+
+IF bRaiseAlarm[5] THEN
+	bRaiseAlarm[5] := FALSE;
+	fbAlarms[5].ipArguments.Clear().AddString(sErrorCode); //sTest on string variable, tähän voitaisiin kirjottaa vikakoodit suoraan stsActissa. 
+	fbAlarms[5].Raise(0);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+END_IF
+
+IF bCondirmAlarm[5] THEN
+	bCondirmAlarm[5] := FALSE;
+	fbAlarms[5].Confirm(0);	 // 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+	bClearAlarm[5] := TRUE;
+END_IF
+
+IF bClearAlarm[5] THEN
+	bClearAlarm[5] := FALSE;
+	fbAlarms[5].Clear(0,TRUE);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime, f/t määrittää voidaanko alarmi confirmata clearauksen jälkeen, falsella voidaan, truella ei. 
+							//Falsella ei synny uutta alarmia ennen confirm+clear, truella syntyy pelkällä confirmilla, true ehkä parempio, raise + clear riittää?
+END_IF
+////////////////////////////////////////////////
+
+IF bRaiseAlarm[6] THEN
+	bRaiseAlarm[6] := FALSE;
+	fbAlarms[6].ipArguments.Clear().AddString(sErrorCode); //sTest on string variable, tähän voitaisiin kirjottaa vikakoodit suoraan stsActissa. 
+	fbAlarms[6].Raise(0);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+END_IF
+
+IF bCondirmAlarm[6] THEN
+	bCondirmAlarm[6] := FALSE;
+	fbAlarms[6].Confirm(0);	 // 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+	bClearAlarm[6] := TRUE;
+END_IF
+
+IF bClearAlarm[6] THEN
+	bClearAlarm[6] := FALSE;
+	fbAlarms[6].Clear(0,TRUE);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime, f/t määrittää voidaanko alarmi confirmata clearauksen jälkeen, falsella voidaan, truella ei. 
+							//Falsella ei synny uutta alarmia ennen confirm+clear, truella syntyy pelkällä confirmilla, true ehkä parempio, raise + clear riittää?
+END_IF
+////////////////////////////////////////////////
+
+IF bRaiseAlarm[7] THEN
+	bRaiseAlarm[7] := FALSE;
+	fbAlarms[7].ipArguments.Clear().AddString(sErrorCode); //sTest on string variable, tähän voitaisiin kirjottaa vikakoodit suoraan stsActissa. 
+	fbAlarms[7].Raise(0);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+END_IF
+
+IF bCondirmAlarm[7] THEN
+	bCondirmAlarm[7] := FALSE;
+	fbAlarms[7].Confirm(0);	 // 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+	bClearAlarm[7] := TRUE;
+END_IF
+
+IF bClearAlarm[7] THEN
+	bClearAlarm[7] := FALSE;
+	fbAlarms[7].Clear(0,TRUE);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime, f/t määrittää voidaanko alarmi confirmata clearauksen jälkeen, falsella voidaan, truella ei. 
+							//Falsella ei synny uutta alarmia ennen confirm+clear, truella syntyy pelkällä confirmilla, true ehkä parempio, raise + clear riittää?
+END_IF
+////////////////////////////////////////////////
+
+IF bRaiseAlarm[8] THEN
+	bRaiseAlarm[8] := FALSE;
+	fbAlarms[8].ipArguments.Clear().AddString(sErrorCode); //sTest on string variable, tähän voitaisiin kirjottaa vikakoodit suoraan stsActissa. 
+	fbAlarms[8].Raise(0);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+END_IF
+
+IF bCondirmAlarm[8] THEN
+	bCondirmAlarm[8] := FALSE;
+	fbAlarms[8].Confirm(0);	 // 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+	bClearAlarm[8] := TRUE;
+END_IF
+
+IF bClearAlarm[8] THEN
+	bClearAlarm[8] := FALSE;
+	fbAlarms[8].Clear(0,TRUE);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime, f/t määrittää voidaanko alarmi confirmata clearauksen jälkeen, falsella voidaan, truella ei. 
+							//Falsella ei synny uutta alarmia ennen confirm+clear, truella syntyy pelkällä confirmilla, true ehkä parempio, raise + clear riittää?
+END_IF
+////////////////////////////////////////////////
+
+IF bRaiseAlarm[9] THEN
+	bRaiseAlarm[9] := FALSE;
+	fbAlarms[9].ipArguments.Clear().AddString(sErrorCode); //sTest on string variable, tähän voitaisiin kirjottaa vikakoodit suoraan stsActissa. 
+	fbAlarms[9].Raise(0);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+END_IF
+
+IF bCondirmAlarm[9] THEN
+	bCondirmAlarm[9] := FALSE;
+	fbAlarms[9].Confirm(0);	 // 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+	bClearAlarm[9] := TRUE;
+END_IF
+
+IF bClearAlarm[9] THEN
+	bClearAlarm[9] := FALSE;
+	fbAlarms[9].Clear(0,TRUE);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime, f/t määrittää voidaanko alarmi confirmata clearauksen jälkeen, falsella voidaan, truella ei. 
+							//Falsella ei synny uutta alarmia ennen confirm+clear, truella syntyy pelkällä confirmilla, true ehkä parempio, raise + clear riittää?
+END_IF
+////////////////////////////////////////////////
+
+IF bRaiseAlarm[10] THEN
+	bRaiseAlarm[10] := FALSE;
+	fbAlarms[10].ipArguments.Clear().AddString(sErrorCode); //sTest on string variable, tähän voitaisiin kirjottaa vikakoodit suoraan stsActissa. 
+	fbAlarms[10].Raise(0);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+END_IF
+
+IF bCondirmAlarm[10] THEN
+	bCondirmAlarm[10] := FALSE;
+	fbAlarms[10].Confirm(0);	 // 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+	bClearAlarm[10] := TRUE;
+END_IF
+
+IF bClearAlarm[10] THEN
+	bClearAlarm[10] := FALSE;
+	fbAlarms[10].Clear(0,TRUE);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime, f/t määrittää voidaanko alarmi confirmata clearauksen jälkeen, falsella voidaan, truella ei. 
+							//Falsella ei synny uutta alarmia ennen confirm+clear, truella syntyy pelkällä confirmilla, true ehkä parempio, raise + clear riittää?
+END_IF
+////////////////////////////////////////////////
+
+IF bRaiseAlarm[11] THEN
+	bRaiseAlarm[11] := FALSE;
+	fbAlarms[11].ipArguments.Clear().AddString(sErrorCode); //sTest on string variable, tähän voitaisiin kirjottaa vikakoodit suoraan stsActissa. 
+	fbAlarms[11].Raise(0);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+END_IF
+
+IF bCondirmAlarm[11] THEN
+	bCondirmAlarm[11] := FALSE;
+	fbAlarms[11].Confirm(0);	 // 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+	bClearAlarm[11] := TRUE;
+END_IF
+
+IF bClearAlarm[11] THEN
+	bClearAlarm[11] := FALSE;
+	fbAlarms[11].Clear(0,TRUE);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime, f/t määrittää voidaanko alarmi confirmata clearauksen jälkeen, falsella voidaan, truella ei. 
+							//Falsella ei synny uutta alarmia ennen confirm+clear, truella syntyy pelkällä confirmilla, true ehkä parempio, raise + clear riittää?
+END_IF
+////////////////////////////////////////////////
+
+IF bRaiseAlarm[12] THEN
+	bRaiseAlarm[12] := FALSE;
+	fbAlarms[12].ipArguments.Clear().AddString(sErrorCode); //sTest on string variable, tähän voitaisiin kirjottaa vikakoodit suoraan stsActissa. 
+	fbAlarms[12].Raise(0);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+END_IF
+
+IF bCondirmAlarm[12] THEN
+	bCondirmAlarm[12] := FALSE;
+	fbAlarms[12].Confirm(0);	 // 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+	bClearAlarm[12] := TRUE;
+END_IF
+
+IF bClearAlarm[12] THEN
+	bClearAlarm[12] := FALSE;
+	fbAlarms[12].Clear(0,TRUE);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime, f/t määrittää voidaanko alarmi confirmata clearauksen jälkeen, falsella voidaan, truella ei. 
+							//Falsella ei synny uutta alarmia ennen confirm+clear, truella syntyy pelkällä confirmilla, true ehkä parempio, raise + clear riittää?
+END_IF
+////////////////////////////////////////////////
+
+IF bRaiseAlarm[13] THEN
+	bRaiseAlarm[13] := FALSE;
+	fbAlarms[13].ipArguments.Clear().AddString(sErrorCode); //sTest on string variable, tähän voitaisiin kirjottaa vikakoodit suoraan stsActissa. 
+	fbAlarms[13].Raise(0);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+END_IF
+
+IF bCondirmAlarm[13] THEN
+	bCondirmAlarm[13] := FALSE;
+	fbAlarms[13].Confirm(0);	 // 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+	bClearAlarm[13] := TRUE;
+END_IF
+
+IF bClearAlarm[13] THEN
+	bClearAlarm[13] := FALSE;
+	fbAlarms[13].Clear(0,TRUE);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime, f/t määrittää voidaanko alarmi confirmata clearauksen jälkeen, falsella voidaan, truella ei. 
+							//Falsella ei synny uutta alarmia ennen confirm+clear, truella syntyy pelkällä confirmilla, true ehkä parempio, raise + clear riittää?
+END_IF
+////////////////////////////////////////////////
+
+IF bRaiseAlarm[14] THEN
+	bRaiseAlarm[14] := FALSE;
+	fbAlarms[14].ipArguments.Clear().AddString(sErrorCode); //sTest on string variable, tähän voitaisiin kirjottaa vikakoodit suoraan stsActissa. 
+	fbAlarms[14].Raise(0);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+END_IF
+
+IF bCondirmAlarm[14] THEN
+	bCondirmAlarm[14] := FALSE;
+	fbAlarms[14].Confirm(0);	 // 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+	bClearAlarm[14] := TRUE;
+END_IF
+
+IF bClearAlarm[14] THEN
+	bClearAlarm[14] := FALSE;
+	fbAlarms[14].Clear(0,TRUE);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime, f/t määrittää voidaanko alarmi confirmata clearauksen jälkeen, falsella voidaan, truella ei. 
+							//Falsella ei synny uutta alarmia ennen confirm+clear, truella syntyy pelkällä confirmilla, true ehkä parempio, raise + clear riittää?
+END_IF
+////////////////////////////////////////////////
+
+IF bRaiseAlarm[15] THEN
+	bRaiseAlarm[15] := FALSE;
+	fbAlarms[15].ipArguments.Clear().AddString(sErrorCode); //sTest on string variable, tähän voitaisiin kirjottaa vikakoodit suoraan stsActissa. 
+	fbAlarms[15].Raise(0);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+END_IF
+
+IF bCondirmAlarm[15] THEN
+	bCondirmAlarm[15] := FALSE;
+	fbAlarms[15].Confirm(0);	 // 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+	bClearAlarm[15] := TRUE;
+END_IF
+
+IF bClearAlarm[15] THEN
+	bClearAlarm[15] := FALSE;
+	fbAlarms[15].Clear(0,TRUE);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime, f/t määrittää voidaanko alarmi confirmata clearauksen jälkeen, falsella voidaan, truella ei. 
+							//Falsella ei synny uutta alarmia ennen confirm+clear, truella syntyy pelkällä confirmilla, true ehkä parempio, raise + clear riittää?
+END_IF
+////////////////////////////////////////////////
+
+IF bRaiseAlarm[16] THEN
+	bRaiseAlarm[16] := FALSE;
+	fbAlarms[16].ipArguments.Clear().AddString(sErrorCode); //sTest on string variable, tähän voitaisiin kirjottaa vikakoodit suoraan stsActissa. 
+	fbAlarms[16].Raise(0);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+END_IF
+
+IF bCondirmAlarm[16] THEN
+	bCondirmAlarm[16] := FALSE;
+	fbAlarms[16].Confirm(0);	 // 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+	bClearAlarm[16] := TRUE;
+END_IF
+
+IF bClearAlarm[16] THEN
+	bClearAlarm[16] := FALSE;
+	fbAlarms[16].Clear(0,TRUE);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime, f/t määrittää voidaanko alarmi confirmata clearauksen jälkeen, falsella voidaan, truella ei. 
+							//Falsella ei synny uutta alarmia ennen confirm+clear, truella syntyy pelkällä confirmilla, true ehkä parempio, raise + clear riittää?
+END_IF
+////////////////////////////////////////////////
+
+IF bRaiseAlarm[17] THEN
+	bRaiseAlarm[17] := FALSE;
+	fbAlarms[17].ipArguments.Clear().AddString(sErrorCode); //sTest on string variable, tähän voitaisiin kirjottaa vikakoodit suoraan stsActissa. 
+	fbAlarms[17].Raise(0);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+END_IF
+
+IF bCondirmAlarm[17] THEN
+	bCondirmAlarm[17] := FALSE;
+	fbAlarms[17].Confirm(0);	 // 0 määrittää loggeriin tallentuvan ajan, 0 = systime
+	bClearAlarm[17] := TRUE;
+END_IF
+
+IF bClearAlarm[17] THEN
+	bClearAlarm[17] := FALSE;
+	fbAlarms[17].Clear(0,TRUE);	// 0 määrittää loggeriin tallentuvan ajan, 0 = systime, f/t määrittää voidaanko alarmi confirmata clearauksen jälkeen, falsella voidaan, truella ei. 
+							//Falsella ei synny uutta alarmia ennen confirm+clear, truella syntyy pelkällä confirmilla, true ehkä parempio, raise + clear riittää?
+END_IF
+////////////////////////////////////////////////
+IF fbAlarms[0].bActive OR fbAlarms[1].bActive OR fbAlarms[2].bActive OR fbAlarms[3].bActive OR fbAlarms[4].bActive OR fbAlarms[5].bActive OR fbAlarms[6].bActive OR fbAlarms[7].bActive OR fbAlarms[8].bActive OR fbAlarms[9].bActive OR fbAlarms[10].bActive OR fbAlarms[11].bActive OR fbAlarms[12].bActive OR fbAlarms[13].bActive OR fbAlarms[14].bActive OR fbAlarms[15].bActive OR fbAlarms[16].bActive OR fbAlarms[17].bActive THEN
+	bErrorActive := TRUE;
+	ELSE
+		bErrorActive := FALSE;
+END_IF]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,155 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_HeaterControl" Id="{ac3bf54c-e448-4493-b473-7fc36c89bd66}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_HeaterControl
+VAR_INPUT
+	bExecuteTest		: BOOL;
+	stPlcCom			: REFERENCE TO	ST_Sts_PlcCom;
+	stModulePlcCom		: REFERENCE TO ST_Module_PlcCom;
+	bHeatingOnOff		: BOOL;
+	bResetHeating		: BOOL;
+	iStationId			: UDINT;
+END_VAR
+VAR_OUTPUT
+	bTempReached		: BOOL := TRUE;
+	bTestTempReached	: BOOL;
+	ScaledTemp			: INT;
+	bHeatingFailed		: BOOL;
+END_VAR
+VAR
+	HeaterState			: INT :=0;
+	HeatingTmr : TON;
+	StartTmr : TON;
+	iHeatingTime		: INT;
+	iOffTime			: INT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////
+IF NOT stModulePlcCom.stPlcComIn.bEstopOk THEN
+	HeaterState := 999;
+	END_IF
+		
+
+ScaledTemp := (stPlcCom.stPlcComIn.PtcRawTemp / 10);
+
+StartTmr( PT := UDINT_TO_TIME(iStationId * 2000));
+
+IF NOT bHeatingOnOff AND NOT bExecuteTest AND stModulePlcCom.stPlcComIn.bEstopOk THEN
+	HeaterState :=0;
+	StartTmr.in:= FALSE;
+END_IF
+
+IF HeaterState >= 10 AND stPlcCom.stPlcComIn.PtcRawTemp >= 550 THEN
+	bHeatingFailed := TRUE;
+	HeaterState :=1000;
+END_IF
+// estoppi, jos heatingonoff false niin kaikki 0
+
+
+
+CASE HeaterState OF
+	0:	IF stModulePlcCom.stPlcComIn.bEstopOk THEN
+			stPlcCom.stPlcComOut.bHeaterFan := FALSE;
+			stPlcCom.stPlcComOut.bHeaterElement := FALSE;
+			IF bHeatingOnOff THEN		// AND StartTmr.Q
+				StartTmr.IN := TRUE;
+				HeaterState := 5; //Ajastin päälle kun lämmitin tulille
+			ELSIF bExecuteTest THEN
+				 HeaterState := 5000;
+			END_IF
+		ELSE
+			StartTmr.IN := FALSE;
+			stPlcCom.stPlcComOut.bHeaterFan := FALSE;
+			stPlcCom.stPlcComOut.bHeaterElement := FALSE;
+			HeaterState := 0;	
+		END_IF
+		
+	5:
+		IF bHeatingOnOff AND StartTmr.Q THEN
+			stPlcCom.stPlcComOut.bHeaterFan := TRUE;  //Ajastin päälle kun lämmitys päälle, ajastimen jälkeen lömmitin oikeasti tulille. Ajstimen nollaus kun lämmituys loppuu.
+			StartTmr.IN := FALSE;
+			HeaterState := 10;
+		END_IF
+	
+	10:
+		IF StPlcCom.stPlcComIn.PtcRawTemp <= 470 THEN
+			iHeatingTime := 16;
+			iOffTime := 4;
+		ELSIF StPlcCom.stPlcComIn.PtcRawTemp <= 490 THEN
+			iHeatingTime := 12;
+			iOffTime := 8;
+		ELSIF StPlcCom.stPlcComIn.PtcRawTemp <= 510 THEN
+			iHeatingTime := 8;
+			iOffTime := 12;
+		ELSIF StPlcCom.stPlcComIn.PtcRawTemp <= 530 THEN
+			iHeatingTime := 4;
+			iOffTime := 16;
+		END_IF
+		HeaterState := 20;
+			
+	20:
+
+		IF HeatingTmr.Q THEN
+			HeatingTmr(IN:=FALSE);
+			stPlcCom.stPlcComOut.bHeaterElement := FALSE;
+			HeaterState := 30;
+		ELSE
+			HeatingTmr(IN:=TRUE,PT:=INT_TO_TIME(iHeatingTime*1000));
+		END_IF
+		
+	30:
+		IF HeatingTmr.Q THEN
+			HeatingTmr(IN:=FALSE);
+			stPlcCom.stPlcComOut.bHeaterElement := TRUE;
+			HeaterState := 10;
+		ELSE
+			HeatingTmr(IN:=TRUE, PT:= INT_TO_TIME(iOffTime*1000));
+		END_IF
+		
+	999:
+		bHeatingOnOff := FALSE;
+		stPlcCom.stPlcComOut.bHeaterElement := FALSE;
+		stPlcCom.stPlcComOut.bHeaterFan:= FALSE;
+		HeatingTmr(IN:=FALSE);
+		StartTmr.IN := FALSE;
+		bExecuteTest := FALSE;
+			
+	1000:
+		bHeatingOnOff := FALSE;
+		stPlcCom.stPlcComOut.bHeaterElement := FALSE;
+		stPlcCom.stPlcComOut.bHeaterFan:= FALSE;
+		
+		IF bResetHeating THEN
+			bHeatingFailed :=FALSE;
+			HeaterState := 0;
+		END_IF
+		
+//HeaterTestFunction				
+	5000:
+		stPlcCom.stPlcComOut.bHeaterFan := TRUE;
+		IF bExecuteTest THEN
+			HeaterState := 5010;
+		ELSE
+			HeaterState := 5000;	
+		END_IF
+	
+	5010:
+		IF stPlcCom.stPlcComIn.PtcRawTemp <= 280 THEN
+				stPlcCom.stPlcComOut.bHeaterElement := TRUE;
+				bTestTempReached :=FALSE;
+				
+			ELSIF StPlcCom.stPlcComIn.PtcRawTemp >= 280 THEN
+				stPlcCom.stPlcComOut.bHeaterElement := FALSE;
+				stPlcCom.stPlcComOut.bHeaterFan := FALSE;
+				bTestTempReached := TRUE;
+				bExecuteTest := FALSE;
+				HeaterState := 5000;	
+		END_IF
+	
+END_CASE]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

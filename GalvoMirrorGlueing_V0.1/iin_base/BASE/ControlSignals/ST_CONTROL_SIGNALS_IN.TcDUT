@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="ST_CONTROL_SIGNALS_IN" Id="{db89f546-6130-4674-ad31-df3551225773}">
+    <Declaration><![CDATA[TYPE ST_CONTROL_SIGNALS_IN :	// The raw control signals (auto/manual/service/...), do not use in your application
+STRUCT
+	manualMode:			BOOL;	// Auto/Manual
+	serviceMode:		BOOL;
+	pauseRequest:		BOOL;	// Will let ongoing operations finish nicely, When TRUE = must go to Pause, when FALSE, may continue
+	stopImmediately:	BOOL;	// Placeholder for later use
+	restart:			BOOL;	// Placeholder for later use
+	
+	reset:				BOOL;	// Reset button (a single PLC pulse will be generated from this)
+	hardReset:			BOOL;	// Hard reset button (a single PLC pulse will be generated from this)
+
+//	safetyAreaOk:		BOOL;	// Estop and doors are 'safe' = possible to drive in AUTO
+	
+	externalReset:		BOOL;	// External reset coming from FB_ControlSignalsV2/iExternalReset
+	autoReset:			BOOL;	// Auto reset coming from FB_ControlSignalsV2/iAutoReset
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,357 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="MAIN_VISION" Id="{a545452f-4563-41a7-9d6d-eda231c46257}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN_VISION
+VAR
+	fbPosCam1		: FB_PosImgSts;
+	fbPosCam2		: FB_PosImgSts;
+	fbPosCam3		: FB_PosImgSts;
+	fbPosCam4		: FB_PosImgSts;
+	fbPosCam5		: FB_PosImgSts;
+	fbPosCam6		: FB_PosImgSts;
+	fbPosCam7		: FB_PosImgSts;
+	fbPosCam8		: FB_PosImgSts;
+	fbPosCam9		: FB_PosImgSts;
+	fbPosCam10		: FB_PosImgSts;
+	
+	fbMidStationCam	: FB_MidStaion;
+	fbInfeedCam		: FB_InfeedCam;
+	fbOutfeedCam	: FB_OutfeedCam;
+	fbRejectCam		: FB_RejectCam;
+	stPalletPosData	: ST_PalletImagingData;
+	
+	stMirrorDataSts1	: ST_Vis_Mirror;
+	stMirrorDataSts2	: ST_Vis_Mirror;
+	stMirrorDataSts3	: ST_Vis_Mirror;
+	stMirrorDataSts4	: ST_Vis_Mirror;
+	stMirrorDataSts5	: ST_Vis_Mirror;
+	stMirrorDataSts6	: ST_Vis_Mirror;
+	stMirrorDataSts7	: ST_Vis_Mirror;
+	stMirrorDataSts8	: ST_Vis_Mirror;
+	stMirrorDataSts9	: ST_Vis_Mirror;
+	stMirrorDataSts10	: ST_Vis_Mirror;
+	
+	Cam1Trig : R_Trig;
+	Cam2Trig : R_Trig;
+	Cam3Trig : R_Trig;
+	Cam4Trig : R_Trig; 
+	Cam5Trig : R_Trig;
+	Cam6Trig : R_Trig;
+	Cam7Trig : R_Trig; 
+	Cam8Trig : R_Trig;
+	Cam9Trig : R_Trig; 
+	Cam10Trig : R_Trig;
+	CamMidStationTrig : R_Trig;
+	CamInfeedTrig : R_Trig;
+	CamOutfeedTrig : R_Trig;
+	CamRejectTrig : R_Trig; 
+
+	ImagingQueStep	: INT;
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+fbPosCam1(iStationId := 1 ,stPosData := stMirrorDataSts1, stAssemblyType := MAIN.stAssemblyData, nX := 830, nY := 980,stModuleHmi := MAIN.stModuleHmi );
+fbPosCam2(iStationId := 2 ,stPosData := stMirrorDataSts2, stAssemblyType := MAIN.stAssemblyData, nX := 800, nY := 950,stModuleHmi := MAIN.stModuleHmi  );
+fbPosCam3(iStationId := 3 ,stPosData := stMirrorDataSts3, stAssemblyType := MAIN.stAssemblyData, nX := 900, nY := 1010,stModuleHmi := MAIN.stModuleHmi  );
+fbPosCam4(iStationId := 4 ,stPosData := stMirrorDataSts4, stAssemblyType := MAIN.stAssemblyData, nX := 890, nY := 950,stModuleHmi := MAIN.stModuleHmi  );
+fbPosCam5(iStationId := 5 ,stPosData := stMirrorDataSts5, stAssemblyType := MAIN.stAssemblyData, nX := 840, nY := 1000,stModuleHmi := MAIN.stModuleHmi  );
+fbPosCam6(iStationId := 6 ,stPosData := stMirrorDataSts6, stAssemblyType := MAIN.stAssemblyData, nX := 805, nY := 995,stModuleHmi := MAIN.stModuleHmi  );
+fbPosCam7(iStationId := 7 ,stPosData := stMirrorDataSts7, stAssemblyType := MAIN.stAssemblyData, nX := 880, nY := 990,stModuleHmi := MAIN.stModuleHmi  );
+fbPosCam8(iStationId := 8 ,stPosData := stMirrorDataSts8, stAssemblyType := MAIN.stAssemblyData, nX := 840, nY := 1010,stModuleHmi := MAIN.stModuleHmi  );
+fbPosCam9(iStationId := 9 ,stPosData := stMirrorDataSts9, stAssemblyType := MAIN.stAssemblyData, nX := 850, nY := 990,stModuleHmi := MAIN.stModuleHmi  );
+fbPosCam10(iStationId := 10 ,stPosData := stMirrorDataSts10, stAssemblyType := MAIN.stAssemblyData, nX := 860, nY := 1000,stModuleHmi := MAIN.stModuleHmi  );
+
+fbMidStationCam(stRecipeData := MAIN.stAssemblyData, iStationId := MAIN.fbMeca500.iWorkingStation, stCouplerData := MAIN.stCouplerData);
+fbInfeedCam(stPosData := stPalletPosData, stImagingSetValues := MAIN.stAssemblyData);
+fbOutfeedCam();
+fbRejectCam();
+
+CASE ImagingQueStep OF
+	0: ImagingQueStep := 1;// OFFLINE
+	1: CamMidStationTrig(CLK := Trig.bMidStationCam);
+		IF CamMidStationTrig.Q THEN
+			fbMidStationCam.TrigImage();
+		END_IF
+		IF NOT Trig.bMidStationCam THEN
+			ImagingQueStep := 2;
+		END_IF
+	2: CamInfeedTrig(CLK := Trig.bInfeedCam);
+		IF CamInfeedTrig.Q THEN
+			fbInfeedCam.TrigImage();
+		END_IF
+		IF NOT Trig.bInfeedCam THEN
+			ImagingQueStep := 3;
+		END_IF
+	
+	3:	CamOutfeedTrig(CLK := Trig.bOutfeedCam);
+		IF CamOutfeedTrig.Q THEN
+			fbOutfeedCam.TrigImage();
+		END_IF
+		IF NOT Trig.bOutfeedCam THEN
+			ImagingQueStep := 4;
+		END_IF
+	
+	4:	CamRejectTrig(CLK := Trig.bRejectCam);
+		IF CamRejectTrig.Q THEN
+			fbRejectCam.TrigImage();
+		END_IF
+		IF NOT Trig.bRejectCam THEN
+			ImagingQueStep := 5;
+		END_IF
+	5: Cam1Trig(CLK := MAIN.stStation.fbSts1.bTrigPosCam);
+		 IF Cam1Trig.Q THEN
+			IF MAIN.stStation.fbSts1.bTrigPosCamLightTest THEN
+				fbPosCam1.bTrigLightTestImage := TRUE;
+			ELSIF MAIN.stStation.fbSts1.bTrigPosCamLaserTest THEN
+				fbPosCam1.bTrigLaserTestImage := TRUE;
+			ELSIF MAIN.stStation.fbSts1.bTrigPosCamCoupler THEN
+				fbPosCam1.bTrigCouplerImage := TRUE;
+			END_IF
+			fbPosCam1.TrigImage();
+		END_IF
+		IF NOT MAIN.stStation.fbSts1.bTrigPosCam THEN
+			stMirrorDataSts1.bDetectionFailed := FALSE;
+			stMirrorDataSts1.bImagingDone := FALSE;
+			ImagingQueStep := 6; 
+		END_IF
+		IF Cam1Trig.CLK THEN
+			stMirrorDataSts1.bReadyForTrigger := FALSE;
+		ELSE
+			stMirrorDataSts1.bReadyForTrigger := TRUE;
+		END_IF
+		
+	6:  Cam2Trig(CLK := MAIN.stStation.fbSts2.bTrigPosCam);
+		IF Cam2Trig.Q THEN
+			IF MAIN.stStation.fbSts2.bTrigPosCamLightTest THEN
+				fbPosCam2.bTrigLightTestImage := TRUE;
+			ELSIF MAIN.stStation.fbSts2.bTrigPosCamLaserTest THEN
+				fbPosCam2.bTrigLaserTestImage := TRUE;
+			ELSIF MAIN.stStation.fbSts2.bTrigPosCamCoupler THEN
+				fbPosCam2.bTrigCouplerImage := TRUE;
+			END_IF
+			fbPosCam2.TrigImage();
+		END_IF
+	
+		IF NOT MAIN.stStation.fbSts2.bTrigPosCam THEN
+			stMirrorDataSts2.bDetectionFailed := FALSE;
+			stMirrorDataSts2.bImagingDone := FALSE;
+			ImagingQueStep := 7;
+		END_IF
+	
+		IF Cam2Trig.CLK THEN
+			stMirrorDataSts2.bReadyForTrigger := FALSE;
+		ELSE
+			stMirrorDataSts2.bReadyForTrigger := TRUE;
+		END_IF
+	
+	
+	7:  Cam3Trig(CLK := MAIN.stStation.fbSts3.bTrigPosCam);
+		IF Cam3Trig.Q THEN
+			IF MAIN.stStation.fbSts3.bTrigPosCamLightTest THEN
+				fbPosCam3.bTrigLightTestImage := TRUE;
+			ELSIF MAIN.stStation.fbSts3.bTrigPosCamLaserTest THEN
+				fbPosCam3.bTrigLaserTestImage := TRUE;
+			ELSIF MAIN.stStation.fbSts3.bTrigPosCamCoupler THEN
+				fbPosCam3.bTrigCouplerImage := TRUE;
+			END_IF
+			fbPosCam3.TrigImage();
+		END_IF
+	
+		IF NOT MAIN.stStation.fbSts3.bTrigPosCam THEN
+			stMirrorDataSts3.bDetectionFailed := FALSE;
+			stMirrorDataSts3.bImagingDone := FALSE;
+			ImagingQueStep := 8;
+		END_IF
+	
+		IF Cam3Trig.CLK THEN
+			stMirrorDataSts3.bReadyForTrigger := FALSE;
+		ELSE
+			stMirrorDataSts3.bReadyForTrigger := TRUE;
+		END_IF
+	
+	
+	8:  Cam4Trig(CLK := MAIN.stStation.fbSts4.bTrigPosCam);
+		IF Cam4Trig.Q THEN
+			IF MAIN.stStation.fbSts4.bTrigPosCamLightTest THEN
+				fbPosCam4.bTrigLightTestImage := TRUE;
+			ELSIF MAIN.stStation.fbSts4.bTrigPosCamLaserTest THEN
+				fbPosCam4.bTrigLaserTestImage := TRUE;
+			ELSIF MAIN.stStation.fbSts4.bTrigPosCamCoupler THEN
+				fbPosCam4.bTrigCouplerImage := TRUE;
+			END_IF
+			fbPosCam4.TrigImage();
+		END_IF
+	
+		IF NOT MAIN.stStation.fbSts4.bTrigPosCam THEN
+			stMirrorDataSts4.bDetectionFailed := FALSE;
+			stMirrorDataSts4.bImagingDone := FALSE;
+			ImagingQueStep := 9;
+		END_IF
+	
+		IF Cam4Trig.CLK THEN
+			stMirrorDataSts4.bReadyForTrigger := FALSE;
+		ELSE
+			stMirrorDataSts4.bReadyForTrigger := TRUE;
+		END_IF
+	
+	
+	9:  Cam5Trig(CLK := MAIN.stStation.fbSts5.bTrigPosCam);
+		IF Cam5Trig.Q THEN
+			IF MAIN.stStation.fbSts5.bTrigPosCamLightTest THEN
+				fbPosCam5.bTrigLightTestImage := TRUE;
+			ELSIF MAIN.stStation.fbSts5.bTrigPosCamLaserTest THEN
+				fbPosCam5.bTrigLaserTestImage := TRUE;
+			ELSIF MAIN.stStation.fbSts5.bTrigPosCamCoupler THEN
+				fbPosCam5.bTrigCouplerImage := TRUE;
+			END_IF
+			fbPosCam5.TrigImage();
+		END_IF
+	
+		IF NOT MAIN.stStation.fbSts5.bTrigPosCam THEN
+			stMirrorDataSts5.bDetectionFailed := FALSE;
+			stMirrorDataSts5.bImagingDone := FALSE;
+			ImagingQueStep := 10;
+		END_IF
+	
+		IF Cam5Trig.CLK THEN
+			stMirrorDataSts5.bReadyForTrigger := FALSE;
+		ELSE
+			stMirrorDataSts5.bReadyForTrigger := TRUE;
+		END_IF
+	
+	
+	10: Cam6Trig(CLK := MAIN.stStation.fbSts6.bTrigPosCam);
+		IF Cam6Trig.Q THEN
+			IF MAIN.stStation.fbSts6.bTrigPosCamLightTest THEN
+				fbPosCam6.bTrigLightTestImage := TRUE;
+			ELSIF MAIN.stStation.fbSts6.bTrigPosCamLaserTest THEN
+				fbPosCam6.bTrigLaserTestImage := TRUE;
+			ELSIF MAIN.stStation.fbSts6.bTrigPosCamCoupler THEN
+				fbPosCam6.bTrigCouplerImage := TRUE;
+			END_IF
+			fbPosCam6.TrigImage();
+		END_IF
+	
+		IF NOT MAIN.stStation.fbSts6.bTrigPosCam THEN
+			stMirrorDataSts6.bDetectionFailed := FALSE;
+			stMirrorDataSts6.bImagingDone := FALSE;
+			ImagingQueStep := 11;
+		END_IF
+	
+		IF Cam6Trig.CLK THEN
+			stMirrorDataSts6.bReadyForTrigger := FALSE;
+		ELSE
+			stMirrorDataSts6.bReadyForTrigger := TRUE;
+		END_IF
+	
+	
+	11: Cam7Trig(CLK := MAIN.stStation.fbSts7.bTrigPosCam);
+		IF Cam7Trig.Q THEN
+			IF MAIN.stStation.fbSts7.bTrigPosCamLightTest THEN
+				fbPosCam7.bTrigLightTestImage := TRUE;
+			ELSIF MAIN.stStation.fbSts7.bTrigPosCamLaserTest THEN
+				fbPosCam7.bTrigLaserTestImage := TRUE;
+			ELSIF MAIN.stStation.fbSts7.bTrigPosCamCoupler THEN
+				fbPosCam7.bTrigCouplerImage := TRUE;
+			END_IF
+			fbPosCam7.TrigImage();
+		END_IF
+	
+		IF NOT MAIN.stStation.fbSts7.bTrigPosCam THEN
+			stMirrorDataSts7.bDetectionFailed := FALSE;
+			stMirrorDataSts7.bImagingDone := FALSE;
+			ImagingQueStep := 12;
+		END_IF
+	
+		IF Cam7Trig.CLK THEN
+			stMirrorDataSts7.bReadyForTrigger := FALSE;
+		ELSE
+			stMirrorDataSts7.bReadyForTrigger := TRUE;
+		END_IF
+	
+	
+	12: Cam8Trig(CLK := MAIN.stStation.fbSts8.bTrigPosCam);
+		IF Cam8Trig.Q THEN
+			IF MAIN.stStation.fbSts8.bTrigPosCamLightTest THEN
+				fbPosCam8.bTrigLightTestImage := TRUE;
+			ELSIF MAIN.stStation.fbSts8.bTrigPosCamLaserTest THEN
+				fbPosCam8.bTrigLaserTestImage := TRUE;
+			ELSIF MAIN.stStation.fbSts8.bTrigPosCamCoupler THEN
+				fbPosCam8.bTrigCouplerImage := TRUE;
+			END_IF
+			fbPosCam8.TrigImage();
+		END_IF
+	
+		IF NOT MAIN.stStation.fbSts8.bTrigPosCam THEN
+			stMirrorDataSts8.bDetectionFailed := FALSE;
+			stMirrorDataSts8.bImagingDone := FALSE;
+			ImagingQueStep := 13;
+		END_IF
+	
+		IF Cam8Trig.CLK THEN
+			stMirrorDataSts8.bReadyForTrigger := FALSE;
+		ELSE
+			stMirrorDataSts8.bReadyForTrigger := TRUE;
+		END_IF
+	
+	
+	13: Cam9Trig(CLK := MAIN.stStation.fbSts9.bTrigPosCam);
+		IF Cam9Trig.Q THEN
+			IF MAIN.stStation.fbSts9.bTrigPosCamLightTest THEN
+				fbPosCam9.bTrigLightTestImage := TRUE;
+			ELSIF MAIN.stStation.fbSts9.bTrigPosCamLaserTest THEN
+				fbPosCam9.bTrigLaserTestImage := TRUE;
+			ELSIF MAIN.stStation.fbSts9.bTrigPosCamCoupler THEN
+				fbPosCam9.bTrigCouplerImage := TRUE;
+			END_IF
+			fbPosCam9.TrigImage();
+		END_IF
+	
+		IF NOT MAIN.stStation.fbSts9.bTrigPosCam THEN
+			stMirrorDataSts9.bDetectionFailed := FALSE;
+			stMirrorDataSts9.bImagingDone := FALSE;
+			ImagingQueStep := 14;
+		END_IF
+	
+		IF Cam9Trig.CLK THEN
+			stMirrorDataSts9.bReadyForTrigger := FALSE;
+		ELSE
+			stMirrorDataSts9.bReadyForTrigger := TRUE;
+		END_IF
+	
+	
+	14: Cam10Trig(CLK := MAIN.stStation.fbSts10.bTrigPosCam);
+		IF Cam10Trig.Q THEN
+			IF MAIN.stStation.fbSts10.bTrigPosCamLightTest THEN
+				fbPosCam10.bTrigLightTestImage := TRUE;
+			ELSIF MAIN.stStation.fbSts10.bTrigPosCamLaserTest THEN
+				fbPosCam10.bTrigLaserTestImage := TRUE;
+			ELSIF MAIN.stStation.fbSts10.bTrigPosCamCoupler THEN
+				fbPosCam10.bTrigCouplerImage := TRUE;
+			END_IF
+			fbPosCam10.TrigImage();
+		END_IF
+	
+		IF NOT MAIN.stStation.fbSts10.bTrigPosCam THEN
+			stMirrorDataSts10.bDetectionFailed := FALSE;
+			stMirrorDataSts10.bImagingDone := FALSE;
+			ImagingQueStep := 15;
+		END_IF
+	
+		IF Cam10Trig.CLK THEN
+			stMirrorDataSts10.bReadyForTrigger := FALSE;
+		ELSE
+			stMirrorDataSts10.bReadyForTrigger := TRUE;
+		END_IF
+
+	15: ImagingQueStep := 1;
+	22: IF Trig.bInfeedCam THEN
+			fbInfeedCam.TrigImage();
+			Trig.bInfeedCam := FALSE;
+		END_IF
+END_CASE]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,140 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_OutfeedCam" Id="{6f7211bc-2359-49d7-859b-fea06f588196}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_OutfeedCam
+VAR_INPUT
+	bCheckRow1	: BOOL;
+	bCheckRow2 : BOOL;
+END_VAR
+VAR_OUTPUT
+	bError : BOOL;
+	iErrorId			: INT;
+	bPalletRow1NotClear : BOOL;
+	bPalletRow2NotClear : BOOL;
+	bImagingDone	: BOOL;
+END_VAR
+VAR
+	hr									: HRESULT;
+	eVisionState						: ETcVnCameraState;
+	fbCamera          					: FB_VN_GevCameraControl;
+	ImageRawDisp						: ITcVnDisplayableImage;
+	nNewImageCounter 					: UINT;
+	ImageRaw: Tc3_Vision.ITcVnImage;
+	ipImageTest							: ITcVnImage;
+	ipImageTestDisp						: ITcVnDisplayableImage;
+	
+	
+	stDetectionArea1					: TcVnRectangle_UDINT;
+	aStdDev								: TcVnVector4_LREAL;
+	aAverage  							: TcVnVector4_LREAL;
+	stDetectionArea2					: TcVnRectangle_UDINT;
+	aStdDev2								: TcVnVector4_LREAL;
+	aAverage2  							: TcVnVector4_LREAL;
+	stDetectionArea3					: TcVnRectangle_UDINT;
+	aStdDev3								: TcVnVector4_LREAL;
+	aAverage3  							: TcVnVector4_LREAL;
+	DoneTof								: TOF;
+	bInitTrig 								: BOOL;
+	TrigCheckTmr							: TON;
+	fbEventlogger							: FB_EventLogger;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[eVisionState := fbCamera.GetState();
+DoneTof(PT := T#0.5S, Q => bImagingDone);
+DoneTof.IN := FALSE;
+
+stDetectionArea1.nHeight := 50;
+stDetectionArea1.nWidth := 1100;
+stDetectionArea1.nX := 30;
+stDetectionArea1.nY := 140;
+
+stDetectionArea2.nHeight := 30;
+stDetectionArea2.nWidth := 900;
+stDetectionArea2.nX := 40;
+stDetectionArea2.nY := 600;
+
+stDetectionArea3.nHeight := 30;
+stDetectionArea3.nWidth := 110;
+stDetectionArea3.nX := 1020;
+stDetectionArea3.nY := 600;
+
+IF eVisionState = TCVN_CS_ERROR THEN
+	hr := fbCamera.Reset();
+ELSIF eVisionState = TCVN_CS_TRIGGERING THEN
+	hr := fbCamera.TriggerImage();
+ELSIF eVisionState < TCVN_CS_ACQUIRING THEN
+    hr := fbCamera.StartAcquisition();
+ELSIF eVisionState = TCVN_CS_ACQUIRING THEN
+	hr := fbCamera.GetCurrentImage(ImageRaw); // switch to undistorted
+	IF SUCCEEDED(hr) AND ImageRaw <> 0 THEN
+		bError := FALSE;
+		nNewImageCounter := nNewImageCounter +1;
+		hr := F_VN_CopyIntoDisplayableImage (ImageRaw, ImageRawDisp, hr);
+		hr := F_VN_CopyImage(ImageRaw, ipImageTest, hrPrev := hr);
+		hr:= F_VN_ConvertColorSpace(ipSrcImage:= ipImageTest , ipDestImage:= ipImageTest ,
+				eTransform:= ETcVnColorSpaceTransform.TCVN_CST_GRAY_TO_RGB, hrPrev:= hr);
+		hr := F_VN_SetRoi_TcVnRectangle_UDINT(stRoi:= stDetectionArea1, ipDestImage:= ipImageTest, hrPrev:= hr);
+		hr := F_VN_ImageAverageStdDev(ipSrcImage:= ipImageTest,aStdDev := aStdDev, aAverage:= aAverage, hrPrev:= hr);
+		hr := F_VN_ResetRoi(ipImage:= ipImageTest, hrPrev:= hr);
+		hr := F_VN_DrawRectangle_TcVnRectangle_UDINT(
+			stRectangle:= stDetectionArea1,
+			ipDestImage:= ipImageTest,
+			aColor:= Color.Green,
+			nThickness:= 1,
+			hrPrev:= hr);
+		hr := F_VN_SetRoi_TcVnRectangle_UDINT(stRoi:= stDetectionArea2, ipDestImage:= ipImageTest, hrPrev:= hr);
+		hr := F_VN_ImageAverageStdDev(ipSrcImage:= ipImageTest,aStdDev := aStdDev2, aAverage:= aAverage2, hrPrev:= hr);
+		hr := F_VN_ResetRoi(ipImage:= ipImageTest, hrPrev:= hr);
+		hr := F_VN_DrawRectangle_TcVnRectangle_UDINT(
+			stRectangle:= stDetectionArea2,
+			ipDestImage:= ipImageTest,
+			aColor:= Color.Green,
+			nThickness:= 1,
+			hrPrev:= hr);
+		hr := F_VN_SetRoi_TcVnRectangle_UDINT(stRoi:= stDetectionArea3, ipDestImage:= ipImageTest, hrPrev:= hr);
+		hr := F_VN_ImageAverageStdDev(ipSrcImage:= ipImageTest,aStdDev := aStdDev3, aAverage:= aAverage3, hrPrev:= hr);
+		hr := F_VN_ResetRoi(ipImage:= ipImageTest, hrPrev:= hr);
+		hr := F_VN_DrawRectangle_TcVnRectangle_UDINT(
+			stRectangle:= stDetectionArea3,
+			ipDestImage:= ipImageTest,
+			aColor:= Color.Green,
+			nThickness:= 1,
+			hrPrev:= hr);
+		IF aStdDev[0] > 13 THEN
+			bPalletRow1NotClear := TRUE;
+		ELSE
+			bPalletRow1NotClear := FALSE;
+		END_IF
+		IF aStdDev3[0] > 13 OR aStdDev2[0] > 14 THEN
+			bPalletRow2NotClear := TRUE;
+		ELSE
+			bPalletRow2NotClear := FALSE;
+		END_IF
+		hr := F_VN_CopyIntoDisplayableImage (ipImageTest, ipImageTestDisp, hr);
+		DoneTof.IN := TRUE;
+	ELSIF bInitTrig AND TrigCheckTmr.Q THEN
+		bError := TRUE;
+		iErrorId := 402;
+		fbEventlogger.bRaiseAlarm[16]:=TRUE;
+		fbEventlogger.sErrorCode:= '402';
+		Err.Err;
+		bInitTrig := FALSE;
+		TrigCheckTmr.IN := FALSE;
+	END_IF
+	
+END_IF]]></ST>
+    </Implementation>
+    <Method Name="TrigImage" Id="{2236ccc0-ff30-4483-9091-b460dd072a93}">
+      <Declaration><![CDATA[METHOD TrigImage : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fbCamera.TriggerImage();
+bInitTrig := TRUE;
+TrigCheckTmr.IN := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

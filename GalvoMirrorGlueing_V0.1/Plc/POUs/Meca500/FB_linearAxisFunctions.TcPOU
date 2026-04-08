@@ -1,0 +1,452 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_linearAxisFunctions" Id="{e50602c1-7c85-4fd4-8230-f9eb251abf99}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LinearAxisFunctions
+VAR_INPUT
+	stModuleHmi				: REFERENCE TO ST_ModuleHmi;
+    stPlcCom                : REFERENCE TO ST_Module_PlcCom;
+    ExecuteMovement         : BOOL;
+    ExecuteHoming           : BOOL;
+    AxisTargetPos           : LREAL;
+    AxisVelo                : LREAL := 30;
+    LinearHomingPosition    : LREAL := 0;
+    AxisReset               : BOOL;
+    bErrorClear             : BOOL;
+END_VAR
+
+VAR_OUTPUT
+    bAxisStatusOK           : BOOL;
+    CurrentPos              : LREAL;
+    bError                  : BOOL;
+    bMovementDone           : BOOL;
+	bAxisHomed				: BOOL;
+    ErrorID                 : UDINT;
+    LinearAxisBusy          : BOOL;
+END_VAR
+
+VAR
+    Axis1                   : AXIS_REF;
+    fbPower1                : MC_Power;
+    fbHome1                 : MC_Home;
+    fbMoveAbs               : MC_MoveAbsolute;
+    fbReset1                : MC_Reset;
+    fbReadPos               : MC_ReadActualPosition;
+    fbStatus                : MC_ReadStatus;
+	fbJog					: MC_Jog;
+
+    MasterState             : INT := 0;
+
+    bAllowAbsMovement       : BOOL;
+    bAbsMoveExecute         : BOOL;
+    bHomeExec               : BOOL;
+    bMoveExec               : BOOL;
+
+    rHome                   : R_TRIG;
+    rMove                   : R_TRIG;
+    rReset                  : R_TRIG;
+    rErrClear               : R_TRIG;
+
+    MotionActive            : BOOL := FALSE;
+
+    rAbsDone                : R_TRIG;
+    tAbsDone                : TOF;
+	stHomingOptions			: ST_HomingOptions;
+
+    SafetyMain              : BOOL;
+	bHomingJogState			: BOOL;
+	iVelocity				: LREAL := 10;
+END_VAR
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+////////////////////////////////////////////////////////////////////// Status reading
+fbStatus(Axis := Axis1, Enable := TRUE);
+fbReadPos(Axis := Axis1, Enable := TRUE);
+CurrentPos := fbReadPos.Position;
+SafetyMain := stPlcCom.stPlcComIn.bEstopOk AND stPlcCom.stPlcComIn.bSafetyOk;
+bAxisStatusOK := fbStatus.Status.Operational AND NOT fbStatus.Error;
+
+
+// Movement done tof
+rAbsDone(CLK := fbMoveAbs.Done AND NOT fbMoveAbs.Error AND NOT fbMoveAbs.CommandAborted);
+tAbsDone(IN := rAbsDone.Q, PT := T#500MS);
+bMovementDone := tAbsDone.Q;
+
+
+// Trigs
+rHome(CLK := ExecuteHoming);
+rMove(CLK := ExecuteMovement);
+rReset(CLK := AxisReset);
+stHomingOptions.SearchDirection := MC_Negative_Direction;
+stHomingOptions.ClearPositionLag := TRUE;
+
+// Movement execute
+bAbsMoveExecute := bAllowAbsMovement AND rMove.Q;
+
+
+// Busy
+LinearAxisBusy := fbHome1.Busy OR fbMoveAbs.Busy OR fbReset1.Busy;
+
+IF LinearAxisBusy THEN
+    fbJog.JogForward := FALSE;
+    fbJog.JogBackwards := FALSE;
+END_IF
+
+
+CASE MasterState OF
+
+// Idle state
+0:
+    bError := FALSE;
+    ErrorID := 0;
+    bHomeExec := FALSE;
+    bMoveExec := FALSE;
+    bAbsMoveExecute := FALSE;
+	bAxisHomed := FALSE;
+
+    IF NOT stPlcCom.stPlcComIn.bSafetyOk THEN
+        // Force movement disabled
+        bAllowAbsMovement := FALSE;
+        MasterState := 999;
+	ELSIF NOT stPlcCom.stPlcComIn.bEstopOk THEN
+		bAllowAbsMovement := FALSE;
+		MasterState := 900;
+    ELSIF NOT LinearAxisBusy THEN			// ELSIF rHome.Q AND NOT LinearAxisBusy THEN. // tämä rivi lisätty, kotiuttaa suoraan jos akseli vapaa ja safetyt ok
+        MasterState := 10;
+	END_IF
+	
+    IF rReset.Q THEN
+        MasterState := 40;
+    END_IF
+
+
+// Power On
+
+10:
+    IF NOT stPlcCom.stPlcComIn.bSafetyOk THEN
+        fbPower1.Enable := FALSE ;
+        MasterState := 999;
+	ELSIF NOT stPlcCom.stPlcComIn.bEstopOk THEN
+		bAllowAbsMovement := FALSE;
+		MasterState := 900;
+    ELSE
+        fbPower1.Enable := TRUE;
+    END_IF
+
+    IF fbPower1.Status THEN        
+        MasterState := 15;		// was 20 before pre homing added
+
+    ELSIF fbPower1.Error THEN
+        bError := TRUE;
+        ErrorID := fbPower1.ErrorID;
+        MasterState := 1000;
+    END_IF
+	
+	IF rReset.Q THEN
+        MasterState := 40;
+    END_IF
+	
+// Pre homing sensorCheck
+15:
+	IF NOT stPlcCom.stPlcComIn.bLinearAxisHomingSensor THEN		//Jog away from sensor if axis is on sensor at startup
+		fbJog.JogForward := TRUE;
+		bHomingJogState := TRUE;
+	ELSE
+		fbJog.JogForward := FALSE;						//Continue to regular homing once axis is off the sensor.
+		IF fbJog.Done OR NOT bHomingJogState THEN
+			bHomeExec := TRUE;
+			bHomingJogState := FALSE;
+			MasterState :=20;
+		END_IF
+	END_IF
+	
+	IF rReset.Q THEN
+        MasterState := 40;
+    END_IF
+// Homing
+
+20:
+    IF NOT stPlcCom.stPlcComIn.bSafetyOk THEN
+        bHomeExec := FALSE;
+        MasterState := 999;
+	ELSIF NOT stPlcCom.stPlcComIn.bEstopOk THEN
+		bAllowAbsMovement := FALSE;
+		MasterState := 900;
+    END_IF
+
+    IF fbHome1.Busy THEN
+        MotionActive := TRUE;
+
+    ELSIF fbHome1.Done OR fbHome1.CommandAborted OR fbHome1.Error THEN
+        bHomeExec := FALSE;
+        MotionActive := FALSE;
+
+        IF fbHome1.Done THEN
+            bAllowAbsMovement := TRUE;
+            MasterState := 25;
+			bAxisHomed := TRUE;
+        ELSIF fbHome1.Error THEN
+            bError := TRUE;
+            ErrorID := fbHome1.ErrorID;
+            MasterState := 1000;
+        ELSE
+            MasterState := 0;
+        END_IF
+    END_IF
+
+    IF rReset.Q THEN
+        bHomeExec := FALSE;
+        MasterState := 40;
+    END_IF
+
+
+//  Idle after homing
+
+25:
+    IF fbPower1.Error OR fbHome1.Error OR fbMoveAbs.Error OR fbReset1.Error THEN
+        bError := TRUE;
+
+        IF fbMoveAbs.Error THEN ErrorID := fbMoveAbs.ErrorID;
+        ELSIF fbHome1.Error THEN ErrorID := fbHome1.ErrorID;
+        ELSIF fbPower1.Error THEN ErrorID := fbPower1.ErrorID;
+        ELSIF fbReset1.Error THEN ErrorID := fbReset1.ErrorID;
+        END_IF
+
+        MasterState := 1000;
+
+    ELSIF bAbsMoveExecute AND stPlcCom.stPlcComIn.bEstopOk AND stPlcCom.stPlcComIn.bSafetyOk AND NOT LinearAxisBusy AND AxisTargetPos < 420.1 THEN
+        bMoveExec := TRUE;
+        bMovementDone := FALSE;
+        MasterState := 30;
+
+    ELSIF NOT stPlcCom.stPlcComIn.bSafetyOk THEN
+        bAllowAbsMovement := FALSE;
+        MasterState := 999;
+		
+	ELSIF NOT stPlcCom.stPlcComIn.bEstopOk THEN
+		bAllowAbsMovement := FALSE;
+		MasterState := 900;
+    END_IF
+	IF CurrentPos < 0.1 AND CurrentPos > -0.1 THEN
+		bAxisHomed := TRUE;
+	ELSE
+		bAxisHomed := FALSE;
+	END_IF
+	
+	IF stModuleHmi.MecaHmi.bLinearJogScreenActive AND stPlcCom.stPlcComIn.bSafetyOk AND stPlcCom.stPlcComIn.bEstopOk AND NOT LinearAxisBusy AND NOT AxisReset THEN
+	MasterState := 100;
+	ELSIF NOT stModuleHmi.MecaHmi.bLinearJogScreenActive THEN
+    	fbJog.JogForward := FALSE;
+    	fbJog.JogBackwards := FALSE;
+	ELSIF rReset.Q THEN
+		MasterState :=40;   
+	END_IF
+	
+	IF rReset.Q THEN
+		MasterState := 40;
+	END_IF
+// Absolute Move
+
+30:
+    IF NOT stPlcCom.stPlcComIn.bSafetyOk THEN
+        bMoveExec := FALSE;
+        MasterState := 999;
+		
+	ELSIF NOT stPlcCom.stPlcComIn.bEstopOk THEN
+		bAllowAbsMovement := FALSE;
+		MasterState := 900;
+    END_IF
+	
+    IF fbMoveAbs.Busy THEN
+        MotionActive := TRUE;
+
+    ELSIF fbMoveAbs.Done OR fbMoveAbs.CommandAborted OR fbMoveAbs.Error THEN
+        bMoveExec := FALSE;
+        MotionActive := FALSE;
+
+        IF fbMoveAbs.Done THEN
+            MasterState := 25;
+
+        ELSIF fbMoveAbs.Error THEN
+            bError := TRUE;
+            ErrorID := fbMoveAbs.ErrorID;
+            MasterState := 1000;
+        ELSE
+            MasterState := 25;
+        END_IF
+    END_IF
+
+    IF rReset.Q THEN
+        bMoveExec := FALSE;
+        MasterState := 40;
+    END_IF
+
+
+// Reset sequence
+
+40:
+    fbReset1.Execute := TRUE;
+
+    IF fbReset1.Done THEN
+        fbReset1.Execute := FALSE;
+        bAllowAbsMovement := FALSE;
+        fbPower1.Enable := FALSE;
+        MasterState := 0;
+
+    ELSIF fbReset1.Error THEN
+        bError := TRUE;
+        ErrorID := fbReset1.ErrorID;
+        MasterState := 1000;
+    END_IF
+
+100: // Manual movements
+		IF fbMoveAbs.Done THEN
+			bMoveExec := FALSE;
+		END_IF
+		AxisTargetPos := stModuleHmi.MecaHmi.rManualTargetPos;
+		
+		IF stModuleHmi.MecaHmi.bLinearJogScreenActive THEN
+			IF stModuleHmi.MecaHmi.bJogLinearPositive AND NOT stModuleHmi.MecaHmi.bJogLinearNegative THEN
+			    IF CurrentPos < 410 THEN
+			        IF iVelocity <> 10 THEN
+			            fbJog.JogForward := FALSE;
+			            iVelocity := 10;
+			        ELSE
+			            fbJog.JogForward := TRUE;
+			        END_IF
+			    ELSIF CurrentPos < 420 THEN
+			        IF iVelocity <> 3 THEN
+			            fbJog.JogForward := FALSE;
+			            iVelocity := 3;
+			        ELSE
+			            fbJog.JogForward := TRUE;
+			        END_IF
+			    END_IF
+			ELSIF NOT stModuleHmi.MecaHmi.bJogLinearPositive THEN
+			    fbJog.JogForward := FALSE;
+			END_IF
+
+			IF stModuleHmi.MecaHmi.bJogLinearNegative AND NOT stModuleHmi.MecaHmi.bJogLinearPositive THEN
+			    IF CurrentPos > 10 THEN
+			        IF iVelocity <> 10 THEN
+			            fbJog.JogBackwards := FALSE;
+			            iVelocity := 10;
+			        ELSE
+			            fbJog.JogBackwards := TRUE;
+			        END_IF
+			    ELSIF CurrentPos > 4 THEN
+			        IF iVelocity <> 3 THEN
+			            fbJog.JogBackwards := FALSE;
+			            iVelocity := 3;
+			        ELSE
+			            fbJog.JogBackwards := TRUE;
+			        END_IF
+			    END_IF
+			ELSIF NOT stModuleHmi.MecaHmi.bJogLinearNegative THEN
+			    fbJog.JogBackwards := FALSE;
+			END_IF
+			
+			IF fbMoveAbs.Error OR fbMoveAbs.CommandAborted THEN
+    				bError := TRUE;
+    				ErrorID := fbMoveAbs.ErrorID;
+    				MasterState := 1000;
+				ELSIF stModuleHmi.MecaHmi.bManualAbsMove AND stPlcCom.stPlcComIn.bEstopOk AND stPlcCom.stPlcComIn.bSafetyOk AND NOT LinearAxisBusy AND AxisTargetPos < 420.1 AND AxisTargetPos > 0.0 THEN
+					bMoveExec := TRUE;
+			END_IF
+    		
+			IF fbMoveAbs.Done AND stModuleHmi.MecaHmi.bManualAbsMove THEN
+				stModuleHmi.MecaHmi.bManualAbsMove := FALSE;
+			END_IF
+			
+			IF rReset.Q THEN
+        		bMoveExec := FALSE;
+        		MasterState := 40;
+    		END_IF
+	
+		ELSE
+			MasterState := 25;
+		END_IF
+		
+		IF rReset.Q THEN
+        		bMoveExec := FALSE;
+        		MasterState := 40;
+    		END_IF
+		
+900:
+    bError := TRUE;
+    ErrorID := 900;
+
+    bHomeExec := FALSE;
+    bMoveExec := FALSE;
+    bAbsMoveExecute := FALSE;
+    bAllowAbsMovement := FALSE;			//See if this works
+
+    IF stPlcCom.stPlcComIn.bEstopOk AND rHome.Q THEN	  // Safety OK, go to reset
+        MasterState := 0;
+    END_IF
+	
+	IF stPlcCom.stPlcComIn.bEstopOk AND rReset.Q THEN
+		MasterState := 40;
+	END_IF
+
+// Safety Fault 
+999:
+    ErrorID := 999;
+	bAxisHomed := FALSE;
+    bHomeExec := FALSE;
+    bMoveExec := FALSE;
+    bAbsMoveExecute := FALSE;
+    bAllowAbsMovement := FALSE;
+
+    IF stPlcCom.stPlcComIn.bSafetyOk AND rHome.Q THEN  // Safety OK, go to reset
+        MasterState := 0;
+    END_IF
+	
+	IF stPlcCom.stPlcComIn.bSafetyOk AND rReset.Q THEN
+		MasterState := 40;
+	END_IF
+
+// Error state
+
+1000:
+    bError := TRUE;
+    bHomeExec := FALSE;
+    bMoveExec := FALSE;
+	bAxisHomed := FALSE;
+    IF rReset.Q THEN
+        MasterState := 40;
+    END_IF
+
+
+END_CASE
+
+
+fbJog(Axis:=Axis1, Velocity:=iVelocity, Acceleration :=458.796, Deceleration:=458.796,Jerk:=1376.388, Mode:=E_JogMode.MC_JOGMODE_CONTINOUS);
+
+fbHome1(
+	Axis            := Axis1,
+	Execute         := bHomeExec,
+	Position        := LinearHomingPosition,
+	Options 		:= stHomingOptions,
+	bCalibrationCam := stPlcCom.stPlcComIn.bLinearAxisHomingSensor );
+
+fbPower1(
+	Axis := Axis1,
+	Enable_Positive := TRUE,
+	Enable_Negative := TRUE);
+	
+fbReset1(Axis := Axis1);
+
+fbMoveAbs(
+	Axis         := Axis1,
+	Execute      := bMoveExec,
+	Position     := AxisTargetPos,
+	Velocity     := AxisVelo,
+	Acceleration := 0,
+	Deceleration := 0,
+	BufferMode   := MC_BufferMode.MC_Aborting);
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

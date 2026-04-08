@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_WithinMinMax" Id="{2d3dbab0-dd04-443d-a193-1fb68ddf83f4}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_WithinMinMax : BOOL		// Checks if the specified value is within the target range, returns TRUE if within range, FALSE otherwise
+VAR_INPUT
+	iValue:			LREAL;		// Value to be checked
+	iMin:			LREAL;		// Target value
+	iMax:			LREAL;		// This value is allowed below and above
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_WithinMinMax := (iValue >= iMin) AND (iValue <= iMax);
+]]></ST>
+    </Implementation>
+    <LineIds Name="FC_WithinMinMax">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

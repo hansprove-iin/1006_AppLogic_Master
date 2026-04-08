@@ -1,0 +1,67 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_FormatTime" Id="{3313333f-26ff-4172-b612-4cb7a1382a37}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_FormatTime : T_SHORT_STR	// Format the time according to regio selection
+VAR_INPUT
+	iRegioSelection:	E_REGIO_SELECTION;
+	iHour:				STRING(2);
+	iMinute:			STRING(2);
+	iSeconds:			STRING(2);
+END_VAR
+VAR
+	hour:				UINT;
+	minute:				UINT;
+	second:				UINT;
+	pm:					BOOL := FALSE;
+	
+	secondsPassed:		bool;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[hour := STRING_TO_UINT(iHour);
+minute := STRING_TO_UINT(iMinute);
+
+secondsPassed := FC_StringNotEmpty(iSeconds);
+IF (secondsPassed) THEN
+	second := STRING_TO_UINT(iSeconds);
+END_IF
+
+// Short version for display in HMI
+CASE (iRegioSelection) OF
+	E_REGIO_SELECTION.USA:
+		IF (hour > 12) THEN
+			pm := TRUE;
+			hour := hour - 12;
+		END_IF
+
+		IF (secondsPassed) THEN
+			FC_FormatTime := FC_3strConcatSeparator(iStr1 := FC_UintFormatter(iUint := hour, iLen := 2, iCharToPad := '0'),
+				iStr2 := FC_UintFormatter(iUint := minute, iLen := 2, iCharToPad := '0'),
+				iStr3 := FC_UintFormatter(iUint := second, iLen := 2, iCharToPad := '0'), iSeparator := IING.STRING_COLON);
+		ELSE
+			FC_FormatTime := FC_2strConcatSeparator(iStr1 := FC_UintFormatter(iUint := hour, iLen := 2, iCharToPad := '0'),
+				iStr2 := FC_UintFormatter(iUint := minute, iLen := 2, iCharToPad := '0'), iSeparator := IING.STRING_COLON);
+		END_IF
+
+		IF (pm) THEN
+			FC_FormatTime := FC_2strConcatSeparator(iStr1 := FC_FormatTime, iStr2 := IING.STRING_PM, iSeparator := IING.STRING_SPACE);
+		ELSE
+			FC_FormatTime := FC_2strConcatSeparator(iStr1 := FC_FormatTime, iStr2 := IING.STRING_AM, iSeparator := IING.STRING_SPACE);
+		END_IF
+	
+	E_REGIO_SELECTION.EUROPE:
+		IF (secondsPassed) THEN
+			FC_FormatTime := FC_3strConcatSeparator(iStr1 := FC_UintFormatter(iUint := hour, iLen := 2, iCharToPad := '0'),
+				iStr2 := FC_UintFormatter(iUint := minute, iLen := 2, iCharToPad := '0'),
+				iStr3 := FC_UintFormatter(iUint := second, iLen := 2, iCharToPad := '0'), iSeparator := IING.STRING_COLON);
+		ELSE
+			FC_FormatTime := FC_2strConcatSeparator(iStr1 := FC_UintFormatter(iUint := hour, iLen := 2, iCharToPad := '0'),
+				iStr2 := FC_UintFormatter(iUint := minute, iLen := 2, iCharToPad := '0'), iSeparator := IING.STRING_COLON);
+		END_IF
+END_CASE]]></ST>
+    </Implementation>
+    <LineIds Name="FC_FormatTime">
+      <LineId Id="2" Count="40" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

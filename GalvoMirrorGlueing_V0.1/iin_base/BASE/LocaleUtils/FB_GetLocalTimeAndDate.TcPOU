@@ -1,0 +1,86 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_GetLocalTimeAndDate" Id="{fb2012a8-2c14-4aa1-82ea-0de7c9819946}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_GetLocalTimeAndDate	// Called from FB_Cyclestart, DO NOT call from your application 
+										// Stores the local time/date to IIN.localTimeString/localDateString
+										// Use FC_GetLocalTime and FC_GetLocalDate to retrieve those values
+VAR_INPUT
+	iRegioSelection:	E_REGIO_SELECTION;
+END_VAR	
+VAR_OUTPUT
+	oCycleStart:		BOOL;			// Detection of a restart based on FB_LocalSystemTime
+END_VAR
+VAR
+	year:				STRING(4);
+	month: 				STRING(2);
+	day: 				STRING(2);
+	dayAsUint:			UINT;
+
+	hour:				STRING(2);
+	minute: 			STRING(2);
+	second:				STRING(2);
+	milliSecond:		STRING(3);
+	
+	dateString: 		STRING(10);
+	timeString:	 		STRING(12);
+	dateAndTimeString:	STRING(23);
+	
+	localSystemTime: 	FB_LocalSystemTime;
+	
+	previousDay:		UINT;
+	localSystemTimeRtrig:	R_TRIG;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[localSystemTime(bEnable := TRUE, dwCycle := 5, systemTime => IING.localSystemTime);
+
+// It may take up to 5 PLC cycles before localSystemTime gives a valid time reading  
+localSystemTimeRtrig(CLK := localSystemTime.bValid, Q => oCycleStart);
+
+dayAsUint := WORD_TO_UINT(localSystemTime.systemTime.wDay);
+
+day := FC_UintFormatter(iUint := dayAsUint, iLen := 2, iCharToPad := '0');
+month := FC_UintFormatter(iUint := WORD_TO_UINT(localSystemTime.systemTime.wMonth), iLen := 2, iCharToPad := '0');
+year := WORD_TO_STRING(localSystemTime.systemTime.wYear);
+
+hour := FC_UintFormatter(iUint := WORD_TO_UINT(localSystemTime.systemTime.wHour), iLen := 2, iCharToPad := '0');
+minute := FC_UintFormatter(iUint := WORD_TO_UINT(localSystemTime.systemTime.wMinute), iLen := 2, iCharToPad := '0');
+second := FC_UintFormatter(iUint := WORD_TO_UINT(localSystemTime.systemTime.wSecond), iLen := 2, iCharToPad := '0');
+milliSecond :=  FC_UintFormatter(iUint := WORD_TO_UINT(localSystemTime.systemTime.wMilliseconds), iLen := 3, iCharToPad := '0');
+	
+
+timeString := FC_2strConcatSeparator(iStr1 := hour, iStr2 := minute, iSeparator := IING.STRING_COLON);
+
+// Short timestring for display in HMI
+IING.localTimeMinAccuracy := FC_FormatTime(iRegioSelection := iRegioSelection, iHour := hour, iMinute := minute, iSeconds := IING.STRING_BLANK);
+
+IING.localTimeSecAccuracy := FC_FormatTime(iRegioSelection := iRegioSelection, iHour := hour, iMinute := minute, iSeconds := second);
+
+timeString := FC_2strConcatSeparator(iStr1 := timeString, iStr2 := second, iSeparator := IING.STRING_COLON);
+timeString := FC_2strConcatSeparator(iStr1 := timeString, iStr2 := milliSecond, iSeparator := IING.STRING_COMMA); 
+
+IING.usDateString := FC_3strConcatSeparator(iStr1 := year, iStr2 := month, iStr3:= day, iSeparator :=  IING.STRING_DASH);
+
+CASE (iRegioSelection) OF
+	E_REGIO_SELECTION.USA:
+		dateString := IING.usDateString;
+		
+	E_REGIO_SELECTION.EUROPE:
+		dateString := FC_3strConcatSeparator(iStr1 := day, iStr2 := month, iStr3:= year, iSeparator :=  IING.STRING_DASH);
+END_CASE
+
+IING.localDateString := dateString;
+IING.localTimeString := timeString;
+IING.localDateAndTimeString := FC_2strConcatSeparator(iStr1 := dateString, iStr2 := timeString, iSeparator := IING.STRING_SPACE);
+
+IING.dayHasChanged := (dayAsUint <> previousDay);
+previousDay := dayAsUint;
+
+IING.iso8601Time := SYSTEMTIME_TO_ISO8601(systemTime := IING.localSystemTime, nBias := 0, bUTC := FALSE, nPrecision := 3);
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_GetLocalTimeAndDate">
+      <LineId Id="2" Count="45" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

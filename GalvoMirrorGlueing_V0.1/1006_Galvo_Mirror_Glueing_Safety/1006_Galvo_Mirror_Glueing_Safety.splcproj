@@ -1,0 +1,99 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Crc="1740703466" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{087b31ab-5d77-453d-925c-a160798a8404}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>TwinCAT3SafePlcProject</RootNamespace>
+    <AssemblyName>TwinCAT3SafePlcProject</AssemblyName>
+    <FileUpgradeFlags />
+    <UpgradeBackupLocation />
+    <OldToolsVersion>2.0</OldToolsVersion>
+    <TargetSystem>EL6900</TargetSystem>
+    <ProgrammingLanguage>Graphical Editor</ProgrammingLanguage>
+    <Worker>AnttiPalovaara</Worker>
+    <IntProjName>1006_Galvo_Mirror_Glueing_Safety</IntProjName>
+    <IsNewCreated>false</IsNewCreated>
+    <SPlcProjVersion>1.8.0.0</SPlcProjVersion>
+    <NextSdsId>21</NextSdsId>
+    <DocuEditor>EljaLumiaho</DocuEditor>
+    <PlotDate>2026-02-09</PlotDate>
+    <CompanyName>Beckhoff Automation GmbH &amp; Co. KG</CompanyName>
+    <CompanyLogo>Beckhoff Automation GmbH &amp; Co. KG</CompanyLogo>
+    <FbPerPage>0</FbPerPage>
+    <AddUserAdministrationPages>False</AddUserAdministrationPages>
+    <AddProjectVersionHistoryPages>False</AddProjectVersionHistoryPages>
+    <AddCustomPages>False</AddCustomPages>
+    <TextBox />
+    <AddMultiSettingDocuments>False</AddMultiSettingDocuments>
+    <AddHashValueTablePages>False</AddHashValueTablePages>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DebugSymbols>false</DebugSymbols>
+    <OutputPath>bin\Release\</OutputPath>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="TwinSafeGroup1\Alias Devices\K102 %28EL1918%29 - Module 1 %28FSOE%29.sds" />
+    <None Include="TwinSafeGroup1\Alias Devices\K103 %28EL2904%29 - Module 1 %28FSOES%29.sds" />
+    <None Include="TwinSafeGroup1\Alias Devices\Restart.sds" />
+    <None Include="TwinSafeGroup1\Alias Devices\EstopOK.sds" />
+    <None Include="TwinSafeGroup1\Alias Devices\FB_error.sds" />
+    <None Include="TwinSafeGroup1\Alias Devices\K101 %28EL1918%29 - Module 1 %28FSOE%29.sds" />
+    <None Include="TwinSafeGroup1\Alias Devices\Edm_SK1_SK2.sds" />
+    <None Include="TwinSafeGroup1\Alias Devices\Edm_SK3_SK4.sds" />
+    <None Include="TwinSafeGroup1\Alias Devices\SafeOK.sds" />
+    <None Include="TwinSafeGroup1\Alias Devices\Safe_edm_error.sds" />
+    <None Include="TwinSafeGroup1\Alias Devices\Safe_error.sds" />
+    <None Include="TwinSafeGroup1\Alias Devices\Estop_error.sds" />
+    <None Include="TwinSafeGroup1\Alias Devices\Estop_edm_error.sds" />
+    <None Include="TwinSafeGroup1\TwinSafeGroup1.sal" />
+    <None Include="TwinSafeGroup1\TwinSafeGroup1.sal.diagram">
+      <DependentUpon>TwinSafeGroup1\TwinSafeGroup1.sal</DependentUpon>
+      <Visible>false</Visible>
+    </None>
+    <None Include="TargetSystemConfig.xml">
+      <Visible>false</Visible>
+    </None>
+    <None Include="User FBs\UserFB1.ufb" />
+    <None Include="User FBs\UserFB1.ufb.diagram">
+      <Visible>false</Visible>
+      <DependentUpon>User FBs\UserFB1.ufb</DependentUpon>
+    </None>
+    <None Include="User FBs\UserFB2.ufb" />
+    <None Include="User FBs\UserFB2.ufb.diagram">
+      <Visible>false</Visible>
+      <DependentUpon>User FBs\UserFB2.ufb</DependentUpon>
+    </None>
+    <None Include="User FBs\UserFB3.ufb" />
+    <None Include="User FBs\UserFB3.ufb.diagram">
+      <Visible>false</Visible>
+      <DependentUpon>User FBs\UserFB3.ufb</DependentUpon>
+    </None>
+    <None Include="User FBs\UserFB4.ufb" />
+    <None Include="User FBs\UserFB4.ufb.diagram">
+      <Visible>false</Visible>
+      <DependentUpon>User FBs\UserFB4.ufb</DependentUpon>
+    </None>
+    <None Include="User FBs\UserFB5.ufb" />
+    <None Include="User FBs\UserFB5.ufb.diagram">
+      <Visible>false</Visible>
+      <DependentUpon>User FBs\UserFB5.ufb</DependentUpon>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="GVLs" />
+    <Folder Include="TwinSafeGroup1" />
+    <Folder Include="TwinSafeGroup1\Alias Devices" />
+    <Folder Include="User FBs" />
+    <None Include="TwinSafeGroup1\Alias Devices\ErrorAcknowledgement.sds" />
+    <None Include="TwinSafeGroup1\Alias Devices\Run.sds" />
+  </ItemGroup>
+  <ProjectExtensions>
+    <DocumentationProperty>
+      <ProjectVersionHistories />
+    </DocumentationProperty>
+  </ProjectExtensions>
+</Project>

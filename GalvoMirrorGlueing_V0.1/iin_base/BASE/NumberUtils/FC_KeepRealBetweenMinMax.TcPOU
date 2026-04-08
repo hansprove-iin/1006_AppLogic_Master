@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_KeepRealBetweenMinMax" Id="{f0ea680e-90ab-4161-9cdd-fb039ea517be}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_KeepRealBetweenMinMax : REAL			// Keeps the given iValue in between iMin (Floor) and iMax (Ceiling)  
+VAR_INPUT
+	iValue:		REAL;
+	iMin:		REAL;
+	iMax:		REAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF (iValue > iMax) THEN
+	FC_KeepRealBetweenMinMax := iMax;
+ELSIF (iValue < iMin) THEN
+	FC_KeepRealBetweenMinMax := iMin;
+ELSE
+	FC_KeepRealBetweenMinMax := iValue;
+END_IF
+]]></ST>
+    </Implementation>
+    <LineIds Name="FC_KeepRealBetweenMinMax">
+      <LineId Id="2" Count="7" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

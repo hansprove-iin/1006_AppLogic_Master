@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_8strConcat" Id="{e58f1aae-2a31-4ed1-8a2b-2addaaa48648}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_8strConcat : T_DEFAULT_STR		// Concatenates 4 strings
+VAR_INPUT
+	iStr1:		T_DEFAULT_STR;
+	iStr2:		T_DEFAULT_STR;
+	iStr3:		T_DEFAULT_STR;
+	iStr4:		T_DEFAULT_STR;
+	iStr5:		T_DEFAULT_STR;
+	iStr6:		T_DEFAULT_STR;
+	iStr7:		T_DEFAULT_STR;
+	iStr8:		T_DEFAULT_STR;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_8strConcat := CONCAT(FC_7strConcat(iStr1, iStr2, iStr3, iStr4, iStr5, iStr6, iStr7), iStr8);
+]]></ST>
+    </Implementation>
+    <LineIds Name="FC_8strConcat">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="T_HEART_BEAT" Id="{fe88bdee-e9ac-4067-b8f5-90cd09fd91cc}">
+    <Declaration><![CDATA[TYPE T_HEART_BEAT : UDINT; END_TYPE		// Signal used to check the heart beat (over ADS)
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

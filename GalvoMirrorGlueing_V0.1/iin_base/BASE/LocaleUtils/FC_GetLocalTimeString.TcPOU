@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_GetLocalTimeString" Id="{84e9b491-40f4-4f5e-990c-98f9bf29b462}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_GetLocalTimeString : T_SHORT_STR		// Returns the local time as string, eg. '15:58:40:302'
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_GetLocalTimeString := IING.localTimeString;]]></ST>
+    </Implementation>
+    <LineIds Name="FC_GetLocalTimeString">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

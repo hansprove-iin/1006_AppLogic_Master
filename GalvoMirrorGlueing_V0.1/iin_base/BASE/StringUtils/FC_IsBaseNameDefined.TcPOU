@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_IsBaseNameDefined" Id="{04135d45-1c2a-47c6-8bc3-5f31ae46b998}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_IsBaseNameDefined : bool
+VAR_INPUT
+	iName:	STRING;
+END_VAR
+VAR
+	equalsNameHere:			BOOL;
+	equalsQuestionMarks:	BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[equalsQuestionMarks := IsStringEqualIgnoreCase(iName, IING.STRING_BASE_SETTINGS_INITIAL_NAME);
+equalsNameHere := IsStringEqualIgnoreCase(iName, 'name here');
+
+FC_IsBaseNameDefined := NOT equalsQuestionMarks AND NOT equalsNameHere AND FC_StringNotEmpty(iName);
+]]></ST>
+    </Implementation>
+    <LineIds Name="FC_IsBaseNameDefined">
+      <LineId Id="2" Count="4" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

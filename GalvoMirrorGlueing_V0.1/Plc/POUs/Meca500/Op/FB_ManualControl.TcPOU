@@ -1,0 +1,312 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_ManualControl" Id="{c1c201ae-86f3-4812-8c48-703880cdc031}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ManualControl
+
+VAR_INPUT
+	stModuleHmi : REFERENCE TO ST_ModuleHmi;
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+	Sent: BOOL;
+	Buffered: BOOL;
+	Error: BOOL;
+	
+	Delay				:Meca500_Delay;
+	Gripper				:Meca500_Gripper;
+	MoveGripper			:Meca500_MoveGripper;
+	MoveJoints			:Meca500_MoveJoints;
+	MoveJointsRel		:Meca500_MoveJointsRel;
+	MovejointsVel		:Meca500_MoveJointsVel;
+	MoveLin				:Meca500_MoveLin;
+	MoveLinRelTrf		:Meca500_MoveLinRelTrf;
+	MoveLinRelWrf		:Meca500_MoveLinRelWrf;
+	MoveLinVelTrf		:Meca500_MoveLinVelTrf;
+	MoveLinVelWrf		:Meca500_MoveLinVelWrf;
+	MovePose			:Meca500_MovePose;
+	SetAutoConf			:Meca500_SetAutoConf;
+	SetAutoConfTurn		:Meca500_SetAutoConfTurn;
+	SetBlending			:Meca500_SetBlending;
+	SetCartAcc			:Meca500_SetCartAcc;
+	SetCartAngVel		:Meca500_SetCartAngVel;
+	SetCartLinVel		:Meca500_SetCartLinVel;
+	SetCheckpoint		:Meca500_SetCheckpoint;
+	SetConf				:Meca500_SetConf;
+	SetConfTurn			:Meca500_SetConfTurn;
+	SetGripperForce		:Meca500_SetGripperForce;
+	SetGripperRange		:Meca500_SetGripperRange;
+	SetGripperVel		:Meca500_SetGripperVel;
+	SetJointAcc			:Meca500_SetJointAcc;
+	SetJointVel			:Meca500_SetJointVel;
+	SetTorqueLimitCfg	:Meca500_SetTorqueLimitCfg;
+	SetTorqueLimits		:Meca500_SetTorqueLimits;
+	SetTrf				:Meca500_SetTrf;
+	SetValveState		:Meca500_SetValveState;
+	SetVelTimeout		:Meca500_SetVelTimeout;
+	SetWrf				:Meca500_SetWrf;
+	StartProgram		:Meca500_StartProgram;
+	SetJointVelLimit	:Meca500_SetJointVelLimit;
+	SetTimeScaling		:Meca500_SetTimeScaling;
+	GetEOAT 			:Meca500_GetEOAT;
+	MecaEOATStatus 				: ARRAY [0..5] OF REAL;
+	aPositiveJogX				: ARRAY [1..6] OF REAL;
+	aNegativeJogX				: ARRAY [1..6] OF REAL;
+	aPositiveJogY				: ARRAY [1..6] OF REAL;
+	aNegativeJogY				: ARRAY [1..6] OF REAL;
+	aPositiveJogZ				: ARRAY [1..6] OF REAL;
+	aNegativeJogZ				: ARRAY [1..6] OF REAL;
+	aPositiveJogRx				: ARRAY [1..6] OF REAL;
+	aNegativeJogRx				: ARRAY [1..6] OF REAL;
+	aPositiveJogRy				: ARRAY [1..6] OF REAL;
+	aNegativeJogRy				: ARRAY [1..6] OF REAL;
+	aPositiveJogRz				: ARRAY [1..6] OF REAL;
+	aNegativeJogRz				: ARRAY [1..6] OF REAL;
+	aCurrentPose				: ARRAY [1..6] OF REAL;
+	aTempPose					: ARRAY [1..6] OF REAL;
+	PoseHome					: ARRAY [1..6] OF REAL := [-90,0,0,0,90,0];
+	rOpen: REAL;
+
+	bHome: BOOL;
+	bDeactivate: BOOL;
+	bActivate: BOOL;
+	bReset: BOOL;
+	bClearMove: BOOL;
+	bResumeMotion: BOOL;
+	bPause: BOOL;
+	bActivated: BOOL;
+	bError: UINT;
+	bHomed: BOOL;
+	bBrakesEngaged: BOOL;
+	bPaused: BOOL;
+	bEOM: BOOL;
+	bTest: BOOL;
+	bGripperToggleState: BOOL;
+	bSetGripperWidth: BOOL;
+	bSetPose : BOOL;
+	rGripperWidth: REAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Meca500.GVL.Meca500.Outputs.Robot_Control.Activate := bActivate;
+Meca500.GVL.Meca500.Outputs.Robot_Control.Deactivate := bDeactivate;
+Meca500.GVL.Meca500.Outputs.Robot_Control.Home := bHome;
+Meca500.GVL.Meca500.Outputs.Robot_Control.Reset_Error := bReset;
+Meca500.GVL.Meca500.Outputs.Motion_Control.Clear_Move := bClearMove;
+Meca500.GVL.Meca500.Outputs.Motion_Control.Resume_Motion := bResumeMotion;
+Meca500.GVL.Meca500.Outputs.Motion_Control.Pause := bPause;
+GetEOAT(Status => MecaEOATStatus, Robot := Meca500.GVL.Meca500);
+
+
+IF Sent AND Buffered THEN
+	Sent := FALSE;
+	Buffered := FALSE;
+END_IF
+
+bActivated := Meca500.GVL.Meca500.Inputs.Robot_Status.Activated;
+bError := Meca500.GVL.Meca500.Inputs.Robot_Status.Error;
+bHomed := Meca500.GVL.Meca500.Inputs.Robot_Status.Homed;
+bBrakesEngaged := Meca500.GVL.Meca500.Inputs.Robot_Status.BrakesEngaged;
+bPaused := Meca500.GVL.Meca500.Inputs.Motion_Status.Paused;
+bEOM := Meca500.GVL.Meca500.Inputs.Motion_Status.EOM;
+
+IF stModuleHmi.MecaHmi.bSetGripperWidth THEN
+	MoveGripper(mm := stModuleHmi.MecaHmi.rGripperWidth,
+		ExternalStatecontrol := 0,
+		ExternalMove_ID := 0,
+		Robot:= Meca500.GVL.Meca500, 
+		Error=> Error, 
+		Sent:= Sent, 
+		Buffered:= Buffered);
+	bSetGripperWidth := FALSE;
+END_IF
+
+
+IF stModuleHmi.MecaHmi.bJogToPose THEN
+	MoveLin(
+		Pose := stModuleHmi.MecaHmi.aPoseDirect,
+		ExternalStatecontrol := 0,
+		ExternalMove_ID := 0,
+		Robot:= Meca500.GVL.Meca500, 
+		Error=> Error, 
+		Sent:= Sent, 
+		Buffered:= Buffered);
+		IF Sent AND Buffered THEN
+			Buffered := FALSE;
+			Sent := FALSE;
+		END_IF
+		stModuleHmi.MecaHmi.bJogToPose := FALSE;
+END_IF
+IF stModuleHmi.MecaHmi.bHomeAxis THEN
+	MoveJoints(Joint_Angle := PoseHome,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	IF Sent AND Buffered THEN
+		Sent := FALSE;
+		Buffered := FALSE;
+		stModuleHmi.MecaHmi.bHomeAxis := FALSE;
+	END_IF
+END_IF
+
+	
+ 
+ManualJogSpeed();
+GripperState();
+IF stModuleHmi.MecaHmi.bJogXPositive THEN	
+		MoveLinVelWrf(
+			Velocity := aPositiveJogX,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	ELSIF stModuleHmi.MecaHmi.bJogXNegative THEN	
+		MoveLinVelWrf(
+			Velocity := aNegativeJogX,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	ELSIF stModuleHmi.MecaHmi.bJogYPositive THEN	
+		MoveLinVelWrf(
+			Velocity := aPositiveJogY,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);	
+	ELSIF stModuleHmi.MecaHmi.bJogYNegative THEN	
+		MoveLinVelWrf(
+			Velocity := aNegativeJogY,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);	
+	ELSIF stModuleHmi.MecaHmi.bJogZPositive THEN	
+		MoveLinVelWrf(
+			Velocity := aPositiveJogZ,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	ELSIF stModuleHmi.MecaHmi.bJogZNegative THEN	
+		MoveLinVelWrf(
+			Velocity := aNegativeJogZ,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);		
+	ELSIF stModuleHmi.MecaHmi.bJogRxPositive THEN	
+		MovejointsVel(
+			Joint_Velocity := aPositiveJogRx,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);	
+	ELSIF stModuleHmi.MecaHmi.bJogRxNegative THEN	
+		MovejointsVel(
+			Joint_Velocity := aNegativeJogRx,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	ELSIF stModuleHmi.MecaHmi.bJogRyPositive THEN	
+		MovejointsVel(
+			Joint_Velocity := aPositiveJogRy,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);	
+	ELSIF stModuleHmi.MecaHmi.bJogRyNegative THEN	
+		MovejointsVel(
+			Joint_Velocity := aNegativeJogRy,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+	ELSIF stModuleHmi.MecaHmi.bJogRzPositive THEN	
+		MovejointsVel(
+			Joint_Velocity := aPositiveJogRz,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);	
+	ELSIF stModuleHmi.MecaHmi.bJogRzNegative THEN	
+		MovejointsVel(
+			Joint_Velocity := aNegativeJogRz,
+			ExternalStatecontrol := 0,
+			ExternalMove_ID := 0,
+			Robot:= Meca500.GVL.Meca500, 
+			Error=> Error, 
+			Sent:= Sent, 
+			Buffered:= Buffered);
+END_IF
+
+]]></ST>
+    </Implementation>
+    <Action Name="GripperState" Id="{715af348-4249-4b0d-997e-5fa14c1d0356}">
+      <Implementation>
+        <ST><![CDATA[IF stModuleHmi.MecaHmi.bToggleGripper  AND NOT bGripperToggleState THEN
+	rOpen := 1;
+	Gripper(Open := rOpen, ExternalStatecontrol := 0, ExternalMove_ID := 0,Robot := Meca500.GVL.Meca500, Sent := Sent, Buffered := Buffered,Error => Error);
+	IF Sent AND Buffered THEN
+		bGripperToggleState := TRUE;
+		stModuleHmi.MecaHmi.bToggleGripper := FALSE;
+		Sent := FALSE;
+		Buffered := FALSE;
+	END_IF
+ELSIF stModuleHmi.MecaHmi.bToggleGripper AND bGripperToggleState THEN
+	rOpen := 0;
+	Gripper(Open := rOpen, ExternalStatecontrol := 0, ExternalMove_ID := 0,Robot := Meca500.GVL.Meca500, Sent := Sent, Buffered := Buffered,Error => Error);
+	IF Sent AND Buffered THEN
+		bGripperToggleState := FALSE;
+			stModuleHmi.MecaHmi.bToggleGripper := FALSE;
+		Sent := FALSE;
+		Buffered := FALSE;
+	END_IF
+END_IF
+]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="ManualJogSpeed" Id="{fac9406e-b86f-4046-98b6-46df76dca77d}">
+      <Implementation>
+        <ST><![CDATA[aPositiveJogX[1] := stModuleHmi.MecaHmi.rJogSpeed;
+aNegativeJogX[1] := -stModuleHmi.MecaHmi.rJogSpeed;
+aPositiveJogY[2] := stModuleHmi.MecaHmi.rJogSpeed;
+aNegativeJogY[2] := -stModuleHmi.MecaHmi.rJogSpeed;
+aPositiveJogZ[3] := stModuleHmi.MecaHmi.rJogSpeed;
+aNegativeJogZ[3] := -stModuleHmi.MecaHmi.rJogSpeed;
+aPositiveJogRx[4] := stModuleHmi.MecaHmi.rJogSpeed;
+aNegativeJogRx[4] := -stModuleHmi.MecaHmi.rJogSpeed;
+aPositiveJogRy[5] := stModuleHmi.MecaHmi.rJogSpeed;
+aNegativeJogRy[5] := -stModuleHmi.MecaHmi.rJogSpeed;
+aPositiveJogRz[6] := stModuleHmi.MecaHmi.rJogSpeed;
+aNegativeJogRz[6] := -stModuleHmi.MecaHmi.rJogSpeed;]]></ST>
+      </Implementation>
+    </Action>
+  </POU>
+</TcPlcObject>

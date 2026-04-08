@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <DUT Name="E_PRIORITY" Id="{29bb761c-6299-019d-3a58-04ad1ca06a01}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_PRIORITY :
+(
+	UNDEFINED,
+	
+	LOW,
+	
+	MEDIUM,
+	
+	HIGH,
+	
+	MUST_BE_LAST	// ALWAYS KEEP THIS LAST!!!
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

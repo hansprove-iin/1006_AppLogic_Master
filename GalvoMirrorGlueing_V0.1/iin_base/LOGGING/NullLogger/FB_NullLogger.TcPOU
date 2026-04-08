@@ -1,0 +1,120 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FB_NullLogger" Id="{eeeff7f9-3eb4-4f89-96d0-1cc044d80d00}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_NullLogger IMPLEMENTS I_Logger				// Null logger implementation
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="debug" Id="{251af618-dcc2-4891-a05d-135b0a346a28}">
+      <Declaration><![CDATA[METHOD PUBLIC debug : BOOL	// Logs the data with log level 'DEBUG'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Do nothing]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="deregister" Id="{f3d80110-5c64-4f37-bbde-87868de5e4b5}">
+      <Declaration><![CDATA[METHOD PUBLIC deregister : BOOL
+VAR_INPUT
+	iWho:				T_SHORT_STR;
+END_VAR
+
+	]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="doLog" Id="{4e979eaf-b7b4-49b8-a400-47aa0e342525}">
+      <Declaration><![CDATA[METHOD PUBLIC doLog : BOOL
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+	iLevel:		E_LOG_LEVEL := E_LOG_LEVEL.ERROR;	// Log level
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="error" Id="{43f9d53c-7213-48e4-8bb8-91059cc72413}">
+      <Declaration><![CDATA[METHOD PUBLIC error : BOOL	// Logs the data with log level 'ERROR'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Do nothing]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="info" Id="{2b677cbc-5e14-4ced-90b6-4591d73d5d6f}">
+      <Declaration><![CDATA[METHOD PUBLIC info : BOOL	// Logs the data with log level 'INFO'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Do nothing]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="register" Id="{7f5445c7-7066-4067-9d52-634e7a0bcfa0}">
+      <Declaration><![CDATA[METHOD PUBLIC register : BOOL
+VAR_INPUT
+	iWho:		T_SHORT_STR;
+	iObserver:	I_Logger;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="trace" Id="{b8d908ce-1427-4843-8fc6-835a04e23249}">
+      <Declaration><![CDATA[METHOD PUBLIC trace : BOOL	// Logs the data with log level 'TRACE'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Do nothing]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="warn" Id="{bcbec991-2ee8-4559-bf67-31e28066da99}">
+      <Declaration><![CDATA[METHOD PUBLIC warn : BOOL	// Logs the data with log level 'WARN'
+VAR_INPUT
+	iData:		T_DEFAULT_STR;						// Data to be logged, limited to 255 characters
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Do nothing]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_NullLogger">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_NullLogger.debug">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_NullLogger.deregister">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_NullLogger.doLog">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_NullLogger.error">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_NullLogger.info">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_NullLogger.register">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_NullLogger.trace">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_NullLogger.warn">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

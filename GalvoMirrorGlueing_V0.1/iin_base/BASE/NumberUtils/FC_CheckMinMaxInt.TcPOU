@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_CheckMinMaxInt" Id="{5ebf609a-7943-453d-bb7c-2a2069199719}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_CheckMinMaxInt : INT	// Checks if the given value is within the min/max and if not will set either the MIN/MAX value
+VAR_INPUT
+	iValue:		INT;
+	iMin:		INT;
+	iMax:		int;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF (iValue > iMax) THEN
+	FC_CheckMinMaxInt := iMax;
+ELSIF (iValue < iMin) THEN
+	FC_CheckMinMaxInt := iMin;
+ELSE
+	FC_CheckMinMaxInt := iValue;
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FC_CheckMinMaxInt">
+      <LineId Id="2" Count="6" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

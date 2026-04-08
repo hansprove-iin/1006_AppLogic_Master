@@ -1,0 +1,134 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_ASMT60Functions" Id="{fafc9ee4-b2b2-4c4b-9f02-66895602a79a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ASMT60Functions
+VAR_INPUT
+	bToneEnable				: BOOL;// Toggle to enable tone
+	bRedEnable				: BOOL; //Toggle to enable red light
+	bYellowEnable			: BOOL; //Toggle to enable yellow light
+	bGreenEnable			: BOOL; //Toggle to enable green light
+	bBlinkEnable			: BOOL; //Toggle to enable blinking
+	tBlinkTime				: TIME := T#500MS; //Adjust blink time
+	tToneTime				: TIME :=T#5S;
+	tTone2Time				: TIME :=T#500ms;
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+	BlinkTON				: TON;
+	tone5sTON				: TON;
+	tone1sTOF				: TOF;
+	bBlinkState				: BOOL;
+	bToneState				: BOOL;
+	bToneTemp				: BOOL;
+	bBlink					: BOOL;	
+	bRedOut		AT%Q*		: BOOL; //Connect to el2809 Output 13
+	bYellowOut	AT%Q*		: BOOL; //Connect to el2809 Output 12
+	bGreenOut	AT%Q*		: BOOL; //Connect to el2809 Output 11
+	bToneOut	AT%Q*		: BOOL;
+	LightCase				: INT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[//////////////////////////////////////////////////////////////////////////////////
+//Blinker function
+bToneTemp := bToneState;
+IF bToneEnable THEN
+	tone5sTON(IN:=TRUE, PT:=tToneTime);
+	ELSE
+	tone1sTOF (IN:=FALSE);
+	tone5sTON(IN := FALSE);
+    bToneTemp := FALSE;
+    bToneState := FALSE;
+END_IF
+
+IF tone5sTON.Q THEN
+	tone5sTON (IN:=FALSE);
+	tone1sTOF(IN := TRUE, PT:=tTone2Time);
+	bToneState := NOT bToneState;
+END_IF
+
+IF NOT tone5sTON.Q AND tone1sTOF.Q THEN
+	tone1sTOF (IN :=FALSE);
+END_IF
+
+
+bBlink := bBlinkState;
+IF bBlinkEnable THEN
+	BlinkTON(IN :=TRUE, PT :=tBlinkTime);
+	IF BlinkTON.Q THEN
+		BlinkTON(IN := FALSE);
+        bBlinkState := NOT bBlinkState;
+	END_IF
+ELSE
+	BlinkTON(IN := FALSE);
+    bBlink := FALSE;
+    bBlinkState := FALSE;
+END_IF
+
+IF bBlinkEnable AND (bRedEnable OR bYellowEnable OR bGreenEnable) THEN
+	LightCase := 10;
+	ELSIF bRedEnable OR bYellowEnable OR bGreenEnable THEN
+		LightCase := 0;
+	ELSIF bToneEnable THEN
+		LightCase := 20;
+	
+END_IF
+
+
+CASE LightCase OF
+0:
+//Function for static light
+IF bRedEnable THEN
+    bRedOut := TRUE; 
+    bYellowOut := FALSE;
+    bGreenOut := FALSE;
+	ELSIF bYellowEnable THEN
+  		bRedOut := FALSE;
+   		bYellowOut := TRUE; 
+    	bGreenOut := FALSE;
+	ELSIF bGreenEnable THEN
+   		bRedOut := FALSE;
+   		bYellowOut := FALSE;
+   		bGreenOut := TRUE; 
+ELSE
+    bRedOut := FALSE;
+    bYellowOut := FALSE;
+    bGreenOut := FALSE;
+END_IF;
+
+10:
+//Function for blinking light
+IF bRedEnable AND bBlinkEnable THEN
+	bRedOut := bBlink;
+	bYellowOut := FALSE;
+    bGreenOut := FALSE;	
+ELSIF bYellowEnable AND bBlinkEnable THEN
+	bRedOut := FALSE;
+	bYellowOut := bBlink;
+	bGreenOut := FALSE;
+ELSIF bGreenEnable AND bBlinkEnable THEN
+	bRedOut := FALSE;
+	bYellowOut := FALSE;
+	bGreenOut := bBlink;
+END_IF
+
+
+20:
+IF bToneEnable THEN
+	bBlinkEnable := TRUE;
+	bRedOut := FALSE;
+	bGreenOut := FALSE;
+	bYellowOut := bBlink;
+	bToneOut := tone1sTOF.Q;
+ELSE
+	bBlinkEnable := FALSE;
+	bRedOut := FALSE;
+	bGreenOut := FALSE;
+	bYellowOut :=FALSE;
+	bToneOut := FALSE;
+END_IF
+
+END_CASE]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

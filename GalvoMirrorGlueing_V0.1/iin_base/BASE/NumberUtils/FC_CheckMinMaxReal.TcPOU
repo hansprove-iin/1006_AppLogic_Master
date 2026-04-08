@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_CheckMinMaxReal" Id="{cc5606cf-b46f-4e7b-800a-557f48f2dbea}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_CheckMinMaxReal : REAL		// Checks if the given value is within the min/max and if not will set either the MIN/MAX value
+VAR_INPUT
+	iValue:		REAL;
+	iMin:		REAL;
+	iMax:		REAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF (iValue > iMax) THEN
+	FC_CheckMinMaxReal := iMax;
+ELSIF (iValue < iMin) THEN
+	FC_CheckMinMaxReal := iMin;
+ELSE
+	FC_CheckMinMaxReal := iValue;
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FC_CheckMinMaxReal">
+      <LineId Id="2" Count="6" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

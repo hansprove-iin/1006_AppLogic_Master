@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_PalletImagingData" Id="{41b3e2a6-26a6-4865-a94b-302dc46e8809}">
+    <Declaration><![CDATA[TYPE ST_PalletImagingData :
+STRUCT
+	bImagingDone : BOOL;
+	bTogglePallet	: BOOL; // If true, Imaging is set to detect 10mm pallet
+	bSuccess_10mmLocate : BOOL;
+	bSuccess_14mmLocate : BOOL;
+	bMirrorPalletImagingSucceeded : BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

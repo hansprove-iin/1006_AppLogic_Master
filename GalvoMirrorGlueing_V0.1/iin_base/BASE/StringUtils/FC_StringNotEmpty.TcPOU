@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_StringNotEmpty" Id="{0894167f-e28b-4e0b-a863-a5145ce50d2e}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_StringNotEmpty : BOOL
+VAR_INPUT
+	iString:	T_DEFAULT_STR;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_StringNotEmpty := LEN(iString) > 0;]]></ST>
+    </Implementation>
+    <LineIds Name="FC_StringNotEmpty">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

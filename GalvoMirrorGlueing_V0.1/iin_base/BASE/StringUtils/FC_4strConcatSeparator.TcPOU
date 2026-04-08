@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_4strConcatSeparator" Id="{c994d032-4809-4f26-9023-944e4d570efe}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_4strConcatSeparator : T_DEFAULT_STR		// Concatenates 4 strings with given separator
+VAR_INPUT
+	iSeparator:		STRING := IING.STRING_UNDERSCORE;
+	iStr1:			T_DEFAULT_STR;
+	iStr2:			T_DEFAULT_STR;
+	iStr3:			T_DEFAULT_STR;
+	iStr4:			T_DEFAULT_STR;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_4strConcatSeparator := FC_2strConcatSeparator(iSeparator := iSeparator,
+	iStr1 := FC_3strConcatSeparator(iSeparator := iSeparator, iStr1 := iStr1, iStr2 := iStr2, iStr3 := iStr3), iStr2 := iStr4);]]></ST>
+    </Implementation>
+    <LineIds Name="FC_4strConcatSeparator">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

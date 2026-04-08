@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_2strConcatSeparator" Id="{5a1ae560-5393-4113-881d-2e0ff15d0644}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_2strConcatSeparator : T_DEFAULT_STR	// Concatenates 2 strings with given separator
+VAR_INPUT
+	iSeparator:		STRING := IING.STRING_UNDERSCORE;	
+	iStr1:			T_DEFAULT_STR;
+	iStr2:			T_DEFAULT_STR;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_2strConcatSeparator := FC_3strConcat(iStr1 := iStr1, iStr2 := iSeparator, iStr3 := iStr2);]]></ST>
+    </Implementation>
+    <LineIds Name="FC_2strConcatSeparator">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

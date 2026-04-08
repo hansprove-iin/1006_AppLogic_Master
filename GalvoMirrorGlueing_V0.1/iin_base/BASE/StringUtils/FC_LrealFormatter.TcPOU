@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.18">
+  <POU Name="FC_LrealFormatter" Id="{f5832aa7-957a-410a-a98c-fc99a6ce302f}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_LrealFormatter : T_SHORT_STR
+VAR_INPUT
+	iLreal:				LREAL;
+	iNumberOfDecimals:	INT;
+END_VAR
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_LrealFormatter := LREAL_TO_FMTSTR(in := iLreal, iPrecision := iNumberOfDecimals, bRound := FALSE);
+]]></ST>
+    </Implementation>
+    <LineIds Name="FC_LrealFormatter">
+      <LineId Id="2" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>
