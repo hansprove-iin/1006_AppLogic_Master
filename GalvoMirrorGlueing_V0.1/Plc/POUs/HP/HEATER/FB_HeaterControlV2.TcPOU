@@ -1,0 +1,133 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_HeaterControlV2" Id="{1ce5d6ad-b230-4410-8f4a-6d54ab7fcaf5}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_HeaterControlV2 EXTENDS FB_StepperProgram
+VAR_INPUT
+	iEstopOk:					BOOL;	// 1 = System is running, no estop pressed
+	iEnable:					BOOL;	// When TRUE, this sequence is possible to be run
+	iStationId:					UDINT;	// Station nummer, 1..10
+	iHeatToTestTemp:			BOOL;	// When TRUE, the test program will run 
+	iHeatToWorkTemp:			BOOL;	// When TRUE, will start the heating cycle
+	iPt100RawValue:				REAL;	// Raw (unscaled value) of the PT100 element (or any other analog input)
+END_VAR
+VAR_OUTPUT
+	oTestTemperatureReached:	BOOL;	// TRUE when temperature over TEST temperature 
+	oWorkTemperatureReached:	BOOL;	// TRUE when temperature over WORK temperature 
+	oHeat:						BOOL;	// Heater control
+	oFan:						BOOL;	// Fan control
+	oTempInC:					REAL;	// Temperature in celcius
+	oTempInF:					REAL;	// Temperature in fahrenheit
+	oEnabled:					BOOL;
+END_VAR
+VAR_IN_OUT
+	ioHmi:						ST_HEATER_HMI;
+END_VAR
+VAR
+	step:						E_HEATER_STEPS;
+	service:					ST_HEATER_SERVICE;
+	ai:							FB_AnalogInput;
+	thermostat:					FB_Thermostat;
+	targetTemperature:			REAL;
+END_VAR
+VAR PERSISTENT
+	settings:					ST_HEATER_SETTINGS;
+END_VAR
+VAR_STAT PERSISTENT
+	staticSettings:				ST_HEATER_STATIC_SETTINGS;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF (NOT IING.cycleStart) THEN
+	settings := ioHmi.settings;
+END_IF
+
+service := ioHmi.service;
+
+
+callMeRightBeforeSwitchCase(ADR(step));
+CASE step OF
+	E_HEATER_STEPS.INIT:
+		gotoNextStep(iCondition := iEnable AND iHeatToTestTemp, iNextStep := E_HEATER_STEPS.HEAT_TO_TEST_TEMP);
+		gotoNextStep(iCondition := iEnable AND iHeatToWorkTemp, iNextStep := E_HEATER_STEPS.HEAT_TO_WORK_TEMP);
+	
+	E_HEATER_STEPS.HEAT_TO_TEST_TEMP:
+		targetTemperature := staticSettings.testTemperature;
+		gotoNextStep(iCondition := NOT iEnable OR NOT iHeatToTestTemp , iNextStep := E_HEATER_STEPS.INIT);
+	
+	E_HEATER_STEPS.HEAT_TO_WORK_TEMP:
+		targetTemperature := staticSettings.workTemperature;
+		gotoNextStep(iCondition := NOT iEnable OR NOT iHeatToWorkTemp, iNextStep := E_HEATER_STEPS.INIT);
+
+	E_HEATER_STEPS.SAFETY_DOWN:
+		gotoNextStep(iEstopOk, E_HEATER_STEPS.INIT);
+ELSE
+	step := E_HEATER_STEPS.INIT;
+END_CASE
+callMeRightAfterSwitchCase(TRUE, IING.STRING_BLANK);
+
+
+// Safety check
+IF (NOT iEstopOk) THEN
+	gotoNextStep(iCondition := TRUE, iNextStep := E_HEATER_STEPS.SAFETY_DOWN);
+END_IF
+
+// Analog input
+ai(iRawValue := iPt100RawValue, oScaledValue => oTempInC, ioHmi := ioHmi.ai);
+oTempInF := 10000;
+
+
+// Temperature control/thermostat
+thermostat(iTargetValue := targetTemperature, iHysteresis := staticSettings.hysteresis, iMeasuredValue := ai.oScaledValue, ioHmi := ioHmi.thermostat);
+
+// Controlling of actual outputs
+oHeat := iEstopOk AND thermostat.oHeat;
+oFan := iEstopOk AND oHeat;
+
+
+oTestTemperatureReached := FC_WithinRange(iTarget := staticSettings.testTemperature, iValue := ai.oScaledValue, iRange := staticSettings.hysteresis);
+oWorkTemperatureReached := FC_WithinRange(iTarget := staticSettings.workTemperature, iValue := ai.oScaledValue, iRange := staticSettings.hysteresis);
+
+oEnabled := iEnable;
+
+mHmi();
+]]></ST>
+    </Implementation>
+    <Method Name="mHmi" Id="{3eb1f708-8b61-447b-b9e0-094aa60a8f66}">
+      <Declaration><![CDATA[METHOD PRIVATE mHmi
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[{warning disable C0371}
+IF (NOT __ISVALIDREF (ioHmi)) THEN
+	RETURN;
+END_IF
+
+ioHmi.settings := settings;
+ioHmi.service := service;
+
+ioHmi.state.enabled := oEnabled;
+ioHmi.state.heat := oHeat;
+ioHmi.state.fan := oFan;
+ioHmi.state.tempInC := oTempInC;
+ioHmi.state.tempInF := oTempInF;
+
+
+ioHmi.state.testTemperatureReached := oTestTemperatureReached;
+ioHmi.state.workTemperatureReached := oWorkTemperatureReached;
+
+ioHmi.state.stationId := iStationId;
+
+
+{warning restore C0371}
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="stepAsString" Id="{21b3ac32-019d-4399-9b0d-ab8c92392b32}">
+      <Declaration><![CDATA[METHOD PUBLIC stepAsString : T_SHORT_STR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[stepAsString := TO_STRING(step);
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

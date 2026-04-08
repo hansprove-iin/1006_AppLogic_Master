@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="P_Heaters" Id="{0f2e3b0f-4035-485f-a5bd-d7d29bd634e0}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM P_Heaters
+VAR
+	i:	INT;
+	curingStations:	ARRAY[0..0] OF FB_CuringStation;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FOR i := 0 TO 0 DO
+	curingStations[i](ioHmi := HMI.curingStations[i]);
+END_FOR
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

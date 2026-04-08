@@ -60,6 +60,9 @@ END_VAR
     <Implementation>
       <ST><![CDATA[start();
 
+
+P_Heaters();
+
 fbMeca500(stModuleHmi := stModuleHmi, stStations := stStation, stPlcCom := stPlcCom, stAssemblyData := stAssemblyData, bLocksEngaged := bLocksEngaged, stCouplerData := stCouplerData, rOperatingSpeed := rModuleOperaingSpeed, bNeedleSucceeded := bNeedleSucceeded);
 fbDataExchange(sendRecipeData := stAssemblyData, stModuleHmi := stModuleHmi);
 fbDataExchangeRead(stModuleHmi := stModuleHmi, stLaserPositionData => StAngleData);

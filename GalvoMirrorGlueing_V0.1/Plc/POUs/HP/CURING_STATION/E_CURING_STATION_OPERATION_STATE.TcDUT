@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="E_CURING_STATION_OPERATION_STATE" Id="{58c00049-0b65-4534-910f-8d1b7f7a67ed}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_CURING_STATION_OPERATION_STATE :
+(
+	INACTIVE := 0,
+	
+	ENABLED
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

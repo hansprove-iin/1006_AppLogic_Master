@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_CURING_STATION_STATE" Id="{a83c7078-daaa-4287-aa74-22a8435f6bdc}">
+    <Declaration><![CDATA[TYPE ST_CURING_STATION_STATE :
+STRUCT
+	stationId:					UDINT; 
+
+	operationState:		E_CURING_STATION_OPERATION_STATE;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

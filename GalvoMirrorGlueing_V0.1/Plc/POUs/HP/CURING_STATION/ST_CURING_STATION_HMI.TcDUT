@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_CURING_STATION_HMI" Id="{23ea0c5a-6f3c-4e26-9e32-58d17e3f60fa}">
+    <Declaration><![CDATA[TYPE ST_CURING_STATION_HMI :
+STRUCT
+	state:			ST_CURING_STATION_STATE;
+	service:		ST_CURING_STATION_SERVICE;
+	settings:		ST_CURING_STATION_SETTINGS;
+	
+	gripper:		ST_CYL_HMI;
+	slider:			ST_CYL_HMI;
+	heater:			ST_HEATER_HMI;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

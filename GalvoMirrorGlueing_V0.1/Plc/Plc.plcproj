@@ -69,6 +69,52 @@
     <Compile Include="POUs\FB_GlueState.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\E_CURING_STATION_OPERATION_STATE.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\FB_CuringStation.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\ST_CURING_STATION_HMI.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\ST_CURING_STATION_SERVICE.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\ST_CURING_STATION_STATE.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\ST_CURING_STATION_SETTINGS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\HEATER\E_HEATER_STEPS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\HEATER\FB_HeaterControlV2.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\HEATER\ST_HEATER_HMI.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\HEATER\ST_HEATER_SERVICE.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\HEATER\ST_HEATER_SETTINGS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\HEATER\ST_HEATER_STATE.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\HEATER\ST_HEATER_STATIC_SETTINGS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\HMI.TcGVL">
+      <SubType>Code</SubType>
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="POUs\HP\P_Heaters.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="POUs\MAIN.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -242,9 +288,12 @@
     <Folder Include="DUTs" />
     <Folder Include="DUTs\Com" />
     <Folder Include="GVLs" />
+    <Folder Include="POUs\HP\HEATER" />
+    <Folder Include="POUs\HP\CURING_STATION" />
     <Folder Include="POUs\Meca500\Op" />
     <Folder Include="POUs\Meca500\Op\PoseData" />
     <Folder Include="POUs\Meca500\Op\PoseData\Type" />
+    <Folder Include="POUs\HP" />
     <Folder Include="POUs\VisMain" />
     <Folder Include="POUs\Sts" />
     <Folder Include="POUs\Meca500" />
@@ -331,8 +380,8 @@
   <ProjectExtensions>
     <PlcProjectOptions>
       <XmlArchive>
-        <Data>
-          <o xml:space="preserve" t="OptionKey">
+  <Data>
+    <o xml:space="preserve" t="OptionKey">
       <v n="Name">"&lt;ProjectRoot&gt;"</v>
       <d n="SubKeys" t="Hashtable" ckt="String" cvt="OptionKey">
         <v>{192FAD59-8248-4824-A8DE-9177C94C195A}</v>
@@ -390,6 +439,12 @@
             <v>410,5410</v>
           </d>
         </o>
+        <v>{eeeeeeee-3909-4298-8022-501ac3238667}</v>
+        <o>
+          <v n="Name">"{eeeeeeee-3909-4298-8022-501ac3238667}"</v>
+          <d n="SubKeys" t="Hashtable" />
+          <d n="Values" t="Hashtable" />
+        </o>
         <v>{F66C7017-BDD8-4114-926C-81D6D687E35F}</v>
         <o>
           <v n="Name">"{F66C7017-BDD8-4114-926C-81D6D687E35F}"</v>
@@ -402,14 +457,14 @@
       </d>
       <d n="Values" t="Hashtable" />
     </o>
-        </Data>
-        <TypeList>
-          <Type n="Boolean">System.Boolean</Type>
-          <Type n="Hashtable">System.Collections.Hashtable</Type>
-          <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
-          <Type n="String">System.String</Type>
-        </TypeList>
-      </XmlArchive>
+  </Data>
+  <TypeList>
+    <Type n="Boolean">System.Boolean</Type>
+    <Type n="Hashtable">System.Collections.Hashtable</Type>
+    <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
+    <Type n="String">System.String</Type>
+  </TypeList>
+</XmlArchive>
     </PlcProjectOptions>
   </ProjectExtensions>
 </Project>

@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_CURING_STATION_SERVICE" Id="{f686d95d-66ee-40e4-a523-44086813a616}">
+    <Declaration><![CDATA[TYPE ST_CURING_STATION_SERVICE :
+STRUCT
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

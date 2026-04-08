@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="E_HEATER_STEPS" Id="{3b28ecb7-89fd-483b-b24e-0d67cacd0d41}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_HEATER_STEPS :
+(
+	INIT := 0,
+	
+	HEAT_TO_TEST_TEMP,
+	
+	HEAT_TO_WORK_TEMP,
+	
+	SAFETY_DOWN
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

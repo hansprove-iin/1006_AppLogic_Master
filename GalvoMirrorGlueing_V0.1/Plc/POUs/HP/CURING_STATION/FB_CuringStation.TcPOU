@@ -1,0 +1,76 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_CuringStation" Id="{126ed8b3-7cc9-4443-92c2-3634c2f332e1}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_CuringStation EXTENDS FB_StepperProgram
+VAR_INPUT
+	iGripperOpen:	BOOL;
+	iGripperClosed:	BOOL;
+	iSliderOpen:	BOOL;
+	iSliderClosed:	BOOL;
+	
+	iEstopOk:					BOOL;	// 1 = System is running, no estop pressed
+	iEnable:					BOOL;	// When TRUE, this sequence is possible to be run
+	iStationId:					UDINT;	// Station nummer, 1..10
+	iHeatToTestTemp:			BOOL;	// When TRUE, the test program will run 
+	iHeatToWorkTemp:			BOOL;	// When TRUE, will start the heating cycle
+	iPt100RawValue:				REAL;	// Raw (unscaled value) of the PT100 element (or any other analog input)
+END_VAR
+VAR_OUTPUT
+	oGripperToOpen:				BOOL;
+	oGripperToClosed:			BOOL;
+	oSliderToOpen:				BOOL;
+	oSliderToClosed:			BOOL;
+END_VAR
+VAR_IN_OUT
+	ioHmi:	ST_CURING_STATION_HMI;
+END_VAR
+VAR
+	gripper:	FB_Cylinder;
+	slider:		FB_Cylinder;
+	heater:		FB_HeaterControlV2;
+	service:	ST_CURING_STATION_SERVICE;
+END_VAR
+VAR PERSISTENT
+	settings:	ST_CURING_STATION_SETTINGS;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF (NOT IING.cycleStart) THEN
+	settings := ioHmi.settings;
+END_IF
+
+service := ioHmi.service;
+
+gripper(iOpenPos := iGripperOpen, iClosePos := iGripperClosed, iOpenInterLock := TRUE, iCloseInterlock := TRUE, iDeactivate := FALSE,
+	oOpen => oGripperToOpen, oClose => oGripperToClosed, ioHmi := ioHmi.gripper);
+
+slider(iOpenPos := iSliderOpen, iClosePos := iSliderClosed, iOpenInterLock := TRUE, iCloseInterlock := TRUE, iDeactivate := FALSE,
+	oOpen => oSliderToOpen, oClose => oSliderToClosed, ioHmi := ioHmi.slider);
+
+heater(iEstopOk := iEstopOk, iEnable := iEnable, iHeatToTestTemp := iHeatToTestTemp, iHeatToWorkTemp := iHeatToWorkTemp, iPt100RawValue := iPt100RawValue, ioHmi := ioHmi.heater);
+
+mHmi();
+]]></ST>
+    </Implementation>
+    <Method Name="mHmi" Id="{c1c4a4bf-1b08-4931-9088-720e2e94e1a9}">
+      <Declaration><![CDATA[METHOD PRIVATE mHmi
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[{warning disable C0371}
+IF (NOT __ISVALIDREF (ioHmi)) THEN
+	RETURN;
+END_IF
+
+
+ioHmi.state.stationId := iStationId;
+
+
+ioHmi.settings := settings;
+ioHmi.service := service;
+
+{warning restore C0371}
+
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
