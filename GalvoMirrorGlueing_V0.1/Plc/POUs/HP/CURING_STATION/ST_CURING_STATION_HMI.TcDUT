@@ -10,6 +10,8 @@ STRUCT
 	gripper:		ST_CYL_HMI;
 	slider:			ST_CYL_HMI;
 	heater:			ST_HEATER_HMI;
+	
+	
 END_STRUCT
 END_TYPE
 ]]></Declaration>

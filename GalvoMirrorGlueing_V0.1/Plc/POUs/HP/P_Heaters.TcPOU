@@ -3,14 +3,28 @@
   <POU Name="P_Heaters" Id="{0f2e3b0f-4035-485f-a5bd-d7d29bd634e0}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM P_Heaters
 VAR
+	controlSignals:			FB_ControlSignalsV2;	
+	cs:						REFERENCE TO ST_CONTROL_SIGNALS_V2;
+
 	i:	INT;
-	curingStations:	ARRAY[0..0] OF FB_CuringStation;
+	curingStations:	ARRAY[0..4] OF FB_CuringStation;
+	
+	
+	gripperOpen:	BOOL;
+	gripperClosed:	BOOL;
+	sliderOpen:		BOOL;
+	sliderClosed:	BOOL;
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[FOR i := 0 TO 0 DO
-	curingStations[i](ioHmi := HMI.curingStations[i]);
-END_FOR
+      <ST><![CDATA[controlSignals(iPos := E_POS.MAIN, iMiscArea := 'Misc', ioTcHmi := HMI.cs);
+cs REF= controlSignals.oControlSignals^;
+
+curingStations[0](ioHmi := HMI.curingStations[0], iStationId := 0, iDeviceId := 'Curing station 1', iControlSignals := cs.out,iGripperOpen := gripperOpen, iGripperClosed := gripperClosed, iSliderOpen := sliderOpen, iSliderClosed := sliderClosed);
+curingStations[1](ioHmi := HMI.curingStations[1], iStationId := 1, iDeviceId := 'Curing station 2', iControlSignals := cs.out);
+curingStations[2](ioHmi := HMI.curingStations[2], iStationId := 2, iDeviceId := 'Curing station 3', iControlSignals := cs.out);
+curingStations[3](ioHmi := HMI.curingStations[3], iStationId := 3, iDeviceId := 'Curing station 4', iControlSignals := cs.out);
+curingStations[4](ioHmi := HMI.curingStations[4], iStationId := 4, iDeviceId := 'Curing station 5', iControlSignals := cs.out);
 ]]></ST>
     </Implementation>
   </POU>

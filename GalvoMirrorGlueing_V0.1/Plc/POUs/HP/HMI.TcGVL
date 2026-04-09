@@ -6,6 +6,10 @@ VAR_GLOBAL
 	{ attribute 'TcHmiSymbol.AddSymbol' }
 	{ attribute 'TcHmiSymbol.ShowRecursively' }
 	curingStations:	ARRAY[0..4] OF ST_CURING_STATION_HMI;
+	
+	{ attribute 'TcHmiSymbol.AddSymbol' }
+	{ attribute 'TcHmiSymbol.ShowRecursively' }
+	cs:				ST_CS_HMI;
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>

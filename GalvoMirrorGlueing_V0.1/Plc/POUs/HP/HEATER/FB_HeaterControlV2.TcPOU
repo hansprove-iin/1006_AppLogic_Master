@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_HeaterControlV2" Id="{1ce5d6ad-b230-4410-8f4a-6d54ab7fcaf5}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_HeaterControlV2 EXTENDS FB_StepperProgram
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_HeaterControlV2 EXTENDS FB_StepperProgram		// This FB is responisble for controlling the heater part of the curing station
 VAR_INPUT
 	iEstopOk:					BOOL;	// 1 = System is running, no estop pressed
 	iEnable:					BOOL;	// When TRUE, this sequence is possible to be run
@@ -17,7 +17,7 @@ VAR_OUTPUT
 	oFan:						BOOL;	// Fan control
 	oTempInC:					REAL;	// Temperature in celcius
 	oTempInF:					REAL;	// Temperature in fahrenheit
-	oEnabled:					BOOL;
+	oEnabled:					BOOL;	// When TRUe, the station is enabled
 END_VAR
 VAR_IN_OUT
 	ioHmi:						ST_HEATER_HMI;

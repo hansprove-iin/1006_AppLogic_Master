@@ -1,7 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_CuringStation" Id="{126ed8b3-7cc9-4443-92c2-3634c2f332e1}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_CuringStation EXTENDS FB_StepperProgram
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_CuringStation EXTENDS FB_StepperProgram		// This FB provides an interface for controlling the complete curing station including:
+																// Slider and gripper cylinder
+																// Temperature control of the heating element
+																// Driving of the stepper motor and full control over the 'servo'
+																// Camera + lightning
 VAR_INPUT
 	iGripperOpen:	BOOL;
 	iGripperClosed:	BOOL;
@@ -28,6 +32,9 @@ VAR
 	gripper:	FB_Cylinder;
 	slider:		FB_Cylinder;
 	heater:		FB_HeaterControlV2;
+	
+	//servo:FB_Servo;
+	
 	service:	ST_CURING_STATION_SERVICE;
 END_VAR
 VAR PERSISTENT
@@ -40,13 +47,14 @@ END_IF
 
 service := ioHmi.service;
 
-gripper(iOpenPos := iGripperOpen, iClosePos := iGripperClosed, iOpenInterLock := TRUE, iCloseInterlock := TRUE, iDeactivate := FALSE,
+gripper(iOpenPos := iGripperOpen, iClosePos := iGripperClosed, iOpenInterLock := TRUE, iCloseInterlock := TRUE, iDeactivate := FALSE, iDeviceId := FC_2strConcatSeparator(iSeparator := '_', iStr1 := 'Gripper', iStr2 := iDeviceId), iControlSignals := iControlSignals,
 	oOpen => oGripperToOpen, oClose => oGripperToClosed, ioHmi := ioHmi.gripper);
 
-slider(iOpenPos := iSliderOpen, iClosePos := iSliderClosed, iOpenInterLock := TRUE, iCloseInterlock := TRUE, iDeactivate := FALSE,
+slider(iOpenPos := iSliderOpen, iClosePos := iSliderClosed, iOpenInterLock := TRUE, iCloseInterlock := TRUE, iDeactivate := FALSE, iDeviceId := FC_2strConcatSeparator(iSeparator := '_', iStr1 := 'Slider', iStr2 := iDeviceId), iControlSignals := iControlSignals,
 	oOpen => oSliderToOpen, oClose => oSliderToClosed, ioHmi := ioHmi.slider);
 
-heater(iEstopOk := iEstopOk, iEnable := iEnable, iHeatToTestTemp := iHeatToTestTemp, iHeatToWorkTemp := iHeatToWorkTemp, iPt100RawValue := iPt100RawValue, ioHmi := ioHmi.heater);
+heater(iEstopOk := iEstopOk, iEnable := iEnable, iHeatToTestTemp := iHeatToTestTemp, iHeatToWorkTemp := iHeatToWorkTemp, iPt100RawValue := iPt100RawValue, iControlSignals := iControlSignals,
+	ioHmi := ioHmi.heater);
 
 mHmi();
 ]]></ST>
