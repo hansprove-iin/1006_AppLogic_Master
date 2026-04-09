@@ -3,6 +3,7 @@
   <DUT Name="ST_CURING_STATION_SERVICE" Id="{f686d95d-66ee-40e4-a523-44086813a616}">
     <Declaration><![CDATA[TYPE ST_CURING_STATION_SERVICE :
 STRUCT
+	enable:	BOOL;		// Setting on/off will enable the station
 END_STRUCT
 END_TYPE
 ]]></Declaration>

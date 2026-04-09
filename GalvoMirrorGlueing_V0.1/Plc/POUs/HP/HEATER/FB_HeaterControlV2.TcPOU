@@ -43,7 +43,6 @@ END_IF
 
 service := ioHmi.service;
 
-
 callMeRightBeforeSwitchCase(ADR(step));
 CASE step OF
 	E_HEATER_STEPS.INIT:
@@ -52,7 +51,7 @@ CASE step OF
 	
 	E_HEATER_STEPS.HEAT_TO_TEST_TEMP:
 		targetTemperature := staticSettings.testTemperature;
-		gotoNextStep(iCondition := NOT iEnable OR NOT iHeatToTestTemp , iNextStep := E_HEATER_STEPS.INIT);
+		gotoNextStep(iCondition := NOT iEnable OR NOT iHeatToTestTemp, iNextStep := E_HEATER_STEPS.INIT);
 	
 	E_HEATER_STEPS.HEAT_TO_WORK_TEMP:
 		targetTemperature := staticSettings.workTemperature;
@@ -72,7 +71,7 @@ IF (NOT iEstopOk) THEN
 END_IF
 
 // Analog input
-ai(iRawValue := iPt100RawValue, oScaledValue => oTempInC, ioHmi := ioHmi.ai);
+ai(iRawValue := iPt100RawValue, oScaledValue => oTempInC, iDeviceId := iDeviceId, ioHmi := ioHmi.ai);
 oTempInF := 10000;
 
 
@@ -82,6 +81,8 @@ thermostat(iTargetValue := targetTemperature, iHysteresis := staticSettings.hyst
 // Controlling of actual outputs
 oHeat := iEstopOk AND thermostat.oHeat;
 oFan := iEstopOk AND oHeat;
+
+
 
 
 oTestTemperatureReached := FC_WithinRange(iTarget := staticSettings.testTemperature, iValue := ai.oScaledValue, iRange := staticSettings.hysteresis);

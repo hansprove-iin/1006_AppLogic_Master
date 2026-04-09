@@ -3,7 +3,7 @@
   <DUT Name="ST_HEATER_SERVICE" Id="{36b3e498-0d47-4931-9c08-eda65c62a206}">
     <Declaration><![CDATA[TYPE ST_HEATER_SERVICE :
 STRUCT
-	enable:	BOOL;		// Setting on/off will enable the station
+	
 END_STRUCT
 END_TYPE
 ]]></Declaration>

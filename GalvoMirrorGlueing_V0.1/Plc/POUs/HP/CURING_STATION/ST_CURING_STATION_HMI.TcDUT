@@ -7,8 +7,7 @@ STRUCT
 	service:		ST_CURING_STATION_SERVICE;
 	settings:		ST_CURING_STATION_SETTINGS;
 	
-	gripper:		ST_CYL_HMI;
-	slider:			ST_CYL_HMI;
+	cyls:			ARRAY[0..1] OF ST_CYL_HMI;
 	heater:			ST_HEATER_HMI;
 	
 	

@@ -14,13 +14,14 @@ VAR
 	gripperClosed:	BOOL;
 	sliderOpen:		BOOL;
 	sliderClosed:	BOOL;
+	pt100Real:		real;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[controlSignals(iPos := E_POS.MAIN, iMiscArea := 'Misc', ioTcHmi := HMI.cs);
 cs REF= controlSignals.oControlSignals^;
 
-curingStations[0](ioHmi := HMI.curingStations[0], iStationId := 0, iDeviceId := 'Curing station 1', iControlSignals := cs.out,iGripperOpen := gripperOpen, iGripperClosed := gripperClosed, iSliderOpen := sliderOpen, iSliderClosed := sliderClosed);
+curingStations[0](ioHmi := HMI.curingStations[0], iStationId := 0, iDeviceId := 'Curing station 1', iControlSignals := cs.out,iGripperOpen := gripperOpen, iGripperClosed := gripperClosed, iSliderOpen := sliderOpen, iSliderClosed := sliderClosed, iPt100RawValue := pt100Real);
 curingStations[1](ioHmi := HMI.curingStations[1], iStationId := 1, iDeviceId := 'Curing station 2', iControlSignals := cs.out);
 curingStations[2](ioHmi := HMI.curingStations[2], iStationId := 2, iDeviceId := 'Curing station 3', iControlSignals := cs.out);
 curingStations[3](ioHmi := HMI.curingStations[3], iStationId := 3, iDeviceId := 'Curing station 4', iControlSignals := cs.out);
