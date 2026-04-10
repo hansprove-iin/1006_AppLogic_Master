@@ -7,10 +7,15 @@
 																// Driving of the stepper motor and full control over the 'servo'
 																// Camera + lightning
 VAR_INPUT
-	iGripperOpen:	BOOL;
-	iGripperClosed:	BOOL;
-	iSliderOpen:	BOOL;
-	iSliderClosed:	BOOL;
+	iGripperOpen:				BOOL;
+	iGripperClosed:				BOOL;
+	iSliderOpen:				BOOL;
+	iSliderClosed:				BOOL;
+	iRequestGripperOpen:		BOOL;
+	iRequestGripperClosed:		BOOL;
+	iRequestSliderOpen:			BOOL;
+	iRequestSliderClosed:		BOOL;
+	
 	
 	iEstopOk:					BOOL;	// 1 = System is running, no estop pressed
 	iEnable:					BOOL;	// When TRUE, this sequence is possible to be run
@@ -26,18 +31,19 @@ VAR_OUTPUT
 	oSliderToClosed:			BOOL;
 END_VAR
 VAR_IN_OUT
-	ioHmi:	ST_CURING_STATION_HMI;
+	ioHmi:						ST_CURING_STATION_HMI;
+//	ioHeaterStaticSettings:			ST_CURING_STATION_HEATER_CONTROL_STATIC_SETTINGS;
 END_VAR
 VAR
-	cyls:	ARRAY[0..1] OF FB_Cylinder;
-	heater:		FB_CuringStationHeaterControl;
+	cyls:						ARRAY[0..1] OF FB_Cylinder;
+	heater:						FB_CuringStationHeaterControl;
 	
 	//servo:FB_Servo;
 	
-	service:	ST_CURING_STATION_SERVICE;
+	service:					ST_CURING_STATION_SERVICE;
 END_VAR
 VAR PERSISTENT
-	settings:	ST_CURING_STATION_SETTINGS;
+	settings:					ST_CURING_STATION_SETTINGS;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[IF (NOT IING.cycleStart) THEN

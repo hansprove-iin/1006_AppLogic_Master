@@ -16,56 +16,61 @@ VAR_OUTPUT
 	oHeat:						BOOL;	// Heater control
 	oFan:						BOOL;	// Fan control
 	oTempInC:					REAL;	// Temperature in celcius
-//	oTempInF:					REAL;	// Temperature in fahrenheit
 	oEnabled:					BOOL;	// When TRUe, the station is enabled
 END_VAR
 VAR_IN_OUT
 	ioHmi:						ST_CURING_STATION_HEATER_CONTROL_HMI;
+//	ioStaticSettings:			ST_CURING_STATION_HEATER_CONTROL_STATIC_SETTINGS;
 END_VAR
 VAR
-	step:						E_HEATER_STEPS;
+	step:						E_CURING_STATION_HEATER_CONTROL_STEPS;
 	service:					ST_CURING_STATION_HEATER_CONTROL_SERVICE;
 	ai:							FB_AnalogInput;
 //	regularThermostat:			FB_Thermostat;
 	specialThermostat:			FB_TimeProportionalThermostat;
 	targetTemperature:			REAL;
+	
+	staticSettings:				ST_CURING_STATION_HEATER_CONTROL_STATIC_SETTINGS;
 END_VAR
 VAR_STAT PERSISTENT
-	staticSettings:				ST_CURING_STATION_HEATER_CONTROL_STATIC_SETTINGS;
+//	staticSettings:				ST_CURING_STATION_HEATER_CONTROL_STATIC_SETTINGS;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[IF (NOT IING.cycleStart) THEN
-	staticSettings := ioHmi.staticSettings;
+	//staticSettings := ioHmi.staticSettings;
+	//staticSettings:=ioStaticSettings;
+	
+	staticSettings := HEATER_CONTROL_SETTINGS.settings;
 END_IF
 
 service := ioHmi.service;
 
 callMeRightBeforeSwitchCase(ADR(step));
 CASE step OF
-	E_HEATER_STEPS.INIT:
-		gotoNextStep(iCondition := iEnable AND iHeatToTestTemp, iNextStep := E_HEATER_STEPS.HEAT_TO_TEST_TEMP);
-		gotoNextStep(iCondition := iEnable AND iHeatToWorkTemp, iNextStep := E_HEATER_STEPS.HEAT_TO_WORK_TEMP);
+	E_CURING_STATION_HEATER_CONTROL_STEPS.INIT:
+		gotoNextStep(iCondition := iEnable AND iHeatToTestTemp, iNextStep := E_CURING_STATION_HEATER_CONTROL_STEPS.HEAT_TO_TEST_TEMP);
+		gotoNextStep(iCondition := iEnable AND iHeatToWorkTemp, iNextStep := E_CURING_STATION_HEATER_CONTROL_STEPS.HEAT_TO_WORK_TEMP);
 	
-	E_HEATER_STEPS.HEAT_TO_TEST_TEMP:
+	E_CURING_STATION_HEATER_CONTROL_STEPS.HEAT_TO_TEST_TEMP:
 		targetTemperature := staticSettings.testTemperature;
-		gotoNextStep(iCondition := NOT iEnable OR NOT iHeatToTestTemp, iNextStep := E_HEATER_STEPS.INIT);
+		gotoNextStep(iCondition := NOT iEnable OR NOT iHeatToTestTemp, iNextStep := E_CURING_STATION_HEATER_CONTROL_STEPS.INIT);
 	
-	E_HEATER_STEPS.HEAT_TO_WORK_TEMP:
+	E_CURING_STATION_HEATER_CONTROL_STEPS.HEAT_TO_WORK_TEMP:
 		targetTemperature := staticSettings.workTemperature;
-		gotoNextStep(iCondition := NOT iEnable OR NOT iHeatToWorkTemp, iNextStep := E_HEATER_STEPS.INIT);
+		gotoNextStep(iCondition := NOT iEnable OR NOT iHeatToWorkTemp, iNextStep := E_CURING_STATION_HEATER_CONTROL_STEPS.INIT);
 
-	E_HEATER_STEPS.SAFETY_DOWN:
-		gotoNextStep(iEstopOk, E_HEATER_STEPS.INIT);
+	E_CURING_STATION_HEATER_CONTROL_STEPS.SAFETY_DOWN:
+		gotoNextStep(iEstopOk, E_CURING_STATION_HEATER_CONTROL_STEPS.INIT);
 ELSE
-	step := E_HEATER_STEPS.INIT;
+	step := E_CURING_STATION_HEATER_CONTROL_STEPS.INIT;
 END_CASE
 callMeRightAfterSwitchCase(TRUE, IING.STRING_BLANK);
 
 
 // Safety check
 IF (NOT iEstopOk) THEN
-	gotoNextStep(iCondition := TRUE, iNextStep := E_HEATER_STEPS.SAFETY_DOWN);
+	gotoNextStep(iCondition := TRUE, iNextStep := E_CURING_STATION_HEATER_CONTROL_STEPS.SAFETY_DOWN);
 END_IF
 
 // Analog input
@@ -76,13 +81,12 @@ ai(iRawValue := iPt100RawValue, oScaledValue => oTempInC, iDeviceId := iDeviceId
 // Temperature control/thermostat
 //regularThermostat(iTargetValue := targetTemperature, iHysteresis := staticSettings.hysteresis, iMeasuredValue := ai.oScaledValue, ioHmi := ioHmi.regularThermostat);
 
-specialThermostat(iHeat := stepInBetween(E_HEATER_STEPS.HEAT_TO_TEST_TEMP, E_HEATER_STEPS.HEAT_TO_WORK_TEMP), iTargetTemp := targetTemperature, iMeasuredTemp := ai.oScaledValue,
+specialThermostat(iHeat := stepInBetween(E_CURING_STATION_HEATER_CONTROL_STEPS.HEAT_TO_TEST_TEMP, E_CURING_STATION_HEATER_CONTROL_STEPS.HEAT_TO_WORK_TEMP), iTargetTemp := targetTemperature, iMeasuredTemp := ai.oScaledValue,
 	iPFactor := staticSettings.pFactor, iMinPowerProcent := staticSettings.minPowerProcent, iMaxPowerProcent := staticSettings.maxPowerProcent, iCycleTime := staticSettings.cycleTime, 
 	ioHmi := iohmi.specialThermostat
 );
 
 // Controlling of actual outputs
-//oHeat := iEstopOk AND (((step = E_HEATER_STEPS.HEAT_TO_TEST_TEMP) AND regularThermostat.oHeat) OR (step = E_HEATER_STEPS.HEAT_TO_WORK_TEMP) AND specialThermostat.oHeat);
 oHeat := iEstopOk AND specialThermostat.oHeat;
 
 // Fan follows the heating element
@@ -108,7 +112,7 @@ IF (NOT __ISVALIDREF (ioHmi)) THEN
 	RETURN;
 END_IF
 
-ioHmi.staticSettings := staticSettings;
+//ioHmi.staticSettings := staticSettings;
 ioHmi.service := service;
 
 ioHmi.state.enabled := oEnabled;

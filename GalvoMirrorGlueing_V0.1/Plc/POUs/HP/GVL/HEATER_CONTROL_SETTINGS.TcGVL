@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <GVL Name="HEATER_CONTROL_SETTINGS" Id="{db45dbd3-3f70-4b77-a1e0-fde5fb4af7fe}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL PERSISTENT
+	{ attribute 'TcHmiSymbol.AddSymbol' }
+	{ attribute 'TcHmiSymbol.ShowRecursively' }
+	settings:	ST_CURING_STATION_HEATER_CONTROL_STATIC_SETTINGS;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

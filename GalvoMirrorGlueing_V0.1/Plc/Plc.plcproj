@@ -87,7 +87,15 @@
     <Compile Include="POUs\HP\CURING_STATION\ST_CURING_STATION_SETTINGS.TcDUT">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="POUs\HP\HEATER\E_HEATER_STEPS.TcDUT">
+    <Compile Include="POUs\HP\GVL\HEATER_CONTROL_SETTINGS.TcGVL">
+      <SubType>Code</SubType>
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="POUs\HP\GVL\HMI.TcGVL">
+      <SubType>Code</SubType>
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="POUs\HP\HEATER\E_CURING_STATION_HEATER_CONTROL_STEPS.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\HP\HEATER\FB_CuringStationHeaterControl.TcPOU">
@@ -104,10 +112,6 @@
     </Compile>
     <Compile Include="POUs\HP\HEATER\ST_CURING_STATION_HEATER_CONTROL_STATIC_SETTINGS.TcDUT">
       <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\HP\HMI.TcGVL">
-      <SubType>Code</SubType>
-      <LinkAlways>true</LinkAlways>
     </Compile>
     <Compile Include="POUs\HP\P_Heaters.TcPOU">
       <SubType>Code</SubType>
@@ -287,6 +291,7 @@
     <Folder Include="GVLs" />
     <Folder Include="POUs\HP\HEATER" />
     <Folder Include="POUs\HP\CURING_STATION" />
+    <Folder Include="POUs\HP\GVL" />
     <Folder Include="POUs\HP\VISION" />
     <Folder Include="POUs\Meca500\Op" />
     <Folder Include="POUs\Meca500\Op\PoseData" />
@@ -378,8 +383,8 @@
   <ProjectExtensions>
     <PlcProjectOptions>
       <XmlArchive>
-  <Data>
-    <o xml:space="preserve" t="OptionKey">
+        <Data>
+          <o xml:space="preserve" t="OptionKey">
       <v n="Name">"&lt;ProjectRoot&gt;"</v>
       <d n="SubKeys" t="Hashtable" ckt="String" cvt="OptionKey">
         <v>{192FAD59-8248-4824-A8DE-9177C94C195A}</v>
@@ -455,14 +460,14 @@
       </d>
       <d n="Values" t="Hashtable" />
     </o>
-  </Data>
-  <TypeList>
-    <Type n="Boolean">System.Boolean</Type>
-    <Type n="Hashtable">System.Collections.Hashtable</Type>
-    <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
-    <Type n="String">System.String</Type>
-  </TypeList>
-</XmlArchive>
+        </Data>
+        <TypeList>
+          <Type n="Boolean">System.Boolean</Type>
+          <Type n="Hashtable">System.Collections.Hashtable</Type>
+          <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
+          <Type n="String">System.String</Type>
+        </TypeList>
+      </XmlArchive>
     </PlcProjectOptions>
   </ProjectExtensions>
 </Project>
