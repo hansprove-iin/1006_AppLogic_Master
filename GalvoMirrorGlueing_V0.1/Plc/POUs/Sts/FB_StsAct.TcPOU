@@ -44,7 +44,7 @@ VAR
 	stPlcCom	: ST_Sts_PlcCom;
 	fbStepper	: FB_Stepper;
 	fbHeater 	: FB_HeaterControl;
-	fbHeater2:	FB_HeaterControlV2;
+	fbHeater2:	FB_CuringStationHeaterControl;
 	eStationState	: E_StsActState;
 	stRecipe		:ST_Recipe_AssemblyData;
 	fbEventLogger		: FB_EventLogger;

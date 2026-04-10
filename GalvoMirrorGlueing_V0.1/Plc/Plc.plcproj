@@ -90,7 +90,7 @@
     <Compile Include="POUs\HP\HEATER\E_HEATER_STEPS.TcDUT">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="POUs\HP\HEATER\FB_HeaterControlV2.TcPOU">
+    <Compile Include="POUs\HP\HEATER\FB_CuringStationHeaterControl.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\HP\HEATER\ST_HEATER_HMI.TcDUT">
@@ -106,6 +106,18 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\HP\HEATER\ST_HEATER_STATIC_SETTINGS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\HEATER\Thermostat\FB_TimeProportionalThermostat.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\HEATER\Thermostat\ST_TIME_PROPORTIONAL_THERMOSTAT_HMI.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\HEATER\Thermostat\ST_TIME_PROPORTIONAL_THERMOSTAT_SETTINGS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\HEATER\Thermostat\ST_TIME_PROPORTIONAL_THERMOSTAT_STATE.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\HP\HMI.TcGVL">
@@ -290,6 +302,8 @@
     <Folder Include="GVLs" />
     <Folder Include="POUs\HP\HEATER" />
     <Folder Include="POUs\HP\CURING_STATION" />
+    <Folder Include="POUs\HP\HEATER\Thermostat" />
+    <Folder Include="POUs\HP\VISION" />
     <Folder Include="POUs\Meca500\Op" />
     <Folder Include="POUs\Meca500\Op\PoseData" />
     <Folder Include="POUs\Meca500\Op\PoseData\Type" />

@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_TIME_PROPORTIONAL_THERMOSTAT_SETTINGS" Id="{534a7320-1055-4059-a879-872b62c57ee6}">
+    <Declaration><![CDATA[TYPE ST_TIME_PROPORTIONAL_THERMOSTAT_SETTINGS :
+STRUCT
+	pFactor:					REAL := 3;		// Temp diff * pFactor = power output (just like a PID controller but without the ID)
+	minPowerProcent:			REAL := 20;		// If this were a PID controller, we need 20% to keep the constant heat (at target setpoint)
+	maxPowerProcent:			REAL := 80;		// To limit the output (in case the heating element is too powerfull)
+
+	cycleTime:					TIME := T#20S;	// 100% control = HEAT is on for this amount of cycle time, 50% results in 10sec ON and 10s OFF	
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

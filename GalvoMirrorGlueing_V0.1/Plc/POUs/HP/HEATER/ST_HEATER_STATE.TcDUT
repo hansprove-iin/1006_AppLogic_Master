@@ -7,7 +7,7 @@ STRUCT
 	heat:						BOOL;
 	fan:						BOOL;
 	tempInC:					REAL;
-	tempInF:					REAL;
+//		tempInF:					REAL;
 	testTemperatureReached:		BOOL; 
 	workTemperatureReached:		BOOL;
 	stationId:					UDINT; 

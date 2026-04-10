@@ -3,7 +3,7 @@
   <DUT Name="ST_HEATER_SETTINGS" Id="{d9ba9ecf-ff30-4fb2-9564-5ba2698082b8}">
     <Declaration><![CDATA[TYPE ST_HEATER_SETTINGS :
 STRUCT
-	targetTemperature:REAL;
+	targetTemperature:		REAL;
 END_STRUCT
 END_TYPE
 ]]></Declaration>

@@ -30,7 +30,7 @@ VAR_IN_OUT
 END_VAR
 VAR
 	cyls:	ARRAY[0..1] OF FB_Cylinder;
-	heater:		FB_HeaterControlV2;
+	heater:		FB_CuringStationHeaterControl;
 	
 	//servo:FB_Servo;
 	

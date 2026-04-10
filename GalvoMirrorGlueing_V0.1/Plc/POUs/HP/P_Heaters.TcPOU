@@ -14,7 +14,10 @@ VAR
 	gripperClosed:	BOOL;
 	sliderOpen:		BOOL;
 	sliderClosed:	BOOL;
-	pt100Real:		real;
+	pt100Real:		REAL;
+	
+	measuredTemp:	REAL;
+	thermostat:		FB_TimeProportionalThermostat;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -26,7 +29,8 @@ curingStations[1](ioHmi := HMI.curingStations[1], iStationId := 1, iDeviceId := 
 curingStations[2](ioHmi := HMI.curingStations[2], iStationId := 2, iDeviceId := 'Curing station 3', iControlSignals := cs.out);
 curingStations[3](ioHmi := HMI.curingStations[3], iStationId := 3, iDeviceId := 'Curing station 4', iControlSignals := cs.out);
 curingStations[4](ioHmi := HMI.curingStations[4], iStationId := 4, iDeviceId := 'Curing station 5', iControlSignals := cs.out);
-]]></ST>
+
+thermostat(iTargetTemp := 50, iMeasuredTemp := measuredTemp, ioHmi := HMI.csThermo);]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

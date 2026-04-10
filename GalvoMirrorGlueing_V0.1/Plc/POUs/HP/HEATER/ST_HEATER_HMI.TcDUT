@@ -7,8 +7,9 @@ STRUCT
 	service:		ST_HEATER_SERVICE;
 	settings:		ST_HEATER_SETTINGS;
 	
-	ai:				ST_AI_HMI;
-	thermostat:		ST_THERMOSTAT_HMI;
+	ai:						ST_AI_HMI;
+//	regularThermostat:		ST_THERMOSTAT_HMI;
+	specialThermostat:		ST_TIME_PROPORTIONAL_THERMOSTAT_HMI;
 END_STRUCT
 END_TYPE
 ]]></Declaration>

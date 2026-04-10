@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_HeaterControlV2" Id="{1ce5d6ad-b230-4410-8f4a-6d54ab7fcaf5}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_HeaterControlV2 EXTENDS FB_StepperProgram		// This FB is responisble for controlling the heater part of the curing station
+  <POU Name="FB_CuringStationHeaterControl" Id="{1ce5d6ad-b230-4410-8f4a-6d54ab7fcaf5}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_CuringStationHeaterControl EXTENDS FB_StepperProgram		// This FB is responisble for controlling the heater part of the curing station, we can be in either TEST or WORK mode
 VAR_INPUT
 	iEstopOk:					BOOL;	// 1 = System is running, no estop pressed
 	iEnable:					BOOL;	// When TRUE, this sequence is possible to be run
@@ -16,7 +16,7 @@ VAR_OUTPUT
 	oHeat:						BOOL;	// Heater control
 	oFan:						BOOL;	// Fan control
 	oTempInC:					REAL;	// Temperature in celcius
-	oTempInF:					REAL;	// Temperature in fahrenheit
+//	oTempInF:					REAL;	// Temperature in fahrenheit
 	oEnabled:					BOOL;	// When TRUe, the station is enabled
 END_VAR
 VAR_IN_OUT
@@ -26,7 +26,8 @@ VAR
 	step:						E_HEATER_STEPS;
 	service:					ST_HEATER_SERVICE;
 	ai:							FB_AnalogInput;
-	thermostat:					FB_Thermostat;
+//	regularThermostat:			FB_Thermostat;
+	specialThermostat:			FB_TimeProportionalThermostat;
 	targetTemperature:			REAL;
 END_VAR
 VAR PERSISTENT
@@ -72,23 +73,28 @@ END_IF
 
 // Analog input
 ai(iRawValue := iPt100RawValue, oScaledValue => oTempInC, iDeviceId := iDeviceId, ioHmi := ioHmi.ai);
-oTempInF := 10000;
+//oTempInF := 10000;
 
 
 // Temperature control/thermostat
-thermostat(iTargetValue := targetTemperature, iHysteresis := staticSettings.hysteresis, iMeasuredValue := ai.oScaledValue, ioHmi := ioHmi.thermostat);
+//regularThermostat(iTargetValue := targetTemperature, iHysteresis := staticSettings.hysteresis, iMeasuredValue := ai.oScaledValue, ioHmi := ioHmi.regularThermostat);
+
+specialThermostat(iHeat := stepInBetween(E_HEATER_STEPS.HEAT_TO_TEST_TEMP, E_HEATER_STEPS.HEAT_TO_WORK_TEMP), iTargetTemp := targetTemperature, iMeasuredTemp := ai.oScaledValue, ioHmi := iohmi.specialThermostat);
 
 // Controlling of actual outputs
-oHeat := iEstopOk AND thermostat.oHeat;
-oFan := iEstopOk AND oHeat;
+//oHeat := iEstopOk AND (((step = E_HEATER_STEPS.HEAT_TO_TEST_TEMP) AND regularThermostat.oHeat) OR (step = E_HEATER_STEPS.HEAT_TO_WORK_TEMP) AND specialThermostat.oHeat);
+oHeat := iEstopOk AND specialThermostat.oHeat;
 
-
+// Fan follows the heating element
+oFan := oHeat;
 
 
 oTestTemperatureReached := FC_WithinRange(iTarget := staticSettings.testTemperature, iValue := ai.oScaledValue, iRange := staticSettings.hysteresis);
 oWorkTemperatureReached := FC_WithinRange(iTarget := staticSettings.workTemperature, iValue := ai.oScaledValue, iRange := staticSettings.hysteresis);
 
 oEnabled := iEnable;
+
+mStatistics();
 
 mHmi();
 ]]></ST>
@@ -109,7 +115,7 @@ ioHmi.state.enabled := oEnabled;
 ioHmi.state.heat := oHeat;
 ioHmi.state.fan := oFan;
 ioHmi.state.tempInC := oTempInC;
-ioHmi.state.tempInF := oTempInF;
+//ioHmi.state.tempInF := oTempInF;
 
 
 ioHmi.state.testTemperatureReached := oTestTemperatureReached;
@@ -119,6 +125,20 @@ ioHmi.state.stationId := iStationId;
 
 
 {warning restore C0371}
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="mStatistics" Id="{e508fd74-f26d-4db4-a41a-26505d0db198}">
+      <Declaration><![CDATA[METHOD mStatistics : BOOL
+VAR_INST
+	switchHeatOnCount:		FB_EventCounter;
+	heatDurationOnCount:	FB_DurationCounter;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[switchHeatOnCount(iEvent := oHeat);
+
+heatDurationOnCount(iSignal := oHeat);
 ]]></ST>
       </Implementation>
     </Method>

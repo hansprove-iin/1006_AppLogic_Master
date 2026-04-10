@@ -1,0 +1,67 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TimeProportionalThermostat" Id="{043ffa0b-bfda-4701-b753-6056f48fa7ac}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TimeProportionalThermostat		// Thermostat program, uses min and max power to keep heat stable (at min power) and to avoid overshooting (max power) 
+VAR_INPUT
+	iHeat:					BOOL;		// Set to TRUE when heating is required
+	iTargetTemp:			REAL;		// The target temperature (in celcius)
+	iMeasuredTemp:			REAL;		// The measured temperature (in celcius)
+END_VAR
+VAR_OUTPUT
+	oHeat:					BOOL;		// TRUE when heating is to be Active
+END_VAR
+VAR_IN_OUT
+	ioHmi:					ST_TIME_PROPORTIONAL_THERMOSTAT_HMI;
+END_VAR
+VAR
+	tempDiff:				REAL;
+	powerOutputInPercent:	REAL;
+	propo:					FB_TimeProportionalControl;
+END_VAR
+VAR_STAT PERSISTENT
+	settings:				ST_TIME_PROPORTIONAL_THERMOSTAT_SETTINGS;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF (NOT IING.cycleStart) THEN
+	settings := ioHmi.settings;
+END_IF
+
+
+// Difference between target and measured
+tempDiff := (iTargetTemp - iMeasuredTemp);
+
+IF (tempDiff < 0) THEN		// Ensuring negative difference does not start heating again
+	powerOutputInPercent := settings.minPowerProcent;		
+ELSE
+	powerOutputInPercent := (tempDiff * settings.pFactor);
+END_IF
+
+// Limiting the power between min and max
+powerOutputInPercent := FC_KeepBetweenMinMax(iValue := powerOutputInPercent, iMin := settings.minPowerProcent, iMax := settings.maxPowerProcent);
+
+// Time proportional control of the heater
+propo(iProcent := powerOutputInPercent, iCyclePeriod := settings.cycleTime);
+
+oHeat := (iHeat AND propo.oOn); 
+
+mHmi();
+
+
+]]></ST>
+    </Implementation>
+    <Method Name="mHmi" Id="{ea8d8898-65e1-4bd1-9570-e433e63d1807}">
+      <Declaration><![CDATA[METHOD PRIVATE mHmi
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ioHmi.settings := settings;
+
+ioHmi.state.on := oHeat;
+ioHmi.state.cycleTimeExpired := propo.oCycleTimeExpired;
+ioHmi.state.calculatedOnTime := propo.oCalculatedOnTime;
+
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -10,6 +10,9 @@ VAR_GLOBAL
 	{ attribute 'TcHmiSymbol.AddSymbol' }
 	{ attribute 'TcHmiSymbol.ShowRecursively' }
 	cs:				ST_CS_HMI;
+	
+	
+	csThermo: ST_TIME_PROPORTIONAL_THERMOSTAT_HMI;
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>
