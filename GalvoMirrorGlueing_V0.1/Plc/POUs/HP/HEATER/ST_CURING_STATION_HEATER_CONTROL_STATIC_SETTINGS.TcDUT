@@ -1,8 +1,12 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <DUT Name="ST_TIME_PROPORTIONAL_THERMOSTAT_SETTINGS" Id="{534a7320-1055-4059-a879-872b62c57ee6}">
-    <Declaration><![CDATA[TYPE ST_TIME_PROPORTIONAL_THERMOSTAT_SETTINGS :
+  <DUT Name="ST_CURING_STATION_HEATER_CONTROL_STATIC_SETTINGS" Id="{0b44db92-1a33-4ad1-8bc7-339db9981203}">
+    <Declaration><![CDATA[TYPE ST_CURING_STATION_HEATER_CONTROL_STATIC_SETTINGS :
 STRUCT
+	testTemperature:			REAL := 28.0;
+	workTemperature:			REAL := 50.0;
+	hysteresis:					REAL := 2.0;	// If temp within this value, temp is 'reached'
+	
 	pFactor:					REAL := 3;		// Temp diff * pFactor = power output (just like a PID controller but without the ID)
 	minPowerProcent:			REAL := 20;		// If this were a PID controller, we need 20% to keep the constant heat (at target setpoint)
 	maxPowerProcent:			REAL := 80;		// To limit the output (in case the heating element is too powerfull)

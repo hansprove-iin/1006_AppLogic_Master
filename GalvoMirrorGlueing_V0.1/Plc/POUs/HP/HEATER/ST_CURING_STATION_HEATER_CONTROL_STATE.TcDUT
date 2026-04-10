@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <DUT Name="ST_HEATER_STATE" Id="{15b71431-4699-4e45-ae28-f1cd8c1b9efa}">
-    <Declaration><![CDATA[TYPE ST_HEATER_STATE :
+  <DUT Name="ST_CURING_STATION_HEATER_CONTROL_STATE" Id="{15b71431-4699-4e45-ae28-f1cd8c1b9efa}">
+    <Declaration><![CDATA[TYPE ST_CURING_STATION_HEATER_CONTROL_STATE :
 STRUCT
 	enabled:					BOOL;
 	heat:						BOOL;

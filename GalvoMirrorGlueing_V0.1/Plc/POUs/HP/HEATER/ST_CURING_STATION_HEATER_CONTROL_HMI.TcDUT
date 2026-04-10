@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_CURING_STATION_HEATER_CONTROL_HMI" Id="{00de9a9e-29a6-4e5d-aca1-c7c0afb19a90}">
+    <Declaration><![CDATA[TYPE ST_CURING_STATION_HEATER_CONTROL_HMI :
+STRUCT
+	state:				ST_CURING_STATION_HEATER_CONTROL_STATE;
+	service:			ST_CURING_STATION_HEATER_CONTROL_SERVICE;
+	staticSettings:		ST_CURING_STATION_HEATER_CONTROL_STATIC_SETTINGS;
+	
+	ai:						ST_AI_HMI;
+//	regularThermostat:		ST_THERMOSTAT_HMI;
+	specialThermostat:		ST_TIME_PROPORTIONAL_THERMOSTAT_HMI;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>
