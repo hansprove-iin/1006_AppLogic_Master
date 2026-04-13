@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="E_CURING_STATION_SEQUENCE_STEPS" Id="{d0b8983f-4cfc-4ff6-ae1a-d159da4ccd01}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_CURING_STATION_SEQUENCE_STEPS :
+(
+	INIT := 0,
+	
+	STARTUP_TEST_DO_ECCENTRIC_WHEEL_HOMING,
+	
+	STARTUP_TEST_TEST_SLIDER_TO_WORK,
+	STARTUP_TEST_TEST_SLIDER_TO_HOME,
+	
+	STARTUP_TEST_TEST_GRIPPER_TO_WORK,
+	STARTUP_TEST_TEST_GRIPPER_TO_HOME,
+	
+	STARTUP_TEST_TEST_UNDERLIGHT,
+	
+	STARTUP_TEST_TEST_LASER,
+	
+	STARTUP_TEST_TEST_HEATER,
+
+	STARTUP_TEST_DONE,
+
+	STARTUP_TEST_FAIL,	
+	
+	OPERATIONAL
+	
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

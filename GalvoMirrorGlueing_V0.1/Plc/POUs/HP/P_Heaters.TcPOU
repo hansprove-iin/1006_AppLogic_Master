@@ -22,18 +22,20 @@ END_VAR
 cs REF= controlSignals.oControlSignals^;
 
 curingStations[0](iStationId := 0, iDeviceId := 'Curing station 1', iControlSignals := cs.out,iGripperOpen := gripperOpen, iGripperClosed := gripperClosed, iSliderOpen := sliderOpen, iSliderClosed := sliderClosed, iPt100RawValue := pt100Real,
-	ioHmi := HMI.curingStations[0]);
+	ioHmi := HMI.curingStations[0], ioStaticHeaterSettings := HEATER_CONTROL_SETTINGS.settings);
+	
 curingStations[1](iStationId := 1, iDeviceId := 'Curing station 2', iControlSignals := cs.out,
-	ioHmi := HMI.curingStations[1]);
+	ioHmi := HMI.curingStations[1], ioStaticHeaterSettings := HEATER_CONTROL_SETTINGS.settings);
 
 curingStations[2](iStationId := 2, iDeviceId := 'Curing station 3', iControlSignals := cs.out,
-	ioHmi := HMI.curingStations[2]);
+	ioHmi := HMI.curingStations[2], ioStaticHeaterSettings := HEATER_CONTROL_SETTINGS.settings);
 	
 curingStations[3](iStationId := 3, iDeviceId := 'Curing station 4', iControlSignals := cs.out,
-	ioHmi := HMI.curingStations[3]);
+	ioHmi := HMI.curingStations[3], ioStaticHeaterSettings := HEATER_CONTROL_SETTINGS.settings);
 
 curingStations[4](iStationId := 4, iDeviceId := 'Curing station 5', iControlSignals := cs.out,
-	ioHmi := HMI.curingStations[4]);
+	ioHmi := HMI.curingStations[4], ioStaticHeaterSettings := HEATER_CONTROL_SETTINGS.settings);
+
 
 ]]></ST>
     </Implementation>

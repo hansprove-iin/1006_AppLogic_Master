@@ -9,8 +9,6 @@ STRUCT
 	
 	cyls:			ARRAY[0..1] OF ST_CYL_HMI;
 	heater:			ST_CURING_STATION_HEATER_CONTROL_HMI;
-	
-	
 END_STRUCT
 END_TYPE
 ]]></Declaration>

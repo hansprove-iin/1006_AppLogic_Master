@@ -16,6 +16,8 @@ VAR_INPUT
 	iRequestSliderOpen:			BOOL;
 	iRequestSliderClosed:		BOOL;
 	
+	iDoStartupTest:				BOOL;
+	iStart:						BOOL;
 	
 	iEstopOk:					BOOL;	// 1 = System is running, no estop pressed
 	iEnable:					BOOL;	// When TRUE, this sequence is possible to be run
@@ -29,18 +31,28 @@ VAR_OUTPUT
 	oGripperToClosed:			BOOL;
 	oSliderToOpen:				BOOL;
 	oSliderToClosed:			BOOL;
+	
+	oStartupTestDone:			BOOL;
+	oStartupTestFailed:			BOOL;
+	oOperational:				BOOL;
+	oOperationState:			E_CURING_STATION_OPERATION_STATE;
 END_VAR
 VAR_IN_OUT
 	ioHmi:						ST_CURING_STATION_HMI;
-//	ioHeaterStaticSettings:			ST_CURING_STATION_HEATER_CONTROL_STATIC_SETTINGS;
+	ioStaticHeaterSettings:		ST_CURING_STATION_HEATER_CONTROL_STATIC_SETTINGS;
 END_VAR
 VAR
+	step:						E_CURING_STATION_SEQUENCE_STEPS;
+	service:					ST_CURING_STATION_SERVICE;
+
+	// Devices	
 	cyls:						ARRAY[0..1] OF FB_Cylinder;
 	heater:						FB_CuringStationHeaterControl;
-	
 	//servo:FB_Servo;
 	
-	service:					ST_CURING_STATION_SERVICE;
+	// Helper vars
+	gripper:	REFERENCE TO FB_Cylinder;
+	slider:		REFERENCE TO FB_Cylinder;
 END_VAR
 VAR PERSISTENT
 	settings:					ST_CURING_STATION_SETTINGS;
@@ -52,24 +64,128 @@ END_IF
 
 service := ioHmi.service;
 
-cyls[0](iOpenPos := iGripperOpen, iClosePos := iGripperClosed, iOpenInterLock := TRUE, iCloseInterlock := TRUE, iDeactivate := FALSE, iDeviceId := FC_2strConcatSeparator(iSeparator := '_', iStr1 := 'Gripper', iStr2 := iDeviceId), iControlSignals := iControlSignals,
-	oOpen => oGripperToOpen, oClose => oGripperToClosed, ioHmi := ioHmi.cyls[0]);
+// Helper vars
+gripper REF= cyls[0];
+slider REF= cyls[1];
 
-cyls[1](iOpenPos := iSliderOpen, iClosePos := iSliderClosed, iOpenInterLock := TRUE, iCloseInterlock := TRUE, iDeactivate := FALSE, iDeviceId := FC_2strConcatSeparator(iSeparator := '_', iStr1 := 'Slider', iStr2 := iDeviceId), iControlSignals := iControlSignals,
-	oOpen => oSliderToOpen, oClose => oSliderToClosed, ioHmi := ioHmi.cyls[1]);
 
-heater(iEstopOk := iEstopOk, iEnable := iEnable, iHeatToTestTemp := iHeatToTestTemp, iHeatToWorkTemp := iHeatToWorkTemp, iPt100RawValue := iPt100RawValue, iControlSignals := iControlSignals, iDeviceId := FC_2strConcatSeparator(iSeparator := '_', iStr1 := 'Heater', iStr2 := iDeviceId),
-	ioHmi := ioHmi.heater);
 
-IF (service.enable) THEN
-	ioHmi.state.operationState := 0;
+callMeRightBeforeSwitchCase(ADR(step));
+CASE step OF
+	E_CURING_STATION_SEQUENCE_STEPS.INIT:
+		gotoNextStep(iDoStartupTest, E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_DO_ECCENTRIC_WHEEL_HOMING);
+
+	E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_DO_ECCENTRIC_WHEEL_HOMING:
+		gotoNextStep(TRUE, E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_SLIDER_TO_WORK);
+	
+	E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_SLIDER_TO_WORK:
+		gotoNextStep(slider.oInOpenPos, E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_SLIDER_TO_HOME);
+
+	E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_SLIDER_TO_HOME:
+		gotoNextStep(slider.oInClosedPos, E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_GRIPPER_TO_WORK);
+	
+	E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_GRIPPER_TO_WORK:
+		gotoNextStep(gripper.oInOpenPos, E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_GRIPPER_TO_HOME);
+
+	E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_GRIPPER_TO_HOME:
+		gotoNextStep(gripper.oInClosedPos, E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_UNDERLIGHT);
+	
+	E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_UNDERLIGHT:
+		gotoNextStep(TRUE, E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_LASER);
+	
+	E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_LASER:
+		gotoNextStep(TRUE, E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_HEATER);
+	
+	E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_HEATER:
+		gotoNextStep(heater.oTestTemperatureReached, E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_DONE);
+
+	E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_DONE:
+		gotoNextStep(NOT iDoStartupTest, E_CURING_STATION_SEQUENCE_STEPS.OPERATIONAL);	
+
+	E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_FAIL:
+		gotoNextStep(NOT iDoStartupTest, E_CURING_STATION_SEQUENCE_STEPS.INIT);
+
+	E_CURING_STATION_SEQUENCE_STEPS.OPERATIONAL:
+		gotoNextStep(iStart, E_CURING_STATION_SEQUENCE_STEPS.OPERATIONAL);
+
+
 ELSE
-	ioHmi.state.operationState := 1;
+	step := E_CURING_STATION_SEQUENCE_STEPS.INIT;
+END_CASE
+callMeRightAfterSwitchCase(TRUE, IING.STRING_BLANK);
+
+
+slider.iOpenReq := (step = E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_SLIDER_TO_WORK);
+slider.iCloseReq := NOT slider.iOpenReq;
+
+gripper.iOpenReq := (step = E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_GRIPPER_TO_WORK);
+gripper.iCloseReq := NOT gripper.iOpenReq;
+
+heater.iHeatToTestTemp := (step = E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_HEATER);
+
+
+
+// Outputs
+oStartupTestFailed := (step = E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_FAIL);
+oStartupTestDone := (step = E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_DONE);
+oOperational := (step = E_CURING_STATION_SEQUENCE_STEPS.OPERATIONAL);
+
+
+
+IF (step = E_CURING_STATION_SEQUENCE_STEPS.OPERATIONAL) THEN
+	oOperationState := E_CURING_STATION_OPERATION_STATE.OPERATIONAL;
+ELSIF(step = E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_FAIL) THEN
+	oOperationState := E_CURING_STATION_OPERATION_STATE.FAULTED;
 END_IF
 
+mDevices();
 mHmi();
 ]]></ST>
     </Implementation>
+    <Method Name="mDevices" Id="{cfe8be08-49be-425e-8049-4430db425410}">
+      <Declaration><![CDATA[METHOD PRIVATE mDevices
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[cyls[0](
+	iOpenPos := iGripperOpen,
+	iClosePos := iGripperClosed,
+	iOpenInterLock := TRUE,
+	iCloseInterlock := TRUE,
+	iDeactivate := FALSE,
+	iDeviceId := FC_2strConcatSeparator(iSeparator := '_', iStr1 := 'Gripper', iStr2 := iDeviceId),
+	iControlSignals := iControlSignals,
+	oOpen => oGripperToOpen,
+	oClose => oGripperToClosed,
+	ioHmi := ioHmi.cyls[0]
+);
+
+
+cyls[1](
+	iOpenPos := iSliderOpen,
+	iClosePos := iSliderClosed,
+	iOpenInterLock := TRUE,
+	iCloseInterlock := TRUE,
+	iDeactivate := FALSE,
+	iDeviceId := FC_2strConcatSeparator(iSeparator := '_', iStr1 := 'Slider', iStr2 := iDeviceId),
+	iControlSignals := iControlSignals,
+	oOpen => oSliderToOpen,
+	oClose => oSliderToClosed,
+	ioHmi := ioHmi.cyls[1]
+);
+
+heater(
+	iEstopOk := iEstopOk,
+	iEnable := iEnable,
+//	iHeatToTestTemp :=,
+	iHeatToWorkTemp := iHeatToWorkTemp,
+	iPt100RawValue := iPt100RawValue,
+	iControlSignals := iControlSignals,
+	iDeviceId := FC_2strConcatSeparator(iSeparator := '_', iStr1 := 'Heater', iStr2 := iDeviceId),
+	ioHmi := ioHmi.heater,
+	ioStaticSettings := ioStaticHeaterSettings, 
+);]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="mHmi" Id="{c1c4a4bf-1b08-4931-9088-720e2e94e1a9}">
       <Declaration><![CDATA[METHOD PRIVATE mHmi
 ]]></Declaration>
@@ -81,6 +197,7 @@ END_IF
 
 
 ioHmi.state.stationId := iStationId;
+ioHmi.state.operationState := oOperationState;
 
 
 ioHmi.settings := settings;
@@ -88,6 +205,14 @@ ioHmi.service := service;
 
 {warning restore C0371}
 
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="stepAsString" Id="{1ba0609e-3c25-44f9-a226-3bb5b5742ca9}">
+      <Declaration><![CDATA[METHOD PUBLIC stepAsString : T_SHORT_STR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[stepAsString := TO_STRING(step);
 ]]></ST>
       </Implementation>
     </Method>
