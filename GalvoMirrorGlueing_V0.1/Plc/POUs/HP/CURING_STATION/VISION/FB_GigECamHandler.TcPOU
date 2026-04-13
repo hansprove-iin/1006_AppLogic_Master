@@ -1,0 +1,96 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_GigECamHandler" Id="{ad4a7637-8a55-46bc-b5af-f4caf8c4370b}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_GigECamHandler EXTENDS FB_StepperProgram	// Wrapper/handler for gigE cameras, make it easy to use for our needs
+VAR_INPUT
+	iDoIt:						BOOL;
+	iDoConversion:				BOOL;
+	iColorSpaceTransform:		ETcVnColorSpaceTransform;
+	iReset:						BOOL;
+END_VAR
+VAR_OUTPUT
+	oReadyForOperation:		BOOL;
+	oImageAcquired:			BOOL;
+	oDone:					BOOL;
+	oError:					BOOL;
+	
+	oRawImage:				ITcVnImage;
+	oConvertedImage:		ITcVnImage;
+END_VAR
+VAR_IN_OUT
+END_VAR
+VAR
+	step:					E_GIGE_CAM_HANDLER_SEQ_STEPS;
+	hResult:				HRESULT;
+	visionState:			ETcVnCameraState;
+	visionStateError:		BOOL;
+	ioCameraFb:				FB_VN_GevCameraControl;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+visionState := ioCameraFb.GetState();
+visionStateError := (visionState = TCVN_CS_ERROR);
+
+
+
+callMeRightBeforeSwitchCase(ADR(step));
+CASE step OF
+	E_GIGE_CAM_HANDLER_SEQ_STEPS.INIT:
+		gotoNextStep(iReset OR iDoIt AND (visionState = TCVN_CS_ERROR), E_GIGE_CAM_HANDLER_SEQ_STEPS.RESET_CAMERA);
+		gotoNextStep(iReset OR iDoIt AND (visionState = TCVN_CS_INITIAL), E_GIGE_CAM_HANDLER_SEQ_STEPS.READY_FOR_OPERATION);
+
+	E_GIGE_CAM_HANDLER_SEQ_STEPS.RESET_CAMERA:
+		hResult := ioCameraFb.Reset();
+		gotoNextStep(hResult = S_OK, E_GIGE_CAM_HANDLER_SEQ_STEPS.READY_FOR_OPERATION);
+		gotoNextStep(hResult = S_FALSE, E_GIGE_CAM_HANDLER_SEQ_STEPS.ERROR);
+	
+	E_GIGE_CAM_HANDLER_SEQ_STEPS.READY_FOR_OPERATION:
+		gotoNextStep(iDoIt, E_GIGE_CAM_HANDLER_SEQ_STEPS.TRIGGER_CAMERA);
+	
+	E_GIGE_CAM_HANDLER_SEQ_STEPS.TRIGGER_CAMERA:
+		hResult := ioCameraFb.TriggerImage();
+		gotoNextStep(FAILED(hResult) OR visionStateError, E_GIGE_CAM_HANDLER_SEQ_STEPS.ERROR);
+		gotoNextStep(SUCCEEDED(hresult) AND (visionState = TCVN_CS_STARTACQUISITION) , E_GIGE_CAM_HANDLER_SEQ_STEPS.START_ACQUISITION);
+	
+	E_GIGE_CAM_HANDLER_SEQ_STEPS.START_ACQUISITION:
+		hResult := ioCameraFb.StartAcquisition();
+		gotoNextStep(FAILED(hResult) OR visionStateError, E_GIGE_CAM_HANDLER_SEQ_STEPS.ERROR);
+		gotoNextStep(SUCCEEDED(hresult) AND (visionState = TCVN_CS_ACQUIRING) , E_GIGE_CAM_HANDLER_SEQ_STEPS.ACQUIRING);
+		
+	E_GIGE_CAM_HANDLER_SEQ_STEPS.ACQUIRING:
+		hResult := ioCameraFb.GetCurrentImageUndistorted(oRawImage);
+		gotoNextStep(iDoConversion AND SUCCEEDED(hResult) AND (oRawImage <> IING.ZERO_POINTER), E_GIGE_CAM_HANDLER_SEQ_STEPS.DO_COLOR_CONVERSION);
+		gotoNextStep(NOT iDoConversion AND SUCCEEDED(hResult) AND (oRawImage <> IING.ZERO_POINTER), E_GIGE_CAM_HANDLER_SEQ_STEPS.ACQUIRED);
+		
+		gotoNextStep(FAILED(hResult), E_GIGE_CAM_HANDLER_SEQ_STEPS.ERROR); 
+			
+	E_GIGE_CAM_HANDLER_SEQ_STEPS.DO_COLOR_CONVERSION:
+		hResult := F_VN_ConvertColorSpace(ipSrcImage := oRawImage, ipDestImage := oConvertedImage, eTransform := iColorSpaceTransform, hrPrev:= hResult);
+		gotoNextStep(SUCCEEDED(hResult), E_GIGE_CAM_HANDLER_SEQ_STEPS.ACQUIRED);
+		gotoNextStep(FAILED(hResult), E_GIGE_CAM_HANDLER_SEQ_STEPS.ERROR);
+	
+	E_GIGE_CAM_HANDLER_SEQ_STEPS.ACQUIRED:
+		gotoNextStep(NOT iDoIt, E_GIGE_CAM_HANDLER_SEQ_STEPS.INIT);
+	
+	
+	E_GIGE_CAM_HANDLER_SEQ_STEPS.ERROR:
+		gotoNextStep(iReset, E_GIGE_CAM_HANDLER_SEQ_STEPS.INIT);
+		
+	
+	
+ELSE
+	step := E_GIGE_CAM_HANDLER_SEQ_STEPS.INIT;
+END_CASE
+callMeRightAfterSwitchCase(TRUE, IING.STRING_BLANK);
+
+
+
+oReadyForOperation := (step = E_GIGE_CAM_HANDLER_SEQ_STEPS.READY_FOR_OPERATION);
+oImageAcquired := (step = E_GIGE_CAM_HANDLER_SEQ_STEPS.ACQUIRING);
+oError := (step = E_GIGE_CAM_HANDLER_SEQ_STEPS.ERROR);
+oDone := (step = E_GIGE_CAM_HANDLER_SEQ_STEPS.DONE);
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

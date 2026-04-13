@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_NORMAL_CAM_HANDLER_SERVICE" Id="{d64ce8ff-c0b4-49d2-b10c-b8683775c26e}">
+    <Declaration><![CDATA[TYPE ST_NORMAL_CAM_HANDLER_SERVICE :
+STRUCT
+	doUnderLightTest:		BOOL;
+	doLaserTest:			BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

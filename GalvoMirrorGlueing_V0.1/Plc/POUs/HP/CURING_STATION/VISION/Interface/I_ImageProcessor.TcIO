@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Itf Name="I_ImageProcessor" Id="{617674ac-7327-4faa-b147-f3d241410754}">
+    <Declaration><![CDATA[INTERFACE I_ImageProcessor
+]]></Declaration>
+    <Method Name="ic_cancelProcessing" Id="{a7c06d5a-1c6f-43d8-b348-b53d99a934b5}">
+      <Declaration><![CDATA[METHOD ic_cancelProcessing
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="ic_getCenterPoint" Id="{c02fc98d-6f08-421b-bc64-3f4fcfd3a70f}">
+      <Declaration><![CDATA[METHOD ic_getCenterPoint : TcVnPoint2_REAL
+
+]]></Declaration>
+    </Method>
+    <Method Name="ic_process" Id="{53f6df18-cd86-4b8c-aa8b-0f6d3c9f28c4}">
+      <Declaration><![CDATA[METHOD ic_process
+VAR_INPUT
+	iRawImage:			ITcVnImage;
+	iProcessedImage:	ITcVnImage;
+	iDisplayableImage:	ITcVnDisplayableImage;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="ic_processingError" Id="{ca890ef7-7a65-451a-91b4-f9d2da74e53c}">
+      <Declaration><![CDATA[METHOD ic_processingError : BOOL
+]]></Declaration>
+    </Method>
+    <Method Name="ic_processingReady" Id="{0b698c9d-6f1b-41e0-aa5d-670537294bab}">
+      <Declaration><![CDATA[METHOD ic_processingReady : BOOL
+]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <GVL Name="VISION_PARAMS" Id="{6b90f489-c7fa-4a10-8116-fac11a30d862}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL PERSISTENT
+	couplerDetectParams:	ST_COUPLER_DETECT_SETTINGS;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

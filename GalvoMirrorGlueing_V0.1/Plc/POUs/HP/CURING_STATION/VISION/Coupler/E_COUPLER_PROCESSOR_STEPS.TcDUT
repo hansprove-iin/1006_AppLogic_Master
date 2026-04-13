@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="E_COUPLER_PROCESSOR_STEPS" Id="{8f3e200b-0d66-4837-bf51-d48ddc532f6b}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_COUPLER_PROCESSOR_STEPS :
+(
+	INIT := 0,
+	
+	LOCATE_EDGE1,
+	
+	LOCATE_EDGE2,
+
+	LOCATE_EDGE3,
+	
+	DRAW_POINTS,
+	
+	MAKE_DISPLAYABLE,
+	
+	DONE,
+	
+	ERROR,
+	
+	END
+	
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

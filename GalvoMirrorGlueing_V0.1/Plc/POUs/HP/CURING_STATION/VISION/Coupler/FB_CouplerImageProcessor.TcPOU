@@ -1,0 +1,213 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_CouplerImageProcessor" Id="{26cc6962-9107-4abd-8c85-d106329a8d10}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_CouplerImageProcessor	EXTENDS FB_StepperProgram IMPLEMENTS I_ImageProcessor		// FB responsible for VISION program detecting the coupler
+VAR
+	step:						E_COUPLER_PROCESSOR_STEPS;
+	hResult:					HRESULT;
+
+	startPoint1:				TcVnPoint2_REAL;
+	endPoint1:					TcVnPoint2_REAL;
+	container1:					ITcVnContainer;	
+
+	element:					TcVnPoint2_REAL;
+	element2:					ARRAY [0..5] OF TcVnPoint2_REAL;
+	element3:					ARRAY [0..5] OF TcVnPoint2_REAL;
+
+	startPoint2:				TcVnPoint2_REAL;
+	endPoint2:					TcVnPoint2_REAL;
+	container2:					ITcVnContainer;	
+
+	startPoint3:				TcVnPoint2_REAL;
+	endPoint3:					TcVnPoint2_REAL;
+	container3:					ITcVnContainer;
+	
+	i:							ULINT;
+
+	average2:					TcVnPoint2_REAL;
+	average3:					TcVnPoint2_REAL;
+	centerpoint:				TcVnPoint2_REAL;
+
+
+	// Set throug hinterfaces
+	doProcessing:				BOOL;
+	rawImage:					ITcVnImage;				// Not owned, do not clear
+	processedImage:				ITcVnImage;				// NOT owned, DO NOT clear
+	displayableProcessedImage:	ITcVnDisplayableImage;	// Not owned, do not clear
+END_VAR
+VAR_STAT PERSISTENT
+	settings:	ST_COUPLER_DETECT_SETTINGS;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+callMeRightBeforeSwitchCase(ADR(step));
+CASE step OF
+	E_COUPLER_PROCESSOR_STEPS.INIT:
+		gotoNextStep(doProcessing, E_COUPLER_PROCESSOR_STEPS.LOCATE_EDGE1);
+
+	E_COUPLER_PROCESSOR_STEPS.LOCATE_EDGE1:
+		//mInternalCleanup();
+		startPoint1[0] :=		1000;
+		startPoint1[1] :=		1000;
+		endPoint1[0] :=			550;
+		endPoint1[1] :=			1000;
+
+		hResult := F_VN_LocateEdge(
+			ipSrcImage :=		rawImage, 
+			ipEdgePoints :=		container1, 
+			aStartPoint :=		startPoint1, 
+			aEndPoint :=		endPoint1, 
+			eEdgeDirection :=	ETcVnEdgeDirection.TCVN_ED_Light_TO_Dark, 
+			fMinStrength :=		45, 
+			nSearchLines :=		5, 
+			hrPrev :=			hResult
+		);
+		hResult := F_VN_GetAt_TcVnVector2_REAL(ipContainer := container1, aElement := element, nIndex := 0, hrPrev := hResult);
+		gotoNextStep(SUCCEEDED(hResult), E_COUPLER_PROCESSOR_STEPS.LOCATE_EDGE2);
+		gotoNextStep(FAILED(hResult), E_COUPLER_PROCESSOR_STEPS.ERROR);
+	
+	E_COUPLER_PROCESSOR_STEPS.LOCATE_EDGE2:
+		startPoint2[0] :=		element[0]-40;
+		startPoint2[1] :=		600;
+		endPoint2[0] :=			element[0]-40;
+		endPoint2[1] :=			1000;	
+		
+		hResult := F_VN_LocateEdge(
+			ipSrcImage :=		rawImage,
+			ipEdgePoints :=		container2,
+			aStartPoint :=		startPoint2,
+			aEndPoint :=		endPoint2,
+			eEdgeDirection :=	ETcVnEdgeDirection.TCVN_ED_Light_TO_Dark,
+			fMinStrength :=		45,
+			nSearchLines :=		4,
+			hrPrev :=			hResult, 
+		);
+		gotoNextStep(SUCCEEDED(hResult), E_COUPLER_PROCESSOR_STEPS.LOCATE_EDGE3);
+		gotoNextStep(FAILED(hResult), E_COUPLER_PROCESSOR_STEPS.ERROR);
+
+	E_COUPLER_PROCESSOR_STEPS.LOCATE_EDGE3:
+		startPoint3[0] :=		element[0] - 40;
+		startPoint3[1] :=		1400;
+		endPoint3[0] :=			element[0] - 40;
+		endPoint3[1] :=			1000;	
+
+		hResult := F_VN_LocateEdge(
+			ipSrcImage :=		rawImage,
+			ipEdgePoints :=		container3,
+			aStartPoint :=		startPoint3,
+			aEndPoint :=		endPoint3,
+			eEdgeDirection :=	ETcVnEdgeDirection.TCVN_ED_Light_TO_Dark,
+			fMinStrength :=		45,
+			nSearchLines :=		4,
+			hrPrev :=			hResult 
+		);
+		gotoNextStep(SUCCEEDED(hResult), E_COUPLER_PROCESSOR_STEPS.DRAW_POINTS);
+		gotoNextStep(FAILED(hResult), E_COUPLER_PROCESSOR_STEPS.ERROR);
+
+	E_COUPLER_PROCESSOR_STEPS.DRAW_POINTS:
+		hResult := F_VN_DrawPoints(ipPoints := container1, ipDestImage := processedImage, eShape := ETcVnDrawShape.TCVN_DS_X, aColor := Color.Lime, hrPrev := hResult);
+		hResult := F_VN_DrawPoints(ipPoints := container2, ipDestImage := processedImage, eShape := ETcVnDrawShape.TCVN_DS_X, aColor := Color.Lime, hrPrev := hResult);
+		hResult := F_VN_DrawPoints(ipPoints := container3, ipDestImage := processedImage, eShape := ETcVnDrawShape.TCVN_DS_X, aColor := Color.Lime, hrPrev := hResult);
+
+		FOR i := 0 TO 4 DO
+			hResult := F_VN_GetAt_TcVnVector2_REAL(ipContainer:= container2, aElement:= element2[i], nIndex := i, hrPrev:= hResult);
+			hResult := F_VN_GetAt_TcVnVector2_REAL(ipContainer:= container2, aElement:= element3[i], nIndex := i, hrPrev:= hResult);
+		END_FOR
+		
+		// Calculate the results
+		average2[0] := (element2[0][0] + element2[1][0] + element2[2][0] + element2[3][0]+ element2[4][0] )/ 5;
+		average2[1] := (element2[0][1] + element2[1][1] + element2[2][1] + element2[3][1]+ element2[4][1] )/ 5;
+		average3[0] := (element3[0][0] + element3[1][0] + element3[2][0] + element3[3][0]+ element3[4][0] )/ 5;
+		average3[1] := (element3[0][1] + element3[1][1] + element3[2][1] + element3[3][1]+ element3[4][1] )/ 5;
+
+		centerpoint[0] := (average2[0] + average3[0]) / 2;
+		centerpoint[1] := (average2[1] + average3[1]) / 2;
+		
+		gotoNextStep(SUCCEEDED(hResult), E_COUPLER_PROCESSOR_STEPS.MAKE_DISPLAYABLE);
+		gotoNextStep(FAILED(hResult), E_COUPLER_PROCESSOR_STEPS.ERROR);	
+
+	E_COUPLER_PROCESSOR_STEPS.MAKE_DISPLAYABLE:
+		hResult := F_VN_CopyIntoDisplayableImage(processedImage, displayableProcessedImage, hResult);
+		gotoNextStep(SUCCEEDED(hResult), E_COUPLER_PROCESSOR_STEPS.DONE);
+		gotoNextStep(FAILED(hResult), E_COUPLER_PROCESSOR_STEPS.ERROR);
+	
+	E_COUPLER_PROCESSOR_STEPS.DONE:
+		gotoNextStep(NOT doProcessing, E_COUPLER_PROCESSOR_STEPS.INIT);
+	
+	E_COUPLER_PROCESSOR_STEPS.ERROR:
+		gotoNextStep(NOT doProcessing, E_COUPLER_PROCESSOR_STEPS.INIT);
+	
+ELSE
+	step := E_COUPLER_PROCESSOR_STEPS.INIT;
+END_CASE
+callMeRightAfterSwitchCase(TRUE, IING.STRING_BLANK);
+]]></ST>
+    </Implementation>
+    <Method Name="_mInternalCleanup" Id="{f9f28400-194a-4738-9624-db9399a486cc}">
+      <Declaration><![CDATA[METHOD PRIVATE _mInternalCleanup
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[doProcessing := FALSE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_cancelProcessing" Id="{455e2ca5-6bfe-4407-85d0-016e67d5adc0}">
+      <Declaration><![CDATA[METHOD ic_cancelProcessing
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[doProcessing := FALSE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_getCenterPoint" Id="{b6f67faf-dd8e-4ff4-a832-d86cf00b49d2}">
+      <Declaration><![CDATA[METHOD ic_getCenterPoint : TcVnPoint2_REAL
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ic_getCenterPoint := centerpoint;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_process" Id="{f116b73f-131c-49ef-bb6a-f8d403e0e450}">
+      <Declaration><![CDATA[METHOD ic_process
+VAR_INPUT
+	iRawImage:			ITcVnImage;
+	iProcessedImage:	ITcVnImage;
+	iDisplayableImage:	ITcVnDisplayableImage;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[doProcessing := TRUE;
+rawImage := iRawImage;
+processedImage := iProcessedImage;
+displayableProcessedImage := iDisplayableImage;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_processingError" Id="{b02ad15d-976c-4b74-b5e8-57e36c8b0383}">
+      <Declaration><![CDATA[METHOD public ic_processingError : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ic_processingError := (step = E_COUPLER_PROCESSOR_STEPS.ERROR);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ic_processingReady" Id="{d68877c6-46ee-4196-9e03-2a4787c9e0a7}">
+      <Declaration><![CDATA[METHOD public ic_processingReady : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ic_processingReady := (step = E_COUPLER_PROCESSOR_STEPS.DONE);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="stepAsString" Id="{e9d9ca03-4fb1-4891-808d-ad038655d62d}">
+      <Declaration><![CDATA[METHOD PUBLIC stepAsString : T_SHORT_STR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[stepAsString := TO_STRING(step);
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

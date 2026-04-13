@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_NORMAL_CAM_HANDLER_HMI" Id="{093b120d-3d92-4905-b105-59148ea5566a}">
+    <Declaration><![CDATA[TYPE ST_NORMAL_CAM_HANDLER_HMI :
+STRUCT
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

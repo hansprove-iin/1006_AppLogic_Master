@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FC_RectFromSettings" Id="{09c2f9b1-782c-44f8-9652-89340e25b543}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_RectFromSettings : TcVnRectangle_UDINT
+VAR_INPUT
+	setting:	ST_TEST_SETTING;
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

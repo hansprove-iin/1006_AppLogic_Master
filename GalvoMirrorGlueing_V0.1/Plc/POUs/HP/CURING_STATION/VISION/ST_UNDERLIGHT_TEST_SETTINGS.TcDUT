@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_UNDERLIGHT_TEST_SETTINGS" Id="{815f83d6-83f0-4b0e-8c4c-7c92808a2dfc}">
+    <Declaration><![CDATA[TYPE ST_UNDERLIGHT_TEST_SETTINGS :
+STRUCT
+	height:		UDINT := 200;
+	width:		UDINT := 200;
+	x:			UDINT := 1800;
+	y:			UDINT := 900;
+	
+	threshold:	LREAL := 230;		// Average pixel value for the test to be successfull
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

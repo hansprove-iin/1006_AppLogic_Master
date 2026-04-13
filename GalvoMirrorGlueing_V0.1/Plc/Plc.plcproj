@@ -108,6 +108,55 @@
     <Compile Include="POUs\HP\CURING_STATION\ST_CURING_STATION_SETTINGS.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\Coupler\E_COUPLER_PROCESSOR_STEPS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\Coupler\FB_CouplerImageProcessor.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\Coupler\ST_COUPLER_DETECT_SETTINGS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\E_GIGE_CAM_HANDLER_SEQ_STEPS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\E_NORMAL_CAM_HANDLER_SEQ_STEPS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\FB_GigECamHandler.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\FB_CuringStationCameraHandler.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\FC_RectFromSettings.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\Interface\I_ImageProcessor.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\ST_LASER_TEST_SETTINGS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\ST_NORMAL_CAM_HANDLER_HMI.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\ST_NORMAL_CAM_HANDLER_SERVICE.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\ST_NORMAL_CAM_HANDLER_SETTINGS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\ST_TEST_SETTING.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\ST_UNDERLIGHT_TEST_SETTINGS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\VISION_PARAMS.TcGVL">
+      <SubType>Code</SubType>
+      <LinkAlways>true</LinkAlways>
+    </Compile>
     <Compile Include="POUs\HP\GVL\HEATER_CONTROL_SETTINGS.TcGVL">
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
@@ -294,8 +343,11 @@
     <Folder Include="GVLs" />
     <Folder Include="POUs\HP\CURING_STATION\HEATER" />
     <Folder Include="POUs\HP\CURING_STATION" />
+    <Folder Include="POUs\HP\CURING_STATION\VISION" />
+    <Folder Include="POUs\HP\CURING_STATION\VISION\Coupler" />
+    <Folder Include="POUs\HP\CURING_STATION\VISION\Interface" />
+    <Folder Include="POUs\HP\CURING_STATION\VISION\UnderLight" />
     <Folder Include="POUs\HP\GVL" />
-    <Folder Include="POUs\HP\VISION" />
     <Folder Include="POUs\Meca500\Op" />
     <Folder Include="POUs\Meca500\Op\PoseData" />
     <Folder Include="POUs\Meca500\Op\PoseData\Type" />

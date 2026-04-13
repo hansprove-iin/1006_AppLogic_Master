@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_LASER_TEST_SETTINGS" Id="{1974391c-918f-401d-a61a-c351dd2465ed}">
+    <Declaration><![CDATA[TYPE ST_LASER_TEST_SETTINGS :
+STRUCT
+	height:		UDINT := 20;
+	width:		UDINT := 20;
+	x:			UDINT;
+	y:			UDINT;
+	
+	threshold:	LREAL := 230;		// Average pixel value for the test to be successfull
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>
