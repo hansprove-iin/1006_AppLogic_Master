@@ -1,9 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_GigECamHandler" Id="{ad4a7637-8a55-46bc-b5af-f4caf8c4370b}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_GigECamHandler EXTENDS FB_StepperProgram	// Wrapper/handler for gigE cameras, make it easy to use for our needs
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_GigECamHandler EXTENDS FB_StepperProgram	// Wrapper/handler for gigE cameras, handles camera resetting, then images can be acquired (and converted)
 VAR_INPUT
-	iDoIt:						BOOL;
+	iDoIt:						BOOL;		// 
 	iDoConversion:				BOOL;
 	iColorSpaceTransform:		ETcVnColorSpaceTransform;
 	iReset:						BOOL;

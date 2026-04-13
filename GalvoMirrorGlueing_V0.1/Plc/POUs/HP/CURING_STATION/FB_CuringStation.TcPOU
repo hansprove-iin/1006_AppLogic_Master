@@ -17,20 +17,25 @@ VAR_INPUT
 	iRequestSliderClosed:		BOOL;
 	
 	iDoStartupTest:				BOOL;
-	iStart:						BOOL;
+//	iStart:						BOOL;
 	
 	iEstopOk:					BOOL;	// 1 = System is running, no estop pressed
 	iEnable:					BOOL;	// When TRUE, this sequence is possible to be run
 	iStationId:					UDINT;	// Station nummer, 1..10
-	iHeatToTestTemp:			BOOL;	// When TRUE, the test program will run 
+//	iHeatToTestTemp:			BOOL;	// When TRUE, the test program will run 
 	iHeatToWorkTemp:			BOOL;	// When TRUE, will start the heating cycle
 	iPt100RawValue:				REAL;	// Raw (unscaled value) of the PT100 element (or any other analog input)
+	
+	iDetectCoupler:				BOOL;
+	iDetectMirror:				BOOL;
 END_VAR
 VAR_OUTPUT
 	oGripperToOpen:				BOOL;
 	oGripperToClosed:			BOOL;
 	oSliderToOpen:				BOOL;
 	oSliderToClosed:			BOOL;
+	oUnderLightOn:				BOOL;
+	oLaserLightOn:				BOOL;
 	
 	oStartupTestDone:			BOOL;
 	oStartupTestFailed:			BOOL;
@@ -49,6 +54,8 @@ VAR
 	cyls:						ARRAY[0..1] OF FB_Cylinder;
 	heater:						FB_CuringStationHeaterControl;
 	//servo:FB_Servo;
+
+	cameraHandler:				FB_CuringStationCameraHandler;
 	
 	// Helper vars
 	gripper:	REFERENCE TO FB_Cylinder;
@@ -91,10 +98,12 @@ CASE step OF
 		gotoNextStep(gripper.oInClosedPos, E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_UNDERLIGHT);
 	
 	E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_UNDERLIGHT:
-		gotoNextStep(TRUE, E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_LASER);
+		gotoNextStep(cameraHandler.oUnderLightTestOk, E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_LASER);
+		gotoNextStep(cameraHandler.oUnderLightTestFailed, E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_FAIL);
 	
 	E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_LASER:
-		gotoNextStep(TRUE, E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_HEATER);
+		gotoNextStep(cameraHandler.oLaserLightTestOk, E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_HEATER);
+		gotoNextStep(cameraHandler.oLaserLightTestFailed, E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_FAIL);
 	
 	E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_HEATER:
 		gotoNextStep(heater.oTestTemperatureReached, E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_DONE);
@@ -106,7 +115,7 @@ CASE step OF
 		gotoNextStep(NOT iDoStartupTest, E_CURING_STATION_SEQUENCE_STEPS.INIT);
 
 	E_CURING_STATION_SEQUENCE_STEPS.OPERATIONAL:
-		gotoNextStep(iStart, E_CURING_STATION_SEQUENCE_STEPS.OPERATIONAL);
+		gotoNextStep(iDetectCoupler OR iDetectMirror, E_CURING_STATION_SEQUENCE_STEPS.OPERATIONAL);
 
 
 ELSE
@@ -122,6 +131,16 @@ gripper.iOpenReq := (step = E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_GR
 gripper.iCloseReq := NOT gripper.iOpenReq;
 
 heater.iHeatToTestTemp := (step = E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_HEATER);
+
+
+cameraHandler(
+	iDoUnderLightTest :=		(step = E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_UNDERLIGHT),
+	iDoLaserTest :=				(step = E_CURING_STATION_SEQUENCE_STEPS.STARTUP_TEST_TEST_LASER),
+	iDetectCoupler :=			FALSE,
+	iDetectMirror :=			FALSE,
+	oUnderlightOn =>			oUnderlightOn,
+	oLaserLightOn =>			oLaserLightOn
+);
 
 
 

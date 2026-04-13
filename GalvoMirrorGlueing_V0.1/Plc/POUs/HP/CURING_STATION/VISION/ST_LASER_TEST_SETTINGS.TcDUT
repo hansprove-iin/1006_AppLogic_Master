@@ -5,8 +5,8 @@
 STRUCT
 	height:		UDINT := 20;
 	width:		UDINT := 20;
-	x:			UDINT;
-	y:			UDINT;
+	x:			UDINT := 800;
+	y:			UDINT := 900;
 	
 	threshold:	LREAL := 230;		// Average pixel value for the test to be successfull
 END_STRUCT
