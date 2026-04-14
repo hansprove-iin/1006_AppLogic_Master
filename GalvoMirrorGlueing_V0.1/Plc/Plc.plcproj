@@ -129,7 +129,10 @@
     <Compile Include="POUs\HP\CURING_STATION\VISION\FB_CuringStationCameraHandler.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="POUs\HP\CURING_STATION\VISION\FC_RectFromSettings.TcPOU">
+    <Compile Include="POUs\HP\CURING_STATION\VISION\GenericCameraHandler\E_GENERIC_CAM_HANDLER_SEQ_STEPS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\GenericCameraHandler\FB_GenericCameraHandler.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\HP\CURING_STATION\VISION\Interface\I_ImageProcessor.TcIO">
@@ -162,6 +165,10 @@
       <LinkAlways>true</LinkAlways>
     </Compile>
     <Compile Include="POUs\HP\GVL\HMI.TcGVL">
+      <SubType>Code</SubType>
+      <LinkAlways>true</LinkAlways>
+    </Compile>
+    <Compile Include="POUs\HP\GVL\MAIN_VISION_COMM_VARS.TcGVL">
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
     </Compile>
@@ -346,7 +353,7 @@
     <Folder Include="POUs\HP\CURING_STATION\VISION" />
     <Folder Include="POUs\HP\CURING_STATION\VISION\Coupler" />
     <Folder Include="POUs\HP\CURING_STATION\VISION\Interface" />
-    <Folder Include="POUs\HP\CURING_STATION\VISION\UnderLight" />
+    <Folder Include="POUs\HP\CURING_STATION\VISION\GenericCameraHandler" />
     <Folder Include="POUs\HP\GVL" />
     <Folder Include="POUs\Meca500\Op" />
     <Folder Include="POUs\Meca500\Op\PoseData" />

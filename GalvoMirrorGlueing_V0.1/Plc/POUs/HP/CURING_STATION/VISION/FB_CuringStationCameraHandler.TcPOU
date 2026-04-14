@@ -80,6 +80,7 @@ CASE step OF
 		hResult := F_VN_SetRoi_TcVnRectangle_UDINT(stRoi := rectangleArea, ipDestImage := rawImageCopy, hrPrev := hResult);
 		hResult := F_VN_ImageAverage(ipSrcImage := rawImageCopy, aAverage := averagePixelValue, hrPrev := hResult);
 		hResult := F_VN_ResetRoi(ipImage := rawImageCopy, hrPrev := hResult);
+		
 		gotoNextStep((averagePixelValue[0] >= settings.underLightTest.threshold), E_NORMAL_CAM_HANDLER_SEQ_STEPS.UNDER_LIGHT_TEST_OK);  			
 		gotoNextStep((averagePixelValue[0] < settings.underLightTest.threshold), E_NORMAL_CAM_HANDLER_SEQ_STEPS.UNDER_LIGHT_TEST_FAILED);
 	

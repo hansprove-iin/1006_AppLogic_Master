@@ -1,0 +1,136 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_GenericCameraHandler" Id="{71c0e67a-2837-4ed2-875e-3b2810824695}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_GenericCameraHandler EXTENDS FB_StepperProgram	
+VAR_INPUT
+	iDoUnderLightTest:		BOOL;
+	iDoLaserTest:			BOOL;
+	iDetectCoupler:			BOOL;
+	iDetectMirror:			BOOL;
+	
+	iCouplerProcessor:		I_ImageProcessor;		// FB implementing
+	iMirrorProcessor:		I_ImageProcessor;
+	
+END_VAR
+VAR_OUTPUT
+	oUnderLightTestOk:			BOOL;
+	oUnderLightTestFailed:		BOOL;
+	oLaserLightTestOk:			BOOL;
+	oLaserLightTestFailed:		BOOL;
+
+	oCouplerDetectDone:			BOOL;
+	oCouplerDetectFailed:		BOOL;
+
+	oHmi:						ST_NORMAL_CAM_HANDLER_HMI;
+	
+	oUnderlightOn:				BOOL;
+	oLaserLightOn:				BOOL;
+END_VAR
+VAR_IN_OUT
+END_VAR
+VAR
+	step:					E_NORMAL_CAM_HANDLER_SEQ_STEPS;
+	service:				ST_NORMAL_CAM_HANDLER_SERVICE;
+	
+	visionState:			ETcVnCameraState;
+	gigECameraHandler:		FB_GigECamHandler;
+	hResult:				HRESULT;
+	
+	rectangleArea:			TcVnRectangle_UDINT;
+	rawImageCopy:			ITcVnImage;				// Image of either under light/laser
+	processedImage:			ITcVnImage;
+	displayableProcessedImage:	ITcVnDisplayableImage;
+
+	averagePixelValue:		TcVnVector4_LREAL;
+	
+	reset:					BOOL;
+END_VAR
+VAR PERSISTENT
+	settings:				ST_NORMAL_CAM_HANDLER_SETTINGS;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[reset := iControlSignals.resetPulse;
+
+
+
+callMeRightBeforeSwitchCase(ADR(step));
+CASE step OF
+	E_NORMAL_CAM_HANDLER_SEQ_STEPS.INIT:
+		gotoNextStep(iDoUnderLightTest OR service.doUnderLightTest, E_NORMAL_CAM_HANDLER_SEQ_STEPS.UNDER_LIGHT_TEST_ENABLE_LIGHT);
+		gotoNextStep(iDoLaserTest OR service.doLaserTest, E_NORMAL_CAM_HANDLER_SEQ_STEPS.LASER_LIGHT_TEST_ENABLE_LIGHT);
+		gotoNextStep(iDetectCoupler, E_NORMAL_CAM_HANDLER_SEQ_STEPS.COUPLER_DETECT_ENABLE_LIGHT);
+		gotoNextStep(iDetectMirror, E_NORMAL_CAM_HANDLER_SEQ_STEPS.MIRROR_DETECT_ENABLE_LIGHT);
+
+
+
+// --------------------------------- COUPLER DETECT
+	E_NORMAL_CAM_HANDLER_SEQ_STEPS.COUPLER_DETECT_ENABLE_LIGHT:
+		gotoNextStep(isTimeExpired(T#500MS), E_NORMAL_CAM_HANDLER_SEQ_STEPS.COUPLER_DETECT_IMAGE_ACQUIRE);
+
+	E_NORMAL_CAM_HANDLER_SEQ_STEPS.COUPLER_DETECT_IMAGE_ACQUIRE:
+		gotoNextStep(gigECameraHandler.oImageAcquired, E_NORMAL_CAM_HANDLER_SEQ_STEPS.COUPLER_DETECT_IMAGE_PROCESSING);
+		gotoNextStep(gigECameraHandler.oError, E_NORMAL_CAM_HANDLER_SEQ_STEPS.COUPLER_DETECT_FAILED);
+	
+	E_NORMAL_CAM_HANDLER_SEQ_STEPS.COUPLER_DETECT_IMAGE_PROCESSING:
+		iCouplerProcessor.ic_process(iRawImage := rawImageCopy, iProcessedImage := processedImage, iDisplayableImage := displayableProcessedImage);
+		gotoNextStep(iCouplerProcessor.ic_processingReady(), E_NORMAL_CAM_HANDLER_SEQ_STEPS.COUPLER_DETECT_DONE);
+		gotoNextStep(iCouplerProcessor.ic_processingError(), E_NORMAL_CAM_HANDLER_SEQ_STEPS.COUPLER_DETECT_FAILED);
+
+	E_NORMAL_CAM_HANDLER_SEQ_STEPS.COUPLER_DETECT_DONE:
+		gotoNextStep(NOT iDetectCoupler, E_NORMAL_CAM_HANDLER_SEQ_STEPS.INIT);
+	
+	E_NORMAL_CAM_HANDLER_SEQ_STEPS.COUPLER_DETECT_FAILED:
+		gotoNextStep(NOT iDetectCoupler, E_NORMAL_CAM_HANDLER_SEQ_STEPS.INIT);
+
+
+ELSE
+	step := E_NORMAL_CAM_HANDLER_SEQ_STEPS.INIT;
+END_CASE
+callMeRightAfterSwitchCase(TRUE, IING.STRING_BLANK);
+
+
+
+gigECameraHandler(
+	iDoIt := (step = E_NORMAL_CAM_HANDLER_SEQ_STEPS.UNDER_LIGHT_TEST_IMAGE_ACQUIRE),
+	iReset := reset
+);
+
+
+
+oUnderlightOn := stepInBetween(E_NORMAL_CAM_HANDLER_SEQ_STEPS.UNDER_LIGHT_TEST_ENABLE_LIGHT, E_NORMAL_CAM_HANDLER_SEQ_STEPS.UNDER_LIGHT_TEST_IMAGE_PROCESSING)
+	OR stepInBetween(E_NORMAL_CAM_HANDLER_SEQ_STEPS.COUPLER_DETECT_ENABLE_LIGHT, E_NORMAL_CAM_HANDLER_SEQ_STEPS.COUPLER_DETECT_IMAGE_PROCESSING);
+
+oLaserLightOn := stepInBetween(E_NORMAL_CAM_HANDLER_SEQ_STEPS.LASER_LIGHT_TEST_ENABLE_LIGHT, E_NORMAL_CAM_HANDLER_SEQ_STEPS.LASER_LIGHT_TEST_IMAGE_PROCESSING);
+//	OR 
+
+oUnderLightTestOk := (step = E_NORMAL_CAM_HANDLER_SEQ_STEPS.UNDER_LIGHT_TEST_OK);
+oUnderLightTestFailed := (step = E_NORMAL_CAM_HANDLER_SEQ_STEPS.UNDER_LIGHT_TEST_FAILED);
+
+oLaserLightTestOk := (step = E_NORMAL_CAM_HANDLER_SEQ_STEPS.LASER_LIGHT_TEST_OK);
+oLaserLightTestFailed := (step = E_NORMAL_CAM_HANDLER_SEQ_STEPS.LASER_LIGHT_TEST_FAILED);
+
+oCouplerDetectDone := (step = E_NORMAL_CAM_HANDLER_SEQ_STEPS.COUPLER_DETECT_DONE);
+
+oCouplerDetectFailed := (step = E_NORMAL_CAM_HANDLER_SEQ_STEPS.COUPLER_DETECT_FAILED);
+
+
+mHmi();
+]]></ST>
+    </Implementation>
+    <Method Name="mHmi" Id="{2b624abc-23a3-4e0c-844a-88800670f8fb}">
+      <Declaration><![CDATA[METHOD PRIVATE mHmi
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="stepAsString" Id="{564fd659-4bcb-47ff-9158-0be0a2a82ab9}">
+      <Declaration><![CDATA[METHOD PUBLIC stepAsString : T_SHORT_STR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[stepAsString := TO_STRING(step);
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
