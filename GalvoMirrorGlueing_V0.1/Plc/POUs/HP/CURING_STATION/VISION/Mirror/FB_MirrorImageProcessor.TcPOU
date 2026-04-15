@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_MirrorImageProcessor" Id="{7c7766c3-bfb5-4519-b262-bfcbae084b09}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_MirrorImageProcessor	EXTENDS FB_StepperProgram IMPLEMENTS I_MirrorImageProcessor		// FB responsible for VISION program detecting the coupler
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_MirrorImageProcessor	EXTENDS FB_StepperProgram IMPLEMENTS I_MirrorImageProcessor		// FB responsible for VISION program detecting the mirror
 VAR_INPUT
 	iRecipes:					REFERENCE TO ST_Recipes;
 END_VAR
@@ -10,9 +10,8 @@ VAR
 	hResult:					HRESULT;
  
 	cameraScale:				LREAL;		// 1 pixel in millimeters
-	mirrorCenterToWeightCenterYDiffInPixels:	REAL;
+	mirrorCenterToWeightCenterYDiffInPixels:	LREAL;
 	mirrorHalfHeightInMm:			LREAL;
-
 
 	upperEdgeStartPoint:		TcVnPoint2_REAL;
 	upperEdgeEndPoint:			TcVnPoint2_REAL;
@@ -39,7 +38,7 @@ VAR
 	// 'Constants'
 	searchLines:				UDINT;
 	minIntensityDiff:			REAL;
-	verticalsearchYOffsetInPixels:		REAL;
+	verticalSearchYOffsetInPixels:		REAL;
 	cameraPtr:					POINTER TO FB_VN_GevCameraControl;
 	couplerCenterPoint:			TcVnPoint2_REAL;
 END_VAR
@@ -56,32 +55,29 @@ minIntensityDiff := 45;
 verticalsearchYOffsetInPixels := 100;
 
 
-
-	
-
 callMeRightBeforeSwitchCase(ADR(step));
 CASE step OF
 	E_MIRROR_PROCESSOR_STEPS.INIT:
 		gotoNextStep(doProcessing, E_MIRROR_PROCESSOR_STEPS.CALC_CENTER_POINT_OFFSET);
 
 	E_MIRROR_PROCESSOR_STEPS.CALC_CENTER_POINT_OFFSET:
-		hResult := FC_GetCameraScalingFactor(iCameraPtr := cameraPtr, ioScale := cameraScale);
+		hResult := FC_GetCameraScalingFactor(iCameraPtr := cameraPtr, iHrPrev := hResult, ioScale := cameraScale);
 
 		mirrorCenterToWeightCenterYDiffInPixels := iRecipes.Station1To5.rMirrorCenterOffsetToWeightCenterY / cameraScale; // calculates the distance in px of the mirror centerpoint to weight centerpoint. Is used to determine currect positioning of the mirror 
 	
-		mirrorHalfHeightInMm := iRecipes.Station1To5.rMirrorDimensions[VISION.Y_COORD] / 2;
+		mirrorHalfHeightInMm := iRecipes.Station1To5.rMirrorDimensions[VISION.Y_COORD] / 2;				// HOX!!!!!   To be done either for 1..5 or 6..10
 	
 		// Detection from center to upper edge
-		upperEdgeStartPoint[VISION.X_COORD] := couplerCenterPoint[VISION.X_COORD] - ((iRecipes.Station1To5.rCouplerGroveDepth) / cameraScale) + (iRecipes.Station1To5.rMirrorGripPointOffsetToEdgeX / cameraScale) ;
+		upperEdgeStartPoint[VISION.X_COORD] := LREAL_TO_REAL(couplerCenterPoint[VISION.X_COORD] - ((iRecipes.Station1To5.rCouplerGroveDepth) / cameraScale) + (iRecipes.Station1To5.rMirrorGripPointOffsetToEdgeX / cameraScale)) ;
 		upperEdgeStartPoint[VISION.Y_COORD] := couplerCenterPoint[VISION.Y_COORD]; // Coupler centerpoint based Y Startpoint
 		upperEdgeEndPoint[VISION.X_COORD] := upperEdgeStartPoint[VISION.X_COORD];
-		upperEdgeEndPoint[VISION.Y_COORD] := couplerCenterpoint[VISION.Y_COORD] - ((mirrorHalfHeightInMm - iRecipes.Station1To5.rMirrorCenterOffsetToWeightCenterY) / cameraScale) - verticalsearchYOffsetInPixels; // endpoint based on coupler centerpoint - mirror weight centerpoint to edge width + some extra
+		upperEdgeEndPoint[VISION.Y_COORD] := LREAL_TO_REAL(couplerCenterpoint[VISION.Y_COORD] - ((mirrorHalfHeightInMm - iRecipes.Station1To5.rMirrorCenterOffsetToWeightCenterY) / cameraScale) - verticalSearchYOffsetInPixels);
 
 		// Detection from center to lower edge
-		lowerEdgeStartPoint[VISION.X_COORD] := couplerCenterPoint[VISION.X_COORD] - ((iRecipes.Station1To5.rCouplerGroveDepth) / cameraScale) + (iRecipes.Station1To5.rMirrorGripPointOffsetToEdgeX / cameraScale);
+		lowerEdgeStartPoint[VISION.X_COORD] := LREAL_TO_REAL(couplerCenterPoint[VISION.X_COORD] - ((iRecipes.Station1To5.rCouplerGroveDepth) / cameraScale) + (iRecipes.Station1To5.rMirrorGripPointOffsetToEdgeX / cameraScale));
 		lowerEdgeStartPoint[VISION.Y_COORD] := couplerCenterPoint[VISION.Y_COORD];
 		lowerEdgeEndPoint[VISION.X_COORD] := lowerEdgeStartPoint[VISION.X_COORD];
-		lowerEdgeEndPoint[VISION.Y_COORD] := couplerCenterpoint[VISION.Y_COORD] + ((mirrorHalfHeightInMm - iRecipes.Station1To5.rMirrorCenterOffsetToWeightCenterY) / cameraScale) + verticalsearchYOffsetInPixels;
+		lowerEdgeEndPoint[VISION.Y_COORD] := LREAL_TO_REAL(couplerCenterpoint[VISION.Y_COORD] + ((mirrorHalfHeightInMm - iRecipes.Station1To5.rMirrorCenterOffsetToWeightCenterY) / cameraScale) + verticalSearchYOffsetInPixels);
 
 		gotoNextStep(SUCCEEDED(hResult), E_MIRROR_PROCESSOR_STEPS.FIND_UPPER_EDGE); 
 		gotoNextStep(FAILED(hResult), E_MIRROR_PROCESSOR_STEPS.ERROR); 
@@ -120,8 +116,6 @@ CASE step OF
 		hResult := F_VN_DrawPoints(ipPoints := upperEdgeResultContainer, ipDestImage := processedImage, eShape := ETcVnDrawShape.TCVN_DS_X, aColor := Color.Lime, hrPrev := hResult);
 		hResult := F_VN_DrawPoints(ipPoints := lowerEdgeResultContainer, ipDestImage := processedImage, eShape := ETcVnDrawShape.TCVN_DS_X, aColor := Color.Lime, hrPrev := hResult);
 
-		// Offset from SOME center to where needs to be (calibrating?)
-		
 		// Vision found the edges of the mirror = Mirror Center
 		mirrorCenterY := FC_CalculateYCenterPoint(upperEdgePointAverage, lowerEdgePointAverage);
 
@@ -156,6 +150,21 @@ callMeRightAfterSwitchCase(TRUE, IING.STRING_BLANK);
 ]]></ST>
       </Implementation>
     </Method>
+    <Action Name="documentation" Id="{4bd08bd2-4942-45be-a667-d1973592c5d1}">
+      <Implementation>
+        <ST><![CDATA[(**
+
+
+
+
+
+
+
+
+
+*)]]></ST>
+      </Implementation>
+    </Action>
     <Method Name="ic_cancelProcessing" Id="{3960029f-7767-451f-8e6c-7315d1ba0e09}">
       <Declaration><![CDATA[METHOD ic_cancelProcessing
 VAR_INPUT
@@ -199,7 +208,7 @@ couplerCenterPoint := iCouplerCenterPoint;
       <Declaration><![CDATA[METHOD public ic_processingError : BOOL
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[ic_processingError := (step = E_COUPLER_PROCESSOR_STEPS.ERROR);
+        <ST><![CDATA[ic_processingError := (step = E_MIRROR_PROCESSOR_STEPS.ERROR);
 ]]></ST>
       </Implementation>
     </Method>
@@ -207,7 +216,7 @@ couplerCenterPoint := iCouplerCenterPoint;
       <Declaration><![CDATA[METHOD public ic_processingReady : BOOL
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[ic_processingReady := (step = E_COUPLER_PROCESSOR_STEPS.DONE);
+        <ST><![CDATA[ic_processingReady := (step = E_MIRROR_PROCESSOR_STEPS.DONE);
 ]]></ST>
       </Implementation>
     </Method>

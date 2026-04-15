@@ -18,6 +18,7 @@ VAR_OUTPUT
 	oConvertedImage:		ITcVnImage;
 	
 	oCameraPtr:				POINTER TO FB_VN_GevCameraControl;
+	oScalingFactor:			LREAL;
 END_VAR
 VAR_IN_OUT
 END_VAR
@@ -27,6 +28,8 @@ VAR
 	visionState:			ETcVnCameraState;
 	visionStateError:		BOOL;
 	ioCameraFb:				FB_VN_GevCameraControl;
+	
+	
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -44,6 +47,8 @@ CASE step OF
 
 	E_GIGE_CAM_HANDLER_SEQ_STEPS.RESET_CAMERA:
 		hResult := ioCameraFb.Reset();
+		hResult := FC_GetCameraScalingFactor(iCameraPtr := oCameraPtr, iHrPrev := hResult, ioScale := oScalingFactor);
+		
 		gotoNextStep(hResult = S_OK, E_GIGE_CAM_HANDLER_SEQ_STEPS.READY_FOR_OPERATION);
 		gotoNextStep(hResult = S_FALSE, E_GIGE_CAM_HANDLER_SEQ_STEPS.ERROR);
 	
@@ -95,5 +100,12 @@ oError := (step = E_GIGE_CAM_HANDLER_SEQ_STEPS.ERROR);
 oDone := (step = E_GIGE_CAM_HANDLER_SEQ_STEPS.DONE);
 ]]></ST>
     </Implementation>
+    <Method Name="calcScaleFactor" Id="{594c65a3-1a46-446a-8616-4dbe44b6addb}">
+      <Declaration><![CDATA[METHOD PRIVATE calcScaleFactor : LREAL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
   </POU>
 </TcPlcObject>

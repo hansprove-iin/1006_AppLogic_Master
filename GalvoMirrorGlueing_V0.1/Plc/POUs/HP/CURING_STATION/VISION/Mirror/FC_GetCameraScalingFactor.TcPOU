@@ -4,6 +4,7 @@
     <Declaration><![CDATA[FUNCTION FC_GetCameraScalingFactor : HRESULT
 VAR_INPUT
 	iCameraPtr:		POINTER TO FB_VN_GevCameraControl;
+	iHrPrev:			HRESULT;
 END_VAR
 VAR_IN_OUT
 	ioScale:		LREAL;		// Will contain the millimeters for ONE pixel = scale
@@ -13,10 +14,12 @@ VAR
     distortionCoefficients:		TcVnArray8_LREAL;
     rotationMatrix:				TcVnMatrix3x3_LREAL;
     translationVector:			TcVnVector3_LREAL;
+	//hResult:					HRESULT;
+	singlePixelPoint1:			TcVnPoint2_REAL := [0, 0];
+	singlePixelPoint2:			TcVnPoint2_REAL := [0, 1];
 END_VAR
 VAR CONSTANT
-	SINGLE_PIXEL_POINT1:	TcVnPoint2_REAL := [0, 0];
-	SINGLE_PIXEL_POINT2:	TcVnPoint2_REAL := [0, 1];
+
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[// Get camera calibration parameters
@@ -25,17 +28,24 @@ iCameraPtr^.GetDistortionCoefficients(aDistortionCoefficients := distortionCoeff
 iCameraPtr^.GetRotationMatrix(aRotationMatrix := rotationMatrix);
 iCameraPtr^.GetTranslationVector(aTranslationVector := translationVector);
 
+singlePixelPoint1[VISION.X_COORD] := 0;
+singlePixelPoint1[VISION.Y_COORD] := 0;
+
+singlePixelPoint2[VISION.X_COORD] := 0;
+singlePixelPoint2[VISION.Y_COORD] := 1;
+
+
 // We ask to give the distance of point1 to point2 = 1 pixel -> this will give us the scaling factor
-hResult := F_VN_ImagePointsWorldDistance( 
-	aImagePoint1 :=				SINGLE_PIXEL_POINT1,
-	aImagePoint2 :=				SINGLE_PIXEL_POINT2,
+FC_GetCameraScalingFactor := F_VN_ImagePointsWorldDistance( 
+	aImagePoint1 :=				singlePixelPoint1,
+	aImagePoint2 :=				singlePixelPoint2,
 	fWorldDistance :=			ioScale,
 	aCameraMatrix :=			cameraMatrix,
 	aDistortionCoefficients :=	distortionCoefficients,
 	aRotationMatrix :=			rotationMatrix,
 	aTranslationVector :=		translationVector,
-	fZ := 0,
-	hrPrev := hResult
+	fZ :=						0,
+	hrPrev :=					iHrPrev
 );]]></ST>
     </Implementation>
   </POU>
