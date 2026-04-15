@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_MIRROR_DETECT_SETTINGS" Id="{dc03b10a-70ae-4c8d-acc9-b3cf67d2bea6}">
+    <Declaration><![CDATA[TYPE ST_MIRROR_DETECT_SETTINGS :
+STRUCT
+//	startPoint:		TcVnPoint2_REAL := [1000, 550];
+//	endPoint:		TcVnPoint2_REAL := [550, 1000];
+	
+//	minStrength:	REAL := 45;
+//	searchLines:	UDINT := 5;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

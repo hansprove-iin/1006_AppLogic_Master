@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Itf Name="I_MirrorImageProcessor" Id="{6dc734ef-2c63-461b-9ce9-11d099ff1441}">
+    <Declaration><![CDATA[INTERFACE I_MirrorImageProcessor
+]]></Declaration>
+    <Method Name="ic_cancelProcessing" Id="{ea455d33-82cc-4178-96d7-f44c0cb5a0f2}">
+      <Declaration><![CDATA[METHOD ic_cancelProcessing
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="ic_getResult" Id="{6d2d6a81-76e1-4795-aded-985390f1f67b}">
+      <Declaration><![CDATA[METHOD ic_getResult : REAL
+
+]]></Declaration>
+    </Method>
+    <Method Name="ic_process" Id="{414d1729-6059-4b24-82d4-02a9d902372c}">
+      <Declaration><![CDATA[METHOD ic_process
+VAR_INPUT
+	iRawImage:			ITcVnImage;
+	iProcessedImage:	ITcVnImage;
+	iDisplayableImage:	ITcVnDisplayableImage;
+	iCameraPtr:			POINTER TO FB_VN_GevCameraControl;
+	iCouplerCenterPoint:	TcVnPoint2_REAL;	
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="ic_processingError" Id="{26977d23-ef64-4f50-9191-294d3e892d54}">
+      <Declaration><![CDATA[METHOD ic_processingError : BOOL
+]]></Declaration>
+    </Method>
+    <Method Name="ic_processingReady" Id="{ae9fb2d7-54c6-4e37-aa5c-b511829b0c83}">
+      <Declaration><![CDATA[METHOD ic_processingReady : BOOL
+]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

@@ -9,7 +9,7 @@ VAR_INPUT
 	iDetectMirror:			BOOL;
 	
 	iCouplerProcessor:		I_ImageProcessor;		// FB implementing
-	iMirrorProcessor:		I_ImageProcessor;
+	iMirrorProcessor:		I_MirrorImageProcessor;
 	
 END_VAR
 VAR_OUTPUT
@@ -147,7 +147,7 @@ CASE step OF
 		gotoNextStep(gigECameraHandler.oError, E_NORMAL_CAM_HANDLER_SEQ_STEPS.MIRROR_DETECT_FAILED);
 	
 	E_NORMAL_CAM_HANDLER_SEQ_STEPS.MIRROR_DETECT_IMAGE_PROCESSING:
-		iCouplerProcessor.ic_process(iRawImage := rawImageCopy, iProcessedImage := processedImage, iDisplayableImage := displayableProcessedImage);
+		iMirrorProcessor.ic_process(iRawImage := rawImageCopy, iProcessedImage := processedImage, iDisplayableImage := displayableProcessedImage, iCameraPtr := gigECameraHandler.oCameraPtr, iCouplerCenterPoint := iCouplerProcessor.ic_getCenterPoint());
 		gotoNextStep(iMirrorProcessor.ic_processingReady(), E_NORMAL_CAM_HANDLER_SEQ_STEPS.MIRROR_DETECT_DONE);
 		gotoNextStep(iMirrorProcessor.ic_processingError(), E_NORMAL_CAM_HANDLER_SEQ_STEPS.MIRROR_DETECT_FAILED);
 

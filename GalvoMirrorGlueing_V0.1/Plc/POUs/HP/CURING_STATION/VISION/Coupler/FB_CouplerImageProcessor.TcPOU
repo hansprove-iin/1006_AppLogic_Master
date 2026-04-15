@@ -26,6 +26,8 @@ VAR
 
 	topEdgePointAverage:		TcVnPoint2_REAL;
 	bottomEdgePointAverage:		TcVnPoint2_REAL;
+	
+	// Result of the vision operation
 	centerpoint:				TcVnPoint2_REAL;
 
 

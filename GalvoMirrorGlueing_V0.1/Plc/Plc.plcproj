@@ -117,7 +117,13 @@
     <Compile Include="POUs\HP\CURING_STATION\VISION\Coupler\FC_CalculateCenterPoint.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\Coupler\FC_CalculateYCenterPoint.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="POUs\HP\CURING_STATION\VISION\Coupler\FC_ExtractFromContainerAndCalculateAvg.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\Coupler\I_ImageProcessor.TcIO">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\HP\CURING_STATION\VISION\Coupler\ST_COUPLER_DETECT_SETTINGS.TcDUT">
@@ -141,13 +147,19 @@
     <Compile Include="POUs\HP\CURING_STATION\VISION\GenericCameraHandler\FB_GenericCameraHandler.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="POUs\HP\CURING_STATION\VISION\Interface\I_ImageProcessor.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="POUs\HP\CURING_STATION\VISION\Mirror\E_MIRROR_PROCESSOR_STEPS.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\HP\CURING_STATION\VISION\Mirror\FB_MirrorImageProcessor.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\Mirror\FC_GetCameraScalingFactor.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\Mirror\I_MirrorImageProcessor.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\Mirror\ST_MIRROR_DETECT_SETTINGS.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\HP\CURING_STATION\VISION\ST_LASER_TEST_SETTINGS.TcDUT">
@@ -364,7 +376,6 @@
     <Folder Include="POUs\HP\CURING_STATION" />
     <Folder Include="POUs\HP\CURING_STATION\VISION" />
     <Folder Include="POUs\HP\CURING_STATION\VISION\Coupler" />
-    <Folder Include="POUs\HP\CURING_STATION\VISION\Interface" />
     <Folder Include="POUs\HP\CURING_STATION\VISION\GenericCameraHandler" />
     <Folder Include="POUs\HP\CURING_STATION\VISION\Mirror" />
     <Folder Include="POUs\HP\GVL" />

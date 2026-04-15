@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FC_CalculateYCenterPoint" Id="{49ce58a3-3206-436e-97aa-da292a8929cc}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_CalculateYCenterPoint : REAL		// Calculates the center point (Y) of 2 points
+VAR_INPUT
+	iPoint1:		TcVnPoint2_REAL;
+	iPoint2:		TcVnPoint2_REAL;
+END_VAR
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FC_CalculateYCenterPoint := (iPoint1[VISION.Y_COORD] + iPoint2[VISION.Y_COORD]) / 2;
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

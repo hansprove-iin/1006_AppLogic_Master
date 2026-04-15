@@ -16,6 +16,8 @@ VAR_OUTPUT
 	
 	oRawImage:				ITcVnImage;
 	oConvertedImage:		ITcVnImage;
+	
+	oCameraPtr:				POINTER TO FB_VN_GevCameraControl;
 END_VAR
 VAR_IN_OUT
 END_VAR
@@ -84,6 +86,7 @@ ELSE
 END_CASE
 callMeRightAfterSwitchCase(TRUE, IING.STRING_BLANK);
 
+oCameraPtr := adr(ioCameraFb);
 
 
 oReadyForOperation := (step = E_GIGE_CAM_HANDLER_SEQ_STEPS.READY_FOR_OPERATION);
