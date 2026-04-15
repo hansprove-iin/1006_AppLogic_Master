@@ -165,7 +165,12 @@ mHmi();
       <Declaration><![CDATA[METHOD PRIVATE mDevices
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[cyls[0](
+        <ST><![CDATA[{warning disable C0371}
+IF (NOT __ISVALIDREF (ioHmi)) THEN
+	RETURN;
+END_IF
+
+cyls[0](
 	iOpenPos := iGripperOpen,
 	iClosePos := iGripperClosed,
 	iOpenInterLock := TRUE,
@@ -202,7 +207,10 @@ heater(
 	iDeviceId := FC_2strConcatSeparator(iSeparator := '_', iStr1 := 'Heater', iStr2 := iDeviceId),
 	ioHmi := ioHmi.heater,
 	ioStaticSettings := ioStaticHeaterSettings, 
-);]]></ST>
+);
+
+{warning restore C0371}
+]]></ST>
       </Implementation>
     </Method>
     <Method Name="mHmi" Id="{c1c4a4bf-1b08-4931-9088-720e2e94e1a9}">

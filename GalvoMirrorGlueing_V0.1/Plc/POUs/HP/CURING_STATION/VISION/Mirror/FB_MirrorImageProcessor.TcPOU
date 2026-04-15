@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_CouplerImageProcessor" Id="{26cc6962-9107-4abd-8c85-d106329a8d10}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_CouplerImageProcessor	EXTENDS FB_StepperProgram IMPLEMENTS I_ImageProcessor		// FB responsible for VISION program detecting the coupler
+  <POU Name="FB_MirrorImageProcessor" Id="{7c7766c3-bfb5-4519-b262-bfcbae084b09}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_MirrorImageProcessor	EXTENDS FB_StepperProgram IMPLEMENTS I_ImageProcessor		// FB responsible for VISION program detecting the coupler
 VAR
 	step:						E_COUPLER_PROCESSOR_STEPS;
 	hResult:					HRESULT;
@@ -146,7 +146,7 @@ END_CASE
 callMeRightAfterSwitchCase(TRUE, IING.STRING_BLANK);
 ]]></ST>
     </Implementation>
-    <Method Name="_mInternalCleanup" Id="{f9f28400-194a-4738-9624-db9399a486cc}">
+    <Method Name="_mInternalCleanup" Id="{0694ee4c-fe3d-44a8-8746-7b8ef20a3ada}">
       <Declaration><![CDATA[METHOD PRIVATE _mInternalCleanup
 ]]></Declaration>
       <Implementation>
@@ -154,7 +154,7 @@ callMeRightAfterSwitchCase(TRUE, IING.STRING_BLANK);
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="ic_cancelProcessing" Id="{455e2ca5-6bfe-4407-85d0-016e67d5adc0}">
+    <Method Name="ic_cancelProcessing" Id="{3960029f-7767-451f-8e6c-7315d1ba0e09}">
       <Declaration><![CDATA[METHOD ic_cancelProcessing
 VAR_INPUT
 END_VAR
@@ -164,7 +164,7 @@ END_VAR
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="ic_getCenterPoint" Id="{b6f67faf-dd8e-4ff4-a832-d86cf00b49d2}">
+    <Method Name="ic_getCenterPoint" Id="{aeb0cedc-0f2a-433a-89ff-c8e843e533b7}">
       <Declaration><![CDATA[METHOD ic_getCenterPoint : TcVnPoint2_REAL
 
 ]]></Declaration>
@@ -172,7 +172,7 @@ END_VAR
         <ST><![CDATA[ic_getCenterPoint := centerpoint;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="ic_process" Id="{f116b73f-131c-49ef-bb6a-f8d403e0e450}">
+    <Method Name="ic_process" Id="{1eed40ae-7bef-4f57-b7eb-9ab088ade75f}">
       <Declaration><![CDATA[METHOD ic_process
 VAR_INPUT
 	iRawImage:			ITcVnImage;
@@ -187,7 +187,7 @@ processedImage := iProcessedImage;
 displayableProcessedImage := iDisplayableImage;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="ic_processingError" Id="{b02ad15d-976c-4b74-b5e8-57e36c8b0383}">
+    <Method Name="ic_processingError" Id="{b12e3a3c-98eb-4ce4-8547-d944604ffee2}">
       <Declaration><![CDATA[METHOD public ic_processingError : BOOL
 ]]></Declaration>
       <Implementation>
@@ -195,7 +195,7 @@ displayableProcessedImage := iDisplayableImage;]]></ST>
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="ic_processingReady" Id="{d68877c6-46ee-4196-9e03-2a4787c9e0a7}">
+    <Method Name="ic_processingReady" Id="{649c7002-4e97-4211-94fb-f81b2a6867b3}">
       <Declaration><![CDATA[METHOD public ic_processingReady : BOOL
 ]]></Declaration>
       <Implementation>
@@ -203,7 +203,7 @@ displayableProcessedImage := iDisplayableImage;]]></ST>
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="stepAsString" Id="{e9d9ca03-4fb1-4891-808d-ad038655d62d}">
+    <Method Name="stepAsString" Id="{4c871f64-1463-43b0-ab72-54d600767036}">
       <Declaration><![CDATA[METHOD PUBLIC stepAsString : T_SHORT_STR
 ]]></Declaration>
       <Implementation>

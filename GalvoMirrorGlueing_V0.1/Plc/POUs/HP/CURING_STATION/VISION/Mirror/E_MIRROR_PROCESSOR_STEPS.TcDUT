@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <DUT Name="E_COUPLER_PROCESSOR_STEPS" Id="{8f3e200b-0d66-4837-bf51-d48ddc532f6b}">
+  <DUT Name="E_MIRROR_PROCESSOR_STEPS" Id="{b5e282f5-a97f-4c3e-8319-ed28edad8006}">
     <Declaration><![CDATA[{attribute 'qualified_only'}
 {attribute 'strict'}
 {attribute 'to_string'}
-TYPE E_COUPLER_PROCESSOR_STEPS :
+TYPE E_MIRROR_PROCESSOR_STEPS :
 (
 	INIT := 0,
 	

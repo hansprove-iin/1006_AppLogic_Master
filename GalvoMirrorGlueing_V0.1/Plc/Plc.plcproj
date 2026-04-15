@@ -114,6 +114,12 @@
     <Compile Include="POUs\HP\CURING_STATION\VISION\Coupler\FB_CouplerImageProcessor.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\Coupler\FC_CalculateCenterPoint.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\Coupler\FC_ExtractFromContainerAndCalculateAvg.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="POUs\HP\CURING_STATION\VISION\Coupler\ST_COUPLER_DETECT_SETTINGS.TcDUT">
       <SubType>Code</SubType>
     </Compile>
@@ -136,6 +142,12 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\HP\CURING_STATION\VISION\Interface\I_ImageProcessor.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\Mirror\E_MIRROR_PROCESSOR_STEPS.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\Mirror\FB_MirrorImageProcessor.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\HP\CURING_STATION\VISION\ST_LASER_TEST_SETTINGS.TcDUT">
@@ -354,6 +366,7 @@
     <Folder Include="POUs\HP\CURING_STATION\VISION\Coupler" />
     <Folder Include="POUs\HP\CURING_STATION\VISION\Interface" />
     <Folder Include="POUs\HP\CURING_STATION\VISION\GenericCameraHandler" />
+    <Folder Include="POUs\HP\CURING_STATION\VISION\Mirror" />
     <Folder Include="POUs\HP\GVL" />
     <Folder Include="POUs\Meca500\Op" />
     <Folder Include="POUs\Meca500\Op\PoseData" />

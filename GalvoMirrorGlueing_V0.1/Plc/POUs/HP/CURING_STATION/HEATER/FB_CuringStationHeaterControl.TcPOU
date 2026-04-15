@@ -82,6 +82,7 @@ ai(iRawValue := iPt100RawValue, oScaledValue => oTempInC, iDeviceId := iDeviceId
 //regularThermostat(iTargetValue := targetTemperature, iHysteresis := staticSettings.hysteresis, iMeasuredValue := ai.oScaledValue, ioHmi := ioHmi.regularThermostat);
 
 specialThermostat(iHeat := stepInBetween(E_CURING_STATION_HEATER_CONTROL_STEPS.HEAT_TO_TEST_TEMP, E_CURING_STATION_HEATER_CONTROL_STEPS.HEAT_TO_WORK_TEMP), iTargetTemp := targetTemperature, iMeasuredTemp := ai.oScaledValue,
+	iOptionalStartDelay := ULINT_TO_TIME(TIME_TO_ULINT(ioStaticSettings.cycleTime) / ioStaticSettings.nrOfStations),
 	iPFactor := ioStaticSettings.pFactor, iMinPowerProcent := ioStaticSettings.minPowerProcent, iMaxPowerProcent := ioStaticSettings.maxPowerProcent, iCycleTime := ioStaticSettings.cycleTime, 
 	ioHmi := iohmi.specialThermostat
 );

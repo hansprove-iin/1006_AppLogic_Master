@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FC_ExtractFromContainerAndCalculateAvg" Id="{fc73ed10-0273-4450-9281-76424c5c155f}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FC_ExtractFromContainerAndCalculateAvg  : HRESULT		// Calculates average X and Y of the search result stored in container
+VAR_INPUT
+	ipContainer:	ITcVnContainer;
+	iNumOfElements:	UDINT;
+	hrPrev	:	HRESULT;	(* HRESULT indicating the result of previous operations (If SUCCEEDED(hrPrev) equals false, no operation is executed.) *)
+END_VAR
+VAR_IN_OUT
+	ioResult:		TcVnPoint2_REAL;
+END_VAR
+VAR
+	i:				UDINT;
+	helperPoint:			TcVnPoint2_REAL;
+	hResult:		HRESULT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[ioResult[VISION.X_COORD] := 0;
+ioResult[VISION.Y_COORD] := 0;
+hResult := hrPrev;
+
+// Fetches result and stores to element
+FOR i := 0 TO (iNumOfElements - 1) DO
+	hResult := F_VN_GetAt_TcVnVector2_REAL(ipContainer := ipContainer, aElement := helperPoint, nIndex := i, hrPrev := hResult);
+
+	// Accumulate all X's and all Y's
+	ioResult[VISION.X_COORD] := ioResult[VISION.X_COORD] + helperPoint[VISION.X_COORD];
+	ioResult[VISION.Y_COORD] := ioResult[VISION.Y_COORD] + helperPoint[VISION.Y_COORD];
+END_FOR
+
+// Averages the X and Y's
+ioResult[VISION.X_COORD] := ioResult[VISION.X_COORD] / UDINT_TO_REAL(iNumOfElements);
+ioResult[VISION.Y_COORD] := ioResult[VISION.Y_COORD] / UDINT_TO_REAL(iNumOfElements);
+
+FC_ExtractFromContainerAndCalculateAvg := hResult;
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

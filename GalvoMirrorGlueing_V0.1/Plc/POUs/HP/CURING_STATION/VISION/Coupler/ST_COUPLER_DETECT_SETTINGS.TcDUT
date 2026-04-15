@@ -8,7 +8,6 @@ STRUCT
 	
 //	minStrength:	REAL := 45;
 //	searchLines:	UDINT := 5;
-	
 END_STRUCT
 END_TYPE
 ]]></Declaration>

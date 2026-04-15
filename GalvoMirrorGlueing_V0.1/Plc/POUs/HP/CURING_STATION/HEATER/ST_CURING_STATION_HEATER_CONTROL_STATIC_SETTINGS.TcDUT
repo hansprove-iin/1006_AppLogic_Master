@@ -11,7 +11,8 @@ STRUCT
 	minPowerProcent:			REAL := 20;		// If this were a PID controller, we need 20% to keep the constant heat (at target setpoint)
 	maxPowerProcent:			REAL := 80;		// To limit the output (in case the heating element is too powerfull)
 
-	cycleTime:					TIME := T#20S;	// 100% control = HEAT is on for this amount of cycle time, 50% results in 10sec ON and 10s OFF	
+	cycleTime:					TIME := T#20S;	// 100% control = HEAT is on for this amount of cycle time, 50% results in 10sec ON and 10s OFF
+	nrOfStations:				UDINT := 10;	// Used to calculate a start delay for the heaters to go on -> so FUSE won't blow
 END_STRUCT
 END_TYPE
 ]]></Declaration>
