@@ -45,7 +45,7 @@ VAR
 	
 	reset:					BOOL;
 	
-	scaling:				LREAL;
+
 END_VAR
 VAR PERSISTENT
 	settings:				ST_NORMAL_CAM_HANDLER_SETTINGS;

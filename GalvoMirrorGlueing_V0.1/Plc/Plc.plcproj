@@ -114,15 +114,6 @@
     <Compile Include="POUs\HP\CURING_STATION\VISION\Coupler\FB_CouplerImageProcessor.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="POUs\HP\CURING_STATION\VISION\Coupler\FC_CalculateCenterPoint.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\HP\CURING_STATION\VISION\Coupler\FC_CalculateYCenterPoint.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\HP\CURING_STATION\VISION\Coupler\FC_ExtractFromContainerAndCalculateAvg.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="POUs\HP\CURING_STATION\VISION\Coupler\I_ImageProcessor.TcIO">
       <SubType>Code</SubType>
     </Compile>
@@ -145,6 +136,15 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\HP\CURING_STATION\VISION\GenericCameraHandler\FB_GenericCameraHandler.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\HelperFunctions\FC_CalculateCenterPoint.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\HelperFunctions\FC_CalculateYCenterPoint.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\HP\CURING_STATION\VISION\HelperFunctions\FC_ExtractFromContainerAndCalculateAvg.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\HP\CURING_STATION\VISION\Mirror\E_MIRROR_PROCESSOR_STEPS.TcDUT">
@@ -378,6 +378,7 @@
     <Folder Include="POUs\HP\CURING_STATION\VISION\Coupler" />
     <Folder Include="POUs\HP\CURING_STATION\VISION\GenericCameraHandler" />
     <Folder Include="POUs\HP\CURING_STATION\VISION\Mirror" />
+    <Folder Include="POUs\HP\CURING_STATION\VISION\HelperFunctions" />
     <Folder Include="POUs\HP\GVL" />
     <Folder Include="POUs\Meca500\Op" />
     <Folder Include="POUs\Meca500\Op\PoseData" />

@@ -70,13 +70,13 @@ CASE step OF
 		// Detection from center to upper edge
 		upperEdgeStartPoint[VISION.X_COORD] := LREAL_TO_REAL(couplerCenterPoint[VISION.X_COORD] - ((iRecipes.Station1To5.rCouplerGroveDepth) / cameraScale) + (iRecipes.Station1To5.rMirrorGripPointOffsetToEdgeX / cameraScale)) ;
 		upperEdgeStartPoint[VISION.Y_COORD] := couplerCenterPoint[VISION.Y_COORD]; // Coupler centerpoint based Y Startpoint
-		upperEdgeEndPoint[VISION.X_COORD] := upperEdgeStartPoint[VISION.X_COORD];
+		upperEdgeEndPoint[VISION.X_COORD] := upperEdgeStartPoint[VISION.X_COORD];	// Copy of start = thus same X
 		upperEdgeEndPoint[VISION.Y_COORD] := LREAL_TO_REAL(couplerCenterpoint[VISION.Y_COORD] - ((mirrorHalfHeightInMm - iRecipes.Station1To5.rMirrorCenterOffsetToWeightCenterY) / cameraScale) - verticalSearchYOffsetInPixels);
 
 		// Detection from center to lower edge
 		lowerEdgeStartPoint[VISION.X_COORD] := LREAL_TO_REAL(couplerCenterPoint[VISION.X_COORD] - ((iRecipes.Station1To5.rCouplerGroveDepth) / cameraScale) + (iRecipes.Station1To5.rMirrorGripPointOffsetToEdgeX / cameraScale));
 		lowerEdgeStartPoint[VISION.Y_COORD] := couplerCenterPoint[VISION.Y_COORD];
-		lowerEdgeEndPoint[VISION.X_COORD] := lowerEdgeStartPoint[VISION.X_COORD];
+		lowerEdgeEndPoint[VISION.X_COORD] := lowerEdgeStartPoint[VISION.X_COORD];	// Copy of start = thus same X
 		lowerEdgeEndPoint[VISION.Y_COORD] := LREAL_TO_REAL(couplerCenterpoint[VISION.Y_COORD] + ((mirrorHalfHeightInMm - iRecipes.Station1To5.rMirrorCenterOffsetToWeightCenterY) / cameraScale) + verticalSearchYOffsetInPixels);
 
 		gotoNextStep(SUCCEEDED(hResult), E_MIRROR_PROCESSOR_STEPS.FIND_UPPER_EDGE); 
